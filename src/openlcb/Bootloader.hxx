@@ -1027,8 +1027,12 @@ bool bootloader_init() {
     {
         bool request = request_bootloader();
         bootloader_led(LED_REQUEST, request);
-        bool csum_ok = check_application_checksum();
-        bootloader_led(LED_CSUM_ERROR, !csum_ok);
+        bool csum_ok = false;
+        if (!request)
+        {
+            csum_ok = check_application_checksum();
+            bootloader_led(LED_CSUM_ERROR, !csum_ok);
+        }
         if (!request && csum_ok)
         {
             g_bootloader_busy = 0;

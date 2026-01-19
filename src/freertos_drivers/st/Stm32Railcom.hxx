@@ -429,10 +429,10 @@ private:
     /// CHANNEL_COUNT entries. Since the packet allocation can take a few usec,
     /// doing it here, ahead of time can avoid running out of time starting
     /// the cutout.
-    void set_feedback_key(uint32_t key) override
+    void set_feedback_key(uint32_t key, uint16_t dcc_address) override
     {
         Debug::RailComAllocPacketTiming::set(true);
-        RailcomDriverBase<HW>::set_feedback_key(key);
+        RailcomDriverBase<HW>::set_feedback_key(key, dcc_address);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
             if (!returnedPackets_[i])

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2016, Stuart W Baker
+ * Copyright (c) 2025, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,45 +24,52 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file RailCom.h
+ * \file FilteringCanHubFlow.hxx
  *
- * Defines a RailCom feedback structure.
+ * Can Frame Hub that performs addressed message filtering for openlcb.
  *
- * @author Stuart W Baker
- * @date 25 November 2016
+ * @author Balazs Racz
+ * @date 28 Dec 2025
  */
 
-#ifndef _DCC_RAILCOM_H_
-#define _DCC_RAILCOM_H_
+#ifndef _OPENLCB_FILTERINGCANHUBFLOW_HXX_
+#define _OPENLCB_FILTERINGCANHUBFLOW_HXX_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "openlcb/CanFilter.hxx"
+#include "utils/Hub.hxx"
 
-typedef struct dcc_feedback
+namespace openlcb
 {
-    /// Number of bytes in channel one.
-    uint8_t ch1Size;
-    /// Payload of channel 1.
-    uint8_t ch1Data[2];
-    /// Number of bytes in channel two.
-    uint8_t ch2Size;
-    /// Payload of channel 2.
-    uint8_t ch2Data[6];
-    /// Used by multi-channel railcom receiver drivers. Specifies which
-    /// hardware channel captured this data.
-    uint8_t channel;
-    /// First two bytes of the DCC packet. First byte is MSB, second byte is
-    /// LSB.
-    uint16_t dccAddress;
-    /// Opaque identifier that allows linking outgoing dcc::Packet sent to the
-    /// DCC waveform generator to the incoming dcc::Feedback structure read
-    /// back from the railcom driver.
-    uintptr_t feedbackKey;
-} DCCFeedback;
 
-#ifdef __cplusplus
-}
-#endif
+/// A CAN Hub Flow that uses CanFilter to route messages.
+class FilteringCanHubFlow : public CanHubFlow
+{
+public:
+    FilteringCanHubFlow(Service *service);
 
-#endif // _DCC_RAILCOM_H_
+    /// Sets whether filtering is enabled.
+    /// @param is_filtering true to enable filtering, false for legacy behavior.
+    void set_filtering(bool is_filtering)
+    {
+        isFiltering_ = is_filtering;
+    }
+
+    Action entry() override;
+    Action iterate() override;
+
+    void unregister_port(CanHubFlow::port_type *port) override;
+
+    /** Sets a port to be promiscuous.
+     * @param port the port to set.
+     * @param is_promiscuous true to enable promiscuous mode, false to disable.
+     */
+    void set_port_promiscuous(CanHubFlow::port_type *port, bool is_promiscuous);
+
+private:
+    CanFilter filter_;
+    bool isFiltering_;
+};
+
+} // namespace openlcb
+
+#endif // _OPENLCB_FILTERINGCANHUBFLOW_HXX_
