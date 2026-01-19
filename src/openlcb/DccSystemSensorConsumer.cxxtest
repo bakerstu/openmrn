@@ -68,7 +68,7 @@ TEST_F(DccSystemSensorTest, global_identify)
 TEST_F(DccSystemSensorTest, identify_sensor_state)
 {
     // Sensor 0 initially unknown.
-    EXPECT_FALSE(consumer_.is_sensor_known(0));
+    EXPECT_FALSE(consumer_.is_sensor_state_known(1));
     
     // Query Sensor 0 Active event (Base Active + 0)
     // 01.01.02.00.00.FB.00.00
@@ -85,8 +85,8 @@ TEST_F(DccSystemSensorTest, identify_sensor_state)
     wait();
 
     // Verify state
-    EXPECT_TRUE(consumer_.is_sensor_known(0));
-    EXPECT_TRUE(consumer_.is_sensor_active(0));
+    EXPECT_TRUE(consumer_.is_sensor_state_known(1));
+    EXPECT_TRUE(consumer_.is_sensor_state_active(1));
 
     // Query Sensor 0 Active event -> Should be VALID
     send_packet_and_expect_response(":X198F4111N0101020000FB0000;",
@@ -101,8 +101,8 @@ TEST_F(DccSystemSensorTest, identify_sensor_state)
     wait();
 
     // Verify state
-    EXPECT_TRUE(consumer_.is_sensor_known(0));
-    EXPECT_FALSE(consumer_.is_sensor_active(0));
+    EXPECT_TRUE(consumer_.is_sensor_state_known(1));
+    EXPECT_FALSE(consumer_.is_sensor_state_active(1));
 
     // Query Sensor 0 Active event -> Should be INVALID
     send_packet_and_expect_response(":X198F4111N0101020000FB0000;",
@@ -118,14 +118,14 @@ TEST_F(DccSystemSensorTest, multiple_sensors)
     // Sensor 10
     send_packet(":X195B4111N0101020000FB000A;"); // Set active
     wait();
-    EXPECT_TRUE(consumer_.is_sensor_known(10));
-    EXPECT_TRUE(consumer_.is_sensor_active(10));
+    EXPECT_TRUE(consumer_.is_sensor_state_known(11));
+    EXPECT_TRUE(consumer_.is_sensor_state_active(11));
 
     // Sensor 4095
     send_packet(":X195B4111N0101020000FA0FFF;"); // Set inactive
     wait();
-    EXPECT_TRUE(consumer_.is_sensor_known(4095));
-    EXPECT_FALSE(consumer_.is_sensor_active(4095));
+    EXPECT_TRUE(consumer_.is_sensor_state_known(4096));
+    EXPECT_FALSE(consumer_.is_sensor_state_active(4096));
 }
 
 } // namespace openlcb

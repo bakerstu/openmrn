@@ -54,6 +54,9 @@ public:
     static constexpr bool STATE_NORMAL = true;
     /// Constant representing the Reverse (inactive) state.
     static constexpr bool STATE_REVERSED = false;
+    /// Constant representing the largest address that is valid for bit state
+    /// and query.
+    static constexpr unsigned MAX_ADDRESS = 2048;
     
     static const EventRangeConfig* get_config()
     {
@@ -61,7 +64,7 @@ public:
             TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
             TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
             12, // 4096 events (12 bits)
-            2048 // 2048 state bits (4096 events map to 2048 outputs)
+            MAX_ADDRESS // 2048 state bits (4096 events map to 2048 outputs)
         };
         return &cfg;
     }
@@ -76,7 +79,31 @@ public:
     {
     }
 
+    /// Translates a user address to a binary address and checks the internal
+    /// state whether we have a known state.
+    /// @param user_address is a user-visible DCC accessory address, 1 to 2048.
+    /// @return true if the state is known (i.e., we've seen an event for
+    /// normal or reversed until now.
+    bool is_accy_state_known(unsigned user_address) {
+        return is_state_known(
+            dcc::Defs::accy_address_user_to_binary(user_address));
+    }
+
+    /// Translates a user address to a binary address and checks the internal
+    /// state whether that turnout is normal or reversed.
+    /// @param user_address is a user-visible DCC accessory address, 1 to 2048.
+    /// @return true if the turnout state is normal, false if reversed.
+    bool is_accy_state_normal(unsigned user_address) {
+        return get_state(dcc::Defs::accy_address_user_to_binary(
+                   user_address)) == STATE_NORMAL;
+    }
+    
 protected:
+    void action_impl() override
+    {
+        // Noop implementation.
+    }
+    
     /// Parses an event into an openlcb accessory offset.
     bool parse_event(EventId event, uint32_t *address, bool *value) override
     {
