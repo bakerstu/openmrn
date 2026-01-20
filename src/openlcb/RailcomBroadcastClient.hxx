@@ -62,6 +62,10 @@ public:
     /// This structure is kept in the current_locos array.
     struct LocoInfo
     {
+        LocoInfo(NodeID id, bool is_west)
+            : nodeId_(id) {
+            set_west(is_west);
+        }
         /// @return the Node ID of the locomotive.
         NodeID node_id() const
         {

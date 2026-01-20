@@ -71,7 +71,7 @@ RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::node_id_from_event(
     uint16_t lo = event & 0xFFFF;
     if (!lo)
     {
-        return 0;
+        return LocoInfo(0, true);
     }
 
     // Extract address from bottom 14 bits
@@ -87,7 +87,8 @@ RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::node_id_from_event(
         id = TractionDefs::train_node_id_from_legacy(
             dcc::TrainAddressType::DCC_SHORT_ADDRESS, address & 127);
     }
-    return id;
+    bool is_west = event & 0x4000;
+    return LocoInfo(id, is_west);
 }
 
 void RailcomBroadcastClient::handle_event_report(
@@ -100,7 +101,7 @@ void RailcomBroadcastClient::handle_event_report(
         return;
     }
 
-    NodeID id = node_id_from_event(event->event);
+    auto id = node_id_from_event(event->event);
     add_loco(id);
 }
 
@@ -117,7 +118,7 @@ void RailcomBroadcastClient::add_loco(LocoInfo id)
         return;
     }
     bool found = false;
-    for (unsigned i = 0; i < locos_.size(); ++i);
+    for (unsigned i = 0; i < locos_.size(); ++i)
     {
         if (locos_[i].node_id() == id.node_id())
         {
@@ -153,7 +154,7 @@ void RailcomBroadcastClient::handle_producer_identified(
         return done->notify();
     }
 
-    NodeID id = node_id_from_event(event->event);
+    auto id = node_id_from_event(event->event);
     if (event->state == EventState::INVALID)
     {
         del_loco(id);
