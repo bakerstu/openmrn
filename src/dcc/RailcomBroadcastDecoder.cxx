@@ -142,9 +142,20 @@ void RailcomBroadcastDecoder::set_occupancy(bool value)
 {
     if (value)
     {
+        if (countOcc_ < MAX_OCC)
+        {
+            ++countOcc_;
+        }
         return;
     }
-    notify_empty();
+    if (countOcc_)
+    {
+        --countOcc_;
+    }
+    if (countOcc_ < MIN_OCC)
+    {
+        notify_empty();
+    }
 }
 
 void RailcomBroadcastDecoder::notify_empty()
