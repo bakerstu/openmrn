@@ -53,6 +53,7 @@ set(SRCS
     ${OPENMRNPATH}/src/openlcb/EventHandlerContainer.cxx
     ${OPENMRNPATH}/src/openlcb/EventHandlerTemplates.cxx
     ${OPENMRNPATH}/src/openlcb/EventService.cxx
+    ${OPENMRNPATH}/src/openlcb/FilteringCanHubFlow.cxx
     ${OPENMRNPATH}/src/openlcb/If.cxx
     ${OPENMRNPATH}/src/openlcb/IfCan.cxx
     ${OPENMRNPATH}/src/openlcb/IfImpl.cxx
