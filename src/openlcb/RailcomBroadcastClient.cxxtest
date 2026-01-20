@@ -1,0 +1,213 @@
+/** \copyright
+ * Copyright (c) 2026, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file RailcomBroadcastClient.cxxtest
+ *
+ * Tests for RailcomBroadcastClient.
+ *
+ * @author Balazs Racz
+ * @date 15 Jan 2026
+ */
+
+#include "openlcb/RailcomBroadcastClient.hxx"
+
+#include "utils/async_if_test_helper.hxx"
+#include "openlcb/TractionDefs.hxx"
+
+namespace openlcb
+{
+
+class RailcomBroadcastClientTest : public AsyncNodeTest
+{
+protected:
+    RailcomBroadcastClientTest()
+    {
+        // Use a base address that has bottom 16 bits cleared.
+        base_ = 0x0501010100000000ULL;
+        client_ = new RailcomBroadcastClient(node_, base_);
+        last_seq_ = client_->seq();
+    }
+
+    ~RailcomBroadcastClientTest()
+    {
+        delete client_;
+    }
+
+    uint64_t base_;
+    RailcomBroadcastClient *client_;
+    uint16_t last_seq_;
+
+    void expect_seq_increment(unsigned count = 1)
+    {
+        auto new_seq = client_->seq();
+        EXPECT_EQ(last_seq_ + count, new_seq);
+        last_seq_ = new_seq;
+    }
+
+    void expect_no_seq_increment()
+    {
+        auto new_seq = client_->seq();
+        EXPECT_EQ(last_seq_, new_seq);
+    }
+    
+    std::string make_incoming_event_packet(uint16_t mti, uint64_t event_id)
+    {
+        char buf[64];
+        snprintf(buf, sizeof(buf), ":X19%03X%03XN%016" PRIX64 ";", mti, 0x777,
+            event_id); // Source 777
+        return std::string(buf);
+    }
+
+    std::string make_outgoing_event_packet(uint16_t mti, uint64_t event_id)
+    {
+        char buf[64];
+        snprintf(buf, sizeof(buf), ":X19%03X%03XN%016" PRIX64 ";", mti, 0x22A,
+            event_id); // Source 22A (node_)
+        return std::string(buf);
+    }
+};
+
+TEST_F(RailcomBroadcastClientTest, CreateDestroy)
+{
+    EXPECT_TRUE(client_->current_locos().empty());
+}
+
+TEST_F(RailcomBroadcastClientTest, AddLoco)
+{
+    uint64_t event = base_ | 3;
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
+    wait();
+    expect_seq_increment();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    NodeID expected = TractionDefs::train_node_id_from_legacy(
+        dcc::TrainAddressType::DCC_SHORT_ADDRESS, 3);
+    EXPECT_EQ(expected, client_->current_locos()[0]);
+}
+
+TEST_F(RailcomBroadcastClientTest, AddDuplicateLoco)
+{
+    uint64_t event = base_ | 3;
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
+    wait();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    expect_seq_increment();
+
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
+    wait();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    expect_no_seq_increment();
+}
+
+TEST_F(RailcomBroadcastClientTest, AddLocoFromQuery)
+{
+    send_packet(make_incoming_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 3));
+    send_packet(make_incoming_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 0x8005));
+    wait();
+    expect_seq_increment(2);
+    ASSERT_EQ(2u, client_->current_locos().size());
+    NodeID expected3 = TractionDefs::train_node_id_from_legacy(
+        dcc::TrainAddressType::DCC_SHORT_ADDRESS, 3);
+    NodeID expected5 = TractionDefs::train_node_id_from_legacy(
+        dcc::TrainAddressType::DCC_LONG_ADDRESS, 5);
+    EXPECT_EQ(expected3, client_->current_locos()[0]);
+    EXPECT_EQ(expected5, client_->current_locos()[1]);
+}
+
+TEST_F(RailcomBroadcastClientTest, RemoveLoco)
+{
+    uint64_t event = base_ | 3;
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
+    wait();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    expect_seq_increment();
+
+    // Producer Identified INVALID
+    send_packet(make_incoming_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFIED_INVALID, event));
+    wait();
+    ASSERT_TRUE(client_->current_locos().empty());
+    expect_seq_increment();
+}
+
+TEST_F(RailcomBroadcastClientTest, RemoveNonExistentLoco)
+{
+    uint64_t event = base_ | 3;
+    send_packet(make_incoming_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFIED_INVALID, event));
+    wait();
+    ASSERT_TRUE(client_->current_locos().empty());
+    expect_no_seq_increment();
+}
+
+TEST_F(RailcomBroadcastClientTest, IgnoreOutOfRange)
+{
+    uint64_t event = (base_ + 0x10000) | 3; // Outside 16-bit range
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
+    wait();
+    ASSERT_TRUE(client_->current_locos().empty());
+    expect_no_seq_increment();
+}
+
+TEST_F(RailcomBroadcastClientTest, IdentifyGlobal)
+{
+    // Expect CONSUMER_IDENTIFIED_RANGE
+    // EncodeRange for 65536 events (16 bits) results in the lower 16 bits being
+    // set to 1.
+    expect_packet(make_outgoing_event_packet(
+        Defs::MTI_CONSUMER_IDENTIFIED_RANGE, base_ | 0xFFFFULL));
+    expect_packet(make_outgoing_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFY, base_ | 0x0000ULL));
+
+    // Send Identify Global (from external source)
+    send_packet(":X19970777N;");
+    wait();
+}
+
+TEST_F(RailcomBroadcastClientTest, IdentifyConsumer)
+{
+    uint64_t event = base_ | 5;
+    // Expect CONSUMER_IDENTIFIED_UNKNOWN (0x4C7)
+    expect_packet(make_outgoing_event_packet(
+        Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN, event));
+
+    // Send Identify Consumer
+    send_packet(make_incoming_event_packet(Defs::MTI_CONSUMER_IDENTIFY, event));
+    wait();
+}
+
+TEST_F(RailcomBroadcastClientTest, IdentifyConsumerOutOfRange)
+{
+    uint64_t event = (base_ + 0x10000) | 5;
+    // Should verify no response.
+    // AsyncNodeTest logs unexpected packets as errors.
+
+    send_packet(make_incoming_event_packet(Defs::MTI_CONSUMER_IDENTIFY, event));
+    wait();
+}
+
+} // namespace openlcb

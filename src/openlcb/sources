@@ -31,6 +31,7 @@ CXXSRCS += \
            NonAuthoritativeEventProducer.cxx \
            Node.cxx \
            PIPClient.cxx \
+           RailcomBroadcastClient.cxx \
            RoutingLogic.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
