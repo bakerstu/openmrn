@@ -283,10 +283,14 @@ public:
             static_cast<openlcb::Defs::MTI>(openlcb::Defs::MTI_XPRESSNET + 2),
             node_->node_id(), string());
         b->data()->payload.push_back(message()->data()->channel | 0x10);
-        if (message()->data()->haveCh1Dir) {
-            if (message()->data()->ch1Dir) {
+        if (message()->data()->haveCh1Dir)
+        {
+            if (message()->data()->ch1Dir)
+            {
                 b->data()->payload.back() |= 0x80;
-            } else {
+            }
+            else
+            {
                 b->data()->payload.back() |= 0x40;
             }
         }
