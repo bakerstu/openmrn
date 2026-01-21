@@ -234,10 +234,17 @@ struct Stm32GpioOptionDefs
     /// Sets the GPIO pin number, like GPIO_PIN_0, GPIO_PIN_1, etc. Required.
     DECLARE_OPTIONALARG(Pin, pin, uint16_t, 11, 0xffff);
     /// Sets the GPIO pin number, 0..15. Required.
-    DECLARE_OPTIONALARG(PinNum, pin_num, uint8_t, 11, 0xff);
+    DECLARE_OPTIONALARG(PinNum, pin_num, uint8_t, 12, 0xff);
+    /// Sets the GPIO port number for the exti line, like LL_EXTI_CONFIG_PORTA,
+    /// etc. Required.
+    DECLARE_OPTIONALARG(ExtiPort, exti_port, uint32_t, 13, 0xf);
+    /// Sets the GPIO line config number for the exti line, like
+    /// LL_EXTI_CONFIG_LINE7, etc. Required.
+    DECLARE_OPTIONALARG(
+        ExtiLineConfig, exti_line_config, uint32_t, 14, 0xffffffff);
 
-    using Base = OptionalArg<Stm32GpioOptionDefs, GpioMode, Pull, Speed,
-        AfMode, PeriphBase, Pin, PinNum>;
+    using Base = OptionalArg<Stm32GpioOptionDefs, GpioMode, Pull, Speed, AfMode,
+        PeriphBase, Pin, PinNum, ExtiPort, ExtiLineConfig>;
 };
 
 /// Constexpr class for representing the actual options that are defined on a
@@ -261,6 +268,8 @@ public:
     DEFINE_OPTIONALARG(PeriphBase, periph_base, uint32_t);
     DEFINE_OPTIONALARG(Pin, pin, uint16_t);
     DEFINE_OPTIONALARG(PinNum, pin_num, uint8_t);
+    DEFINE_OPTIONALARG(ExtiPort, exti_port, uint32_t);
+    DEFINE_OPTIONALARG(ExtiLineConfig, exti_line_config, uint32_t);
 
     constexpr bool is_af() const
     {
@@ -337,6 +346,8 @@ public:
     struct NAME##_PinDefs                                                      \
     {                                                                          \
         using PeriphBase = Stm32GpioOptions::PeriphBase;                       \
+        using ExtiPort = Stm32GpioOptions::ExtiPort;                           \
+        using ExtiLineConfig = Stm32GpioOptions::ExtiLineConfig;               \
         using Pin = Stm32GpioOptions::Pin;                                     \
         using PinNum = Stm32GpioOptions::PinNum;                               \
         using GpioMode = Stm32GpioOptions::GpioMode;                           \
@@ -382,7 +393,9 @@ public:
         static constexpr Stm32GpioOptions opts()                               \
         {                                                                      \
             return Stm32GpioOptions(PeriphBase(GPIO##PORTNAME##_BASE),         \
-                Pin(GPIO_PIN_##NUM), PinNum(NUM), ##ARGS);                     \
+                ExtiPort(LL_EXTI_CONFIG_PORT##PORTNAME), Pin(GPIO_PIN_##NUM),  \
+                PinNum(NUM), ExtiLineConfig(LL_EXTI_CONFIG_LINE##NUM),         \
+                ##ARGS);                                                       \
         }                                                                      \
     };                                                                         \
     typedef BaseClass<NAME##_PinDefs> NAME##_Pin
@@ -458,6 +471,46 @@ struct GpioHwPin : public Stm32GpioDefs<Defs::opts().periph_base(),
         HAL_GPIO_Init(Defs::opts().port(), &gpio_init);
     }
 }; // class GpioHwPin
+
+/// Policy class to use for GPIO_XPIN as BaseClass argument.
+///
+/// Example:
+///
+/// GPIO_XPIN(FOO, GpioIoPin, B, 7, Input(), PullUp());
+///
+/// This will make FOO_Pin::hw_init() configure PB7 for AF0 mode for USART1
+/// using internal weak pullup.
+template <class Defs>
+struct GpioIoPin : public Stm32GpioDefs<Defs::opts().periph_base(),
+                       Defs::opts().pin(), Defs::opts().pin_num()>
+{
+    /// Implements hw_init functionality for this pin only.
+    static void hw_init()
+    {
+        GPIO_InitTypeDef gpio_init = {0};
+        Stm32GpioOptions::fill_options(&gpio_init, Defs::opts());
+        HAL_GPIO_Init(Defs::opts().port(), &gpio_init);
+    }
+
+    /// Implements hw_set_to_safe functionality for this pin only.
+    static void hw_set_to_safe()
+    {
+        hw_init();
+    }
+
+    /// Switches the GPIO pin to the hardware peripheral.
+    static void set_hw()
+    {
+        hw_init();
+    }
+
+    /// Options for default behavior (set_hw).
+    static constexpr Stm32GpioOptions opts()
+    {
+        return Defs::opts();
+    }
+}; // class GpioIoPin
+
 
 /// Helper macro for defining GPIO pins.
 ///
