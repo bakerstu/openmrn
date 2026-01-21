@@ -52,6 +52,14 @@ typedef struct dcc_feedback
     /// Used by multi-channel railcom receiver drivers. Specifies which
     /// hardware channel captured this data.
     uint8_t channel;
+    /// 1 if data from channel 1 has a valid direction
+    uint8_t haveCh1Dir : 1;
+    /// 1 if channel 1 direction is "west".
+    uint8_t ch1Dir : 1;
+    /// 1 if data from channel 2 has a valid direction
+    uint8_t haveCh2Dir : 1;
+    /// 1 if channel 2 direction is "west"
+    uint8_t ch2Dir : 1;
     /// First two bytes of the DCC packet. First byte is MSB, second byte is
     /// LSB.
     uint16_t dccAddress;
