@@ -107,7 +107,7 @@ struct RailcomHw
     // channel:
 
     static const uint32_t RAILCOM_DIR_EXTI[CHANNEL_COUNT];
-    
+
     // Make sure there are enough entries here for all the channels times a few
     // DCC packets.
     static const uint32_t Q_SIZE = 32;
@@ -247,7 +247,7 @@ private:
             LL_EXTI_DisableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
             LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
             LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
-            
+
             // configure DMA
 
             // peripheral address
