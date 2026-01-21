@@ -511,7 +511,6 @@ struct GpioIoPin : public Stm32GpioDefs<Defs::opts().periph_base(),
     }
 }; // class GpioIoPin
 
-
 /// Helper macro for defining GPIO pins.
 ///
 /// @param NAME is the basename of the declaration. For NAME==FOO the macro
