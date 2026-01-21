@@ -63,7 +63,8 @@ public:
     struct LocoInfo
     {
         LocoInfo(NodeID id, bool is_west)
-            : nodeId_(id) {
+            : nodeId_(id)
+        {
             set_west(is_west);
         }
         /// @return the Node ID of the locomotive.
@@ -81,12 +82,14 @@ public:
             return isWest_ != 0;
         }
 
-        bool empty() {
+        bool empty()
+        {
             return nodeId_ == 0;
         }
 
         /// Equality comparison on keys only.
-        bool operator==(const LocoInfo& o) {
+        bool operator==(const LocoInfo &o)
+        {
             return nodeId_ == o.nodeId_;
         }
 

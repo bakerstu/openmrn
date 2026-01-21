@@ -104,7 +104,8 @@ RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::node_id_from_event(
     }
     unsigned dirbits = (event & 0xC000) >> 14;
     bool is_west = false;
-    switch(dirbits) {
+    switch (dirbits)
+    {
         case 0b11:
             // unknown direction
             is_west = false;
