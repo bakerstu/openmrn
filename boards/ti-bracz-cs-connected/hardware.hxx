@@ -3,8 +3,8 @@
 #ifndef _BRACZ_CS_TIVA_HARDWARE_HXX_
 #define _BRACZ_CS_TIVA_HARDWARE_HXX_
 
-#include "TivaGPIO.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 #include "utils/GpioInitializer.hxx"
 
 /*

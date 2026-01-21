@@ -41,7 +41,7 @@
 
 #include <string.h>
 
-#include "bootloader_hal.h"
+#include "openlcb/bootloader_hal.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/gpio.h"
@@ -52,7 +52,7 @@
 
 #include "nmranet_config.h"
 #include "openlcb/Defs.hxx"
-#include "TivaGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
 
 extern "C" {
 

@@ -40,7 +40,7 @@
 
 #include <cstdint>
 
-#include "Serial.hxx"
+#include "freertos_drivers/common/Serial.hxx"
 
 #include "driverlib/uart.h"
 

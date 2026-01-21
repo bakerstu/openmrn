@@ -36,7 +36,7 @@
 
 #include <functional>
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "utils/Atomic.hxx"
 
 extern "C" {

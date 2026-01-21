@@ -31,7 +31,7 @@
  * @date 30 May 2016
  */
 
-#include "CC32xxSPI.hxx"
+#include "freertos_drivers/ti/CC32xxSPI.hxx"
 
 #include <algorithm>
 #include <unistd.h>

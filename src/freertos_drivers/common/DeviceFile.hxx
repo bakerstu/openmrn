@@ -38,7 +38,7 @@
 
 #include <cstdint>
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 /**
  * Base class for implementing block devices and other file drivers which can

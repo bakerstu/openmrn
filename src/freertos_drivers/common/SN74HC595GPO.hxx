@@ -42,7 +42,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "SPI.hxx"
+#include "freertos_drivers/common/SPI.hxx"
 
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"

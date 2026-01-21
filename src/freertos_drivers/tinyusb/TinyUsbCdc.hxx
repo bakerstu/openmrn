@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_TINYUSB_TINYUSBCDC_HXX_
 #define _FREERTOS_DRIVERS_TINYUSB_TINYUSBCDC_HXX_
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "os/OS.hxx"
 #include "utils/Singleton.hxx"
 
