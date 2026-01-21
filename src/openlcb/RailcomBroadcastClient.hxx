@@ -148,8 +148,9 @@ private:
     /// Checks if the given event ID falls within our monitored range.
     bool is_our_event(uint64_t event_id) const;
 
-    /// Parses an event into a LocoInfo structure.
-    static LocoInfo node_id_from_event(uint64_t event);
+    /// Parses an event into a LocoInfo structure. This will contain the node
+    /// ID and the direction bit.
+    static LocoInfo parse_event(uint64_t event);
 
     /// Adds a locomotive to the locos_ array.
     void add_loco(LocoInfo n);
