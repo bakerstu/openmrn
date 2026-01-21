@@ -77,17 +77,45 @@ RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::node_id_from_event(
     // Extract address from bottom 14 bits
     uint16_t address = event & 0x3FFF;
     NodeID id = 0;
-    if (lo & 0x8000)
+    uint8_t partition = address >> 8;
+    if (partition == dcc::Defs::ADR_MOBILE_SHORT ||
+        partition == dcc::Defs::ADR_CONSIST_SHORT)
+    {
+        address &= 127;
+        if (!address)
+        {
+            id = 0;
+        }
+        else
+        {
+            id = TractionDefs::train_node_id_from_legacy(
+                dcc::TrainAddressType::DCC_SHORT_ADDRESS, address);
+        }
+    }
+    else if (partition <= dcc::Defs::MAX_MOBILE_LONG)
     {
         id = TractionDefs::train_node_id_from_legacy(
             dcc::TrainAddressType::DCC_LONG_ADDRESS, address);
     }
     else
     {
-        id = TractionDefs::train_node_id_from_legacy(
-            dcc::TrainAddressType::DCC_SHORT_ADDRESS, address & 127);
+        // Unknown railcom address partition
+        id = 0;
     }
-    bool is_west = event & 0x4000;
+    unsigned dirbits = (event & 0xC000) >> 14;
+    bool is_west = false;
+    switch(dirbits) {
+        case 0b11:
+            // unknown direction
+            is_west = false;
+            break;
+        case 0b01:
+            is_west = true;
+            break;
+        case 0b10:
+            is_west = false;
+            break;
+    }
     return LocoInfo(id, is_west);
 }
 
