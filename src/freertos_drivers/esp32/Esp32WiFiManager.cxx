@@ -845,6 +845,12 @@ void Esp32WiFiManager::start_mdns_system()
 
 void Esp32WiFiManager::on_station_started()
 {
+    if (!(wifiMode_ == WIFI_MODE_STA || wifiMode_ == WIFI_MODE_APSTA))
+    {
+        LOG(INFO, "[Station] Did not want station.");
+        return;
+    }
+
     // Set the generated hostname prior to connecting to the SSID
     // so that it shows up with the generated hostname instead of
     // the default "Espressif".
@@ -999,6 +1005,12 @@ void Esp32WiFiManager::on_station_ip_lost()
 
 void Esp32WiFiManager::on_softap_start()
 {
+    if (!(wifiMode_ == WIFI_MODE_AP || wifiMode_ == WIFI_MODE_APSTA))
+    {
+        LOG(INFO, "[SoftAP] Did not want SoftAP.");
+        return;
+    }
+
     uint32_t ip_address = 0;
     uint8_t mac[6];
     esp_wifi_get_mac(WIFI_IF_AP, mac);
@@ -1228,10 +1240,18 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::init_interface()
             esp_err_to_name(err));
     }
 
-    parent_->espNetIfaces_[STATION_INTERFACE] =
-        esp_netif_create_default_wifi_sta();
-    parent_->espNetIfaces_[SOFTAP_INTERFACE] =
-        esp_netif_create_default_wifi_ap();
+    if (parent_->wifiMode_ == WIFI_MODE_STA ||
+        parent_->wifiMode_ == WIFI_MODE_APSTA)
+    {
+        parent_->espNetIfaces_[STATION_INTERFACE] =
+            esp_netif_create_default_wifi_sta();
+    }
+    if (parent_->wifiMode_ == WIFI_MODE_AP ||
+        parent_->wifiMode_ == WIFI_MODE_APSTA)
+    {
+        parent_->espNetIfaces_[SOFTAP_INTERFACE] =
+            esp_netif_create_default_wifi_ap();
+    }
 
     // Connect our event listeners.
     esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
@@ -1287,15 +1307,8 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::init_wifi()
     // or mDNS systems.
     parent_->wifiStatusEventGroup_ = xEventGroupCreate();
 
-    wifi_mode_t requested_wifi_mode = parent_->wifiMode_;
-    if (parent_->wifiMode_ == WIFI_MODE_AP)
-    {
-      // override the wifi mode from AP only to AP+STA so we can perform wifi
-      // scans on demand.
-      requested_wifi_mode = WIFI_MODE_APSTA;
-    }
     // Set the requested WiFi mode.
-    ESP_ERROR_CHECK(esp_wifi_set_mode(requested_wifi_mode));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(parent_->wifiMode_));
 
     // This disables storage of SSID details in NVS which has been shown to be
     // problematic at times for the ESP32, it is safer to always pass fresh
