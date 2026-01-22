@@ -452,15 +452,25 @@ private:
     /// State that gets called when we have a completed connection in fd_.
     Action connected()
     {
+        bool need_close = false;
+        int fd_close = -1;
         {
             AtomicHolder h(this);
             if (requestShutdown_)
             {
-                ::close(fd_);
+                fd_close = fd_;
                 fd_ = -1;
-                return exit();
+                need_close = true;
             }
-            isConnected_ = true;
+            else
+            {
+                isConnected_ = true;
+            }
+        }
+        if (need_close)
+        {
+            ::close(fd_close);
+            return exit();
         }
         callback_(fd_, this);
         return wait_and_call(STATE(start_connection));
