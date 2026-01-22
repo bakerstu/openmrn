@@ -59,10 +59,61 @@ public:
 
     virtual ~RailcomBroadcastClient();
 
+    /// This structure is kept in the current_locos array.
+    struct LocoInfo
+    {
+        LocoInfo(NodeID id, bool is_west)
+            : nodeId_(id)
+        {
+            set_west(is_west);
+        }
+        /// @return the Node ID of the locomotive.
+        NodeID node_id() const
+        {
+            return nodeId_;
+        }
+
+        /// @return true if the orientation of the locomotive (according to the
+        /// polarity of the railcom signal received) is west. This means if the
+        /// locomotive were to get a "drive forward" command, it would
+        /// physically move westbound.
+        bool orientation_is_west() const
+        {
+            return isWest_ != 0;
+        }
+
+        bool empty()
+        {
+            return nodeId_ == 0;
+        }
+
+        /// Equality comparison on keys only.
+        bool operator==(const LocoInfo &o)
+        {
+            return nodeId_ == o.nodeId_;
+        }
+
+    private:
+        friend class RailcomBroadcastClient;
+
+        void set_west(bool is_west)
+        {
+            isWest_ = is_west ? 1 : 0;
+        }
+
+        /// Locomotive Node ID.
+        uint64_t nodeId_ : 48;
+        /// Observed polarity of the RailCom messages, 1 = positive polarity
+        /// (west).
+        uint64_t isWest_ : 1;
+        // There is additional space here for more properties; for example
+        // those from RailCom ID3.
+    };
+
     /** Returns the list of locomotives currently reported in the block.
      * The NodeIDs are computed using the legacy DCC long address format.
      */
-    const std::vector<NodeID> &current_locos() const
+    const std::vector<LocoInfo> &current_locos() const
     {
         return locos_;
     }
@@ -97,20 +148,24 @@ private:
     /// Checks if the given event ID falls within our monitored range.
     bool is_our_event(uint64_t event_id) const;
 
+    /// Parses an event into a LocoInfo structure. This will contain the node
+    /// ID and the direction bit.
+    static LocoInfo parse_event(uint64_t event);
+
     /// Adds a locomotive to the locos_ array.
-    void add_loco(NodeID n);
+    void add_loco(LocoInfo n);
     /// Removes a locomotive from the locos_ array.
-    void del_loco(NodeID n);
-    
+    void del_loco(LocoInfo n);
+
     /// Sequence number for data version in the locos_ array.
-    uint16_t seq_{0};
+    uint16_t seq_ {0};
     /// OpenLCB node on which to export the consumer.
     Node *node_;
     /// Event ID with bottom 16 bits as zero. We are registered for this event
     /// range.
     uint64_t railcomEventBase_;
     /// Locomotives that are currently active in this range.
-    std::vector<NodeID> locos_;
+    std::vector<LocoInfo> locos_;
 };
 
 } // namespace openlcb

@@ -97,19 +97,31 @@ TEST_F(RailcomBroadcastClientTest, CreateDestroy)
 
 TEST_F(RailcomBroadcastClientTest, AddLoco)
 {
-    uint64_t event = base_ | 3;
+    uint64_t event = base_ | 0x3800 | 3;
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     expect_seq_increment();
     ASSERT_EQ(1u, client_->current_locos().size());
     NodeID expected = TractionDefs::train_node_id_from_legacy(
         dcc::TrainAddressType::DCC_SHORT_ADDRESS, 3);
-    EXPECT_EQ(expected, client_->current_locos()[0]);
+    EXPECT_EQ(expected, client_->current_locos()[0].node_id());
+}
+
+TEST_F(RailcomBroadcastClientTest, AddLocoLong)
+{
+    uint64_t event = base_ | 3;
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
+    wait();
+    expect_seq_increment();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    NodeID expected = TractionDefs::train_node_id_from_legacy(
+        dcc::TrainAddressType::DCC_LONG_ADDRESS, 3);
+    EXPECT_EQ(expected, client_->current_locos()[0].node_id());
 }
 
 TEST_F(RailcomBroadcastClientTest, AddDuplicateLoco)
 {
-    uint64_t event = base_ | 3;
+    uint64_t event = base_ | 0x3800 | 3;
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_EQ(1u, client_->current_locos().size());
@@ -124,9 +136,9 @@ TEST_F(RailcomBroadcastClientTest, AddDuplicateLoco)
 TEST_F(RailcomBroadcastClientTest, AddLocoFromQuery)
 {
     send_packet(make_incoming_event_packet(
-        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 3));
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 0x3800 | 3));
     send_packet(make_incoming_event_packet(
-        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 0x8005));
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 5));
     wait();
     expect_seq_increment(2);
     ASSERT_EQ(2u, client_->current_locos().size());
@@ -134,13 +146,13 @@ TEST_F(RailcomBroadcastClientTest, AddLocoFromQuery)
         dcc::TrainAddressType::DCC_SHORT_ADDRESS, 3);
     NodeID expected5 = TractionDefs::train_node_id_from_legacy(
         dcc::TrainAddressType::DCC_LONG_ADDRESS, 5);
-    EXPECT_EQ(expected3, client_->current_locos()[0]);
-    EXPECT_EQ(expected5, client_->current_locos()[1]);
+    EXPECT_EQ(expected3, client_->current_locos()[0].node_id());
+    EXPECT_EQ(expected5, client_->current_locos()[1].node_id());
 }
 
 TEST_F(RailcomBroadcastClientTest, RemoveLoco)
 {
-    uint64_t event = base_ | 3;
+    uint64_t event = base_ | 0x3800 | 3;
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_EQ(1u, client_->current_locos().size());
