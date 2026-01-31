@@ -265,6 +265,10 @@ public:
     virtual void factory_reset() = 0;
 
     /// Set the broadcast SSID status in AP mode (default is to broadcast).
+    /// @return true if broadcast enabled, else false if disabled
+    virtual bool is_broadcast_ap_ssid_on() = 0;
+
+    /// Set the broadcast SSID status in AP mode (default is to broadcast).
     /// @param on true to enable broadcast, else false to disable broadcast
     void broadcast_ap_ssid(bool on)
     {
