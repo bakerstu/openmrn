@@ -264,6 +264,13 @@ public:
     /// Reset any configuration and/or non-volatile storage to factory defaults.
     virtual void factory_reset() = 0;
 
+    /// Set the broadcast SSID status in AP mode (default is to broadcast).
+    /// @param on true to enable broadcast, else false to disable broadcast
+    void broadcast_ap_ssid(bool on)
+    {
+        broadcastApSsid_ = on;
+    }
+
 protected:
     /// Constructor.
     WiFiInterface()
@@ -272,6 +279,7 @@ protected:
         , ipAcquiredSta_(false)
         , ipAcquiredAp_(false)
         , ipLeased_(false)
+        , broadcastApSsid_(true)
     {
     }
 
@@ -324,15 +332,12 @@ protected:
     /// Callback for when a scan is finished.
     std::function<void()> scanFinishedCallback_;
 
-    // Note: Because these are bitmasks, care must be taken in the derived
-    //       class that there are no mutual exclusion issues on write.
-    //       Implementations are expected to continuously update these bits as
-    //       state transitions occur.
-    bool started_       : 1; ///< WiFi started
-    bool connected_     : 1; ///< STA mode connection to AP connected state
-    bool ipAcquiredSta_ : 1; ///< IP address acquired STA mode
-    bool ipAcquiredAp_  : 1; ///< IP address acquired AP mode
-    bool ipLeased_      : 1; ///< IP address leased to a client (AP mode)
+    bool started_;         ///< WiFi started
+    bool connected_;       ///< STA mode connection to AP connected state
+    bool ipAcquiredSta_;   ///< IP address acquired STA mode
+    bool ipAcquiredAp_;    ///< IP address acquired AP mode
+    bool ipLeased_;        ///< IP address leased to a client (AP mode)
+    bool broadcastApSsid_; ///< true to broadcast AP SSID, else false
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_WIFIINTERFACE_HXX_

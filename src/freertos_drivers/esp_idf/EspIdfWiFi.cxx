@@ -1085,6 +1085,12 @@ void EspIdfWiFiBase::init_softap(std::string ssid, std::string pass)
         conf.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
     }
 
+    if (!broadcastApSsid_)
+    {
+        // 0 = broadcast SSID (default), 1 = do not broadcast SSID
+        conf.ap.ssid_hidden = 1;
+    }
+
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &conf));
 }
 
