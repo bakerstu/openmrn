@@ -169,13 +169,13 @@ int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1)
     {
-        LOG_ERROR("socket: %s", strerror(errno));
+        LOG_ERROR("fcntl F_GETFL: %s", strerror(errno));
         close(fd);
         return -1;
     }
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
     {
-        LOG_ERROR("socket: %s", strerror(errno));
+        LOG_ERROR("fcntl F_SETFL: %s", strerror(errno));
         close(fd);
         return -1;
     }
@@ -184,7 +184,7 @@ int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
     {
         if (errno != EINPROGRESS)
         {
-            LOG_ERROR("socket: %s", strerror(errno));
+            LOG_ERROR("connect: %s", strerror(errno));
             close(fd);
             return 1;
         }
@@ -198,7 +198,7 @@ int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
         tv.tv_usec = 0;
         if (::select(fd + 1, nullptr, &wfds, nullptr, &tv) == 0)
         {
-            LOG_ERROR("socket: connection timed out.");
+            LOG_ERROR("select: timed out.");
             close(fd);
             return -1;
         }
@@ -206,13 +206,14 @@ int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
         socklen_t len = sizeof(error);
         if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
         {
-            LOG_ERROR("socket: getsockopt failed.");
+            LOG_ERROR("getsockopt: failed.");
             close(fd);
             return -1;
         }
         if (error)
         {
-            LOG_ERROR("socket: connection failed: %s", strerror(error));
+            LOG_ERROR(
+                "getsockopt: socket connection failed: %s", strerror(error));
             close(fd);
             return -1;
         }
@@ -221,7 +222,7 @@ int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
     // Restore original blocking mode.
     if (fcntl(fd, F_SETFL, flags) == -1)
     {
-        LOG_ERROR("socket: %s", strerror(errno));
+        LOG_ERROR("fcntl F_SETFL: %s", strerror(errno));
         close(fd);
         return -1;
     }
