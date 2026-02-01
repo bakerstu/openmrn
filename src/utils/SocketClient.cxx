@@ -140,9 +140,6 @@ int SocketClient::connect(struct addrinfo *addr)
     return fd;
 }
 
-#undef LOG_ERROR
-#define LOG_ERROR(message...) LOG(INFO, message)
-
 int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
 {
     if (timeout_sec <= 0)
