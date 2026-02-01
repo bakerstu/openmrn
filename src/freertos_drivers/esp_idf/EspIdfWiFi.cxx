@@ -291,6 +291,16 @@ void EspIdfWiFiBase::factory_reset()
 }
 
 //
+// EspIdfWiFiBase::is_broadcast_ap_ssid_on()
+//
+bool EspIdfWiFiBase::is_broadcast_ap_ssid_on()
+{
+    wifi_config_t config;
+    esp_wifi_get_config(WIFI_IF_AP, &config);
+    return config.ap.ssid_hidden ? false : true;
+}
+
+//
 // EspIdfWiFiBase::mdns_service_add()
 //
 void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
@@ -1083,6 +1093,12 @@ void EspIdfWiFiBase::init_softap(std::string ssid, std::string pass)
     {
         memcpy(conf.ap.password, pass.c_str(), pass_len);
         conf.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    }
+
+    if (!broadcastApSsid_)
+    {
+        // 0 = broadcast SSID (default), 1 = do not broadcast SSID
+        conf.ap.ssid_hidden = 1;
     }
 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &conf));

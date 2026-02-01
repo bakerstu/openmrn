@@ -250,6 +250,10 @@ public:
     /// Reset any configuration and/or non-volatile storage to factory defaults.
     void factory_reset() override;
 
+    /// Set the broadcast SSID status in AP mode (default is to broadcast).
+    /// @return true if broadcast enabled, else false if disabled
+    bool is_broadcast_ap_ssid_on() override;
+
     /// In some cases, we want to disable mDNS publishing in STA mode. This API
     /// does not remove from advertising any services that have already been
     /// added prior to this call. It is incumbent on the application to ensure
