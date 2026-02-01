@@ -269,6 +269,9 @@ public:
     virtual bool is_broadcast_ap_ssid_on() = 0;
 
     /// Set the broadcast SSID status in AP mode (default is to broadcast).
+    /// To change from the default (hide the SSID), this method must be called
+    /// prior to a call to start(). To change the broadcast SSID status
+    /// following a start() call requires a reboot.
     /// @param on true to enable broadcast, else false to disable broadcast
     void broadcast_ap_ssid(bool on)
     {
