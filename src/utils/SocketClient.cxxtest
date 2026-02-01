@@ -141,7 +141,7 @@ TEST_F(SocketClientTest, connect_host_with_timeout_fail)
 
     sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
         &g_connect_executor, &g_mdns_executor,
-        SocketClientParams::from_static("8.8.8.8", 12021),
+        SocketClientParams::from_static("8.8.8.67", 12021),
         std::bind(&SocketClientTest::connect_callback, this, _1, _2), 1));
 
     // Wait for just over 1 second.
