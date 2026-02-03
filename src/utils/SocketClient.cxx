@@ -140,6 +140,96 @@ int SocketClient::connect(struct addrinfo *addr)
     return fd;
 }
 
+int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
+{
+    if (timeout_sec <= 0)
+    {
+        // Use default timeout (blocking mode connect).
+        return SocketClient::connect(addr);
+    }
+
+#if OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
+    // We expect write failures to occur but we want to handle them where
+    // the error occurs rather than in a SIGPIPE handler.
+    signal(SIGPIPE, SIG_IGN);
+#endif // OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
+
+    if (!addr)
+    {
+        return -1;
+    }
+    int fd = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    if (fd < 0)
+    {
+        LOG_ERROR("socket: %s", strerror(errno));
+        return -1;
+    }
+
+    // Set non-blocking.
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+    {
+        LOG_ERROR("fcntl F_GETFL: %s", strerror(errno));
+        close(fd);
+        return -1;
+    }
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    {
+        LOG_ERROR("fcntl F_SETFL: %s", strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    if (::connect(fd, addr->ai_addr, addr->ai_addrlen) < 0)
+    {
+        if (errno != EINPROGRESS)
+        {
+            LOG_ERROR("connect: %s", strerror(errno));
+            close(fd);
+            return 1;
+        }
+
+        // Connection in progress.
+        fd_set wfds;
+        FD_ZERO(&wfds);
+        FD_SET(fd, &wfds);
+        struct timeval tv;
+        tv.tv_sec = timeout_sec;
+        tv.tv_usec = 0;
+        if (::select(fd + 1, nullptr, &wfds, nullptr, &tv) == 0)
+        {
+            LOG_ERROR("select: timed out.");
+            close(fd);
+            return -1;
+        }
+        int error;
+        socklen_t len = sizeof(error);
+        if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+        {
+            LOG_ERROR("getsockopt: failed.");
+            close(fd);
+            return -1;
+        }
+        if (error)
+        {
+            LOG_ERROR(
+                "getsockopt: socket connection failed: %s", strerror(error));
+            close(fd);
+            return -1;
+        }
+    }
+
+    // Restore original blocking mode.
+    if (fcntl(fd, F_SETFL, flags) == -1)
+    {
+        LOG_ERROR("fcntl F_SETFL: %s", strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    return fd;
+}
+
 bool SocketClient::address_to_string(
     struct addrinfo *addr, string *host, int *port)
 {
