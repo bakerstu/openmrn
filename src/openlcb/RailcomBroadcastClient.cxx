@@ -65,27 +65,59 @@ bool RailcomBroadcastClient::is_our_event(uint64_t event_id) const
     return (event_id & ~0xFFFFULL) == railcomEventBase_;
 }
 
-static openlcb::NodeID node_id_from_event(uint64_t event) {
+RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::parse_event(
+    uint64_t event)
+{
     uint16_t lo = event & 0xFFFF;
     if (!lo)
     {
-        return 0;
+        return LocoInfo(0, true);
     }
 
     // Extract address from bottom 14 bits
     uint16_t address = event & 0x3FFF;
     NodeID id = 0;
-    if (lo & 0x8000)
+    uint8_t partition = address >> 8;
+    if (partition == dcc::Defs::ADR_MOBILE_SHORT ||
+        partition == dcc::Defs::ADR_CONSIST_SHORT)
+    {
+        address &= 127;
+        if (!address)
+        {
+            id = 0;
+        }
+        else
+        {
+            id = TractionDefs::train_node_id_from_legacy(
+                dcc::TrainAddressType::DCC_SHORT_ADDRESS, address);
+        }
+    }
+    else if (partition <= dcc::Defs::MAX_MOBILE_LONG)
     {
         id = TractionDefs::train_node_id_from_legacy(
             dcc::TrainAddressType::DCC_LONG_ADDRESS, address);
     }
     else
     {
-        id = TractionDefs::train_node_id_from_legacy(
-            dcc::TrainAddressType::DCC_SHORT_ADDRESS, address & 127);
+        // Unknown railcom address partition
+        id = 0;
     }
-    return id;
+    unsigned dirbits = (event & 0xC000) >> 14;
+    bool is_west = false;
+    switch (dirbits)
+    {
+        case 0b11:
+            // unknown direction
+            is_west = false;
+            break;
+        case 0b01:
+            is_west = true;
+            break;
+        case 0b10:
+            is_west = false;
+            break;
+    }
+    return LocoInfo(id, is_west);
 }
 
 void RailcomBroadcastClient::handle_event_report(
@@ -98,13 +130,13 @@ void RailcomBroadcastClient::handle_event_report(
         return;
     }
 
-    NodeID id = node_id_from_event(event->event);
-    add_loco(id);
+    auto loco = parse_event(event->event);
+    add_loco(loco);
 }
 
-void RailcomBroadcastClient::add_loco(NodeID id)
+void RailcomBroadcastClient::add_loco(LocoInfo id)
 {
-    if (!id)
+    if (id.empty())
     {
         // Unoccupied.
         if (locos_.size())
@@ -115,11 +147,12 @@ void RailcomBroadcastClient::add_loco(NodeID id)
         return;
     }
     bool found = false;
-    for (auto existing_id : locos_)
+    for (unsigned i = 0; i < locos_.size(); ++i)
     {
-        if (existing_id == id)
+        if (locos_[i].node_id() == id.node_id())
         {
             found = true;
+            locos_[i] = id;
             break;
         }
     }
@@ -131,7 +164,7 @@ void RailcomBroadcastClient::add_loco(NodeID id)
     }
 }
 
-void RailcomBroadcastClient::del_loco(NodeID id)
+void RailcomBroadcastClient::del_loco(LocoInfo id)
 {
     auto it = std::remove(locos_.begin(), locos_.end(), id);
     if (it != locos_.end())
@@ -150,14 +183,14 @@ void RailcomBroadcastClient::handle_producer_identified(
         return done->notify();
     }
 
-    NodeID id = node_id_from_event(event->event);
+    auto loco = parse_event(event->event);
     if (event->state == EventState::INVALID)
     {
-        del_loco(id);
+        del_loco(loco);
     }
     else if (event->state == EventState::VALID)
     {
-        add_loco(id);
+        add_loco(loco);
     }
 
     done->notify();
