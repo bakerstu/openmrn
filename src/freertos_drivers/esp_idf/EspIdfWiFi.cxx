@@ -291,6 +291,16 @@ void EspIdfWiFiBase::factory_reset()
 }
 
 //
+// EspIdfWiFiBase::is_broadcast_ap_ssid_on()
+//
+bool EspIdfWiFiBase::is_broadcast_ap_ssid_on()
+{
+    wifi_config_t config;
+    esp_wifi_get_config(WIFI_IF_AP, &config);
+    return config.ap.ssid_hidden ? false : true;
+}
+
+//
 // EspIdfWiFiBase::mdns_service_add()
 //
 void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
@@ -301,11 +311,16 @@ void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
     LOG(VERBOSE, "wifi: MDNS service add, name: %s, proto: %s, port: %u",
         name.c_str(), proto.c_str(), port);
     OSMutexLock locker(&lock_);
-    if (!mdnsAdvInhibit_)
+
+    // Check if we are inhibiting advertisements.
+    if (!mdnsAdvInhibited_)
     {
+        // Add the advertisement
         ESP_ERROR_CHECK_WITHOUT_ABORT(::mdns_service_add(
             nullptr, name.c_str(), proto.c_str(), port, nullptr, 0));
+        LOG(VERBOSE, "wifi: mdns_service_add() %s", service);
     }
+
     mdnsServices_.emplace_back(std::move(name), std::move(proto), port);
 }
 
@@ -320,10 +335,7 @@ void EspIdfWiFiBase::mdns_service_remove(const char *service)
     LOG(VERBOSE, "wifi: MDNS service remove, service: %s, proto: %s",
         name.c_str(), proto.c_str());
     OSMutexLock locker(&lock_);
-    if (!mdnsAdvInhibit_)
-    {
-        ::mdns_service_remove(name.c_str(), proto.c_str());
-    }
+    ::mdns_service_remove(name.c_str(), proto.c_str());
     for (auto it = mdnsServices_.begin(); it != mdnsServices_.end(); ++it)
     {
         if (it->name_ == name && it->proto_ == proto)
@@ -340,217 +352,170 @@ void EspIdfWiFiBase::mdns_service_remove(const char *service)
 int EspIdfWiFiBase::mdns_lookup(
     const char *service, struct addrinfo *hints, struct addrinfo **addr)
 {
-    constexpr size_t total_size =
-        sizeof(struct addrinfo) + sizeof(struct sockaddr_storage);
-    static_assert(
-        total_size <= NETDB_ELEM_SIZE, "total_size > NETDB_ELEM_SIZE");
-
-    bool looking = false;
     *addr = nullptr;
-    uint32_t now_sec;
+    if (!initialized_)
     {
-        OSMutexLock locker(&lock_);
-        now_sec = NSEC_TO_SEC(OSTime::get_monotonic());
-        for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end();
-            ++it)
+        // Not yet initialized.
+        return EAI_AGAIN;
+    }
+
+    // Do not allow concurent lookups for simplicity.
+    OSMutexLock lookup_locker(&mdnsLookupLock_);
+#if !defined(ESP_IDF_PREDEF_NETIF)
+    if (staIface_ && mdnsAdvInhibitSta_)
+    {
+        // The pseudo randomness of the resulting expires time helps
+        // ensure timing jitter between two or more devices using the
+        // same algorithm.
+        long long now = OSTime::get_monotonic();
+        long long expires = MSEC_TO_NSEC(mdnsLookupUd_(mdnsLookupRd_));
+        expires += mdnsLookupTimestamp_;
+        if (expires > now)
         {
-            if (it->service_ != service)
-            {
-                // Not a match.
-                continue;
-            }
-
-            // Found a potential match. Check for an address list
-            looking = true;
-            size_t addr_cnt = it->addr_.size();
-            if (addr_cnt == 0)
-            {
-                // No resolved addresses to report.
-                continue;
-            }
-
-            struct addrinfo *current = *addr;
-            struct addrinfo *last = nullptr;
-
-            for (auto lit = it->addr_.begin(); lit != it->addr_.end(); ++lit)
-            {
-    // The caller is expected to free the struct addrinfo using the method
-    // freeaddrinfo. In the lwIP implementation, they use a special buffer pool
-    // to free the struct addrinfo to. Therefore, we must also allocate from the
-    // same pool.
-    #if !defined(LWIP_HDR_MEMP_H)
-    #error "lwIP memory pool implementation required and not found."
-    #endif
-                if ((now_sec - lit->timestamp_) > lit->ttl_)
-                {
-                    // Address has expired. It will be removed from the list
-                    // elsewhere.
-                    continue;
-                }
-                current = (struct addrinfo*)memp_malloc(MEMP_NETDB);
-                if (!current)
-                {
-                    // Out of memory in the pool
-                    break;
-                }
-                memset(current, 0, total_size);
-                if (last)
-                {
-                    // Link the last item to us.
-                    last->ai_next = current;
-                }
-                else
-                {
-                    // This is the first item.
-                    *addr = current;
-                }
-                MDNSCacheAddr *ca = &(*lit);
-    #if defined(ESP_IDF_WIFI_IPV6)
-                size_t addr_len = AF_INET == ca->family_ ?
-                    sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
-                HASSERT(ca->family_ == AF_INET || ca->family_ == AF_INET6);
-    #else
-                size_t addr_len = sizeof(struct sockaddr_in);
-                HASSERT(ca->family_ == AF_INET);
-    #endif
-                current->ai_family = ca->family_;
-                current->ai_addrlen = sizeof(struct sockaddr_storage);
-                current->ai_addr = (struct sockaddr*)(current + 1);
-                memcpy(current->ai_addr, &ca->addr_, addr_len);
-                last = current;
-                LOG(VERBOSE, "wifi: mdns_lookup() address: %s, port: %u",
-                    ipv4_to_string(ntohl(ca->addrIn_.sin_addr.s_addr)).c_str(),
-                    ntohs(ca->addrIn_.sin_port));
-            }
-            if (last)
-            {
-                last->ai_next = nullptr;
-            }
-            return *addr ? 0 : EAI_MEMORY;
+            // Ensure some blanking time since the last inhibit.
+            usleep(NSEC_TO_USEC(expires - now));
         }
-        // Release the mutex.
+        // The placement of this lock must come after the usleep() call above.
+        // this is so that other Wifi API can run concurrently during the sleep.
+        OSMutexLock locker(&lock_);
+        mdnsAdvInhibited_ = true;
+        // Advertising on STA is inhibited, remove all advertising services.
+        ::mdns_service_remove_all();
+        // Enable mDNS on STA.
+        // Registering the interface is sometimes redundant, but resolves some
+        // potential race conditions.
+        mdns_register_netif(staIface_);
+        ESP_ERROR_CHECK(
+            mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
+        LOG(VERBOSE, "wifi: mdns_lookup() remove all services, enable STA.");
+    }
+#endif
+
+    std::string name;
+    std::string proto;
+    mdns_split(service, &name, &proto);
+
+    /// @todo In the future, may want to do a faster query which collects more
+    ///       than one result and then tries to asses which of multiple results
+    ///       will be the highest performance option.
+    mdns_result_t *results = nullptr;
+    esp_err_t err =
+        mdns_query_ptr(name.c_str(), proto.c_str(),
+            MDNS_LOOKUP_ACTIVE_TIME_MAX_MSEC, 1, &results);
+
+#if !defined(ESP_IDF_PREDEF_NETIF)
+    {
+        // Check if we need to (re-)enable advertising and disable the STA
+        // interface.
+        OSMutexLock locker(&lock_);
+        if (mdnsAdvInhibited_)
+        {
+            // We do not need to check for valid staIface_ or the
+            // mdnsAdvInhibitSta_ flag since we can only get here if it both
+            // were previously valid/set before starting the query.
+
+            // Update the timestamp for the last scan.
+            mdnsLookupTimestamp_ = OSTime::get_monotonic();
+            // Disable mDNS on STA. Note that the STA interface will also be
+            // unregistered, equivalent of calling mdns_unregister(staIface_).
+            ESP_ERROR_CHECK(
+                mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4));
+            // (Re-)register all the services.
+            for (auto it = mdnsServices_.begin(); it != mdnsServices_.end();
+                ++it)
+            {
+                LOG(VERBOSE, "wifi: got IP, mDNS service add, service: %s, "
+                    "proto: %s",
+                    it->name_.c_str(), it->proto_.c_str());
+                ::mdns_service_add(nullptr, it->name_.c_str(),
+                    it->proto_.c_str(), it->port_, nullptr, 0);
+            }
+            // We know that the mDNS worker thread has competed the disable
+            // action once we can re-register the STA interface. This helps us
+            // to know that we are ready for another lookup before continuing.
+            while (mdns_register_netif(staIface_) != ESP_OK)
+            {
+                usleep(1000);
+            }
+            mdnsAdvInhibited_ = false;
+            LOG(VERBOSE, "wifi: mdns_lookup() add all services, disable STA.");
+        }
+    }
+#endif
+
+    // Check for an error result from the query.
+    if (err != ESP_OK)
+    {
+        LOG_ERROR("wifi: mdns_query_ptr() failed: %s",
+            esp_err_to_name(err));
+        return EAI_AGAIN;
+    }
+
+    if (!results)
+    {
+        LOG(VERBOSE, "wifi: mdns_query_ptr() results == nullptr");
+        return EAI_AGAIN;
+    }
+
+    // Only return one result.
+    struct addrinfo *addr_info = allocaddrinfo();
+    if (addr_info == nullptr)
+    {
+        LOG_ERROR("wifi: mdns_lookup() out of memory.");
+        mdns_query_results_free(results);
+        return EAI_MEMORY;
+    }
+    struct sockaddr_in *addr_in = (struct sockaddr_in*)addr_info->ai_addr;
+#if defined(ESP_IDF_WIFI_IPV6)
+    struct sockaddr_in6 *addr_in6 =
+        (struct sockaddr_in6*)addr_info->ai_addr;
+#endif
+    mdns_ip_addr_t *current = results->addr;
+    while (current)
+    {
+        if (current->addr.type == ESP_IPADDR_TYPE_V4)
+        {
+            addr_info->ai_family = AF_INET;
+            addr_in->sin_family = AF_INET;
+            addr_in->sin_port = htons(results->port);
+            addr_in->sin_len = sizeof(struct sockaddr_in);
+            addr_in->sin_addr.s_addr = current->addr.u_addr.ip4.addr;
+            *addr = addr_info;
+            LOG(VERBOSE, "wifi: ip: %s, port: %u",
+                ipv4_to_string(ntohl(addr_in->sin_addr.s_addr)).c_str(),
+                ntohs(addr_in->sin_port));
+            break;
+        }
+#if defined(ESP_IDF_WIFI_IPV6)
+        else if (current->addr.type == ESP_IPADDR_TYPE_V6)
+        {
+            addr_info->ai_family = AF_INET6;
+            addr_in6->sin6_family = AF_INET6;
+            addr_in6->sin6_port = htons(results->port);
+            addr_in6->sin6_len = sizeof(struct sockaddr_in6);
+            memcpy(addr_in6->sin6_addr.un.u32_addr,
+                current->addr.u_addr.ip6.addr,
+                sizeof(addr_in6->sin6_addr.un.u32_addr));
+            *addr = addr_info;
+            break;
+        }
+#endif
+        else
+        {
+            LOG(VERBOSE, "wifi: mdns_lookup() unknown protocol.");
+            // Unknown protocol.
+        }
+        current = current->next;
     }
     if (*addr == nullptr)
     {
-        // Not found yet, do a "fast" blocking query.
-        std::string name;
-        std::string proto;
-        mdns_split(service, &name, &proto);
-
-        // Enable mDNS on STA if required.
-        bool mdns_adv_inhibited_on_sta = false;
-        if (mdnsAdvInhibitSta_)
-        {
-            mdns_adv_inhibited_on_sta = true;
-            mdns_adv_inhibit();
-            mdns_restore_sta();
-        }
-
-        // Do the blocking query for 2 seconds, only 1 result.
-        mdns_result_t *results;
-        esp_err_t err =
-            mdns_query_ptr(name.c_str(), proto.c_str(), 2000, 1, &results);
-
-        // Disable mDNS on STA if required.
-        if (mdns_adv_inhibited_on_sta)
-        {
-            mdns_disable_sta();
-            mdns_adv_inhibit_remove();
-        }
-
-        // Check for an error result from the query.
-        if (err != ESP_OK)
-        {
-            LOG_ERROR("wifi: mdns_query_ptr() failed: %s",
-                esp_err_to_name(err));
-                return EAI_AGAIN;
-        }
-
-        if (results)
-        {
-            // Only return one result.
-            struct addrinfo *addr_info =
-                (struct addrinfo*)memp_malloc(MEMP_NETDB);
-            if (addr_info == nullptr)
-            {
-                return EAI_MEMORY;
-            }
-            memset(addr_info, 0, total_size);
-                    addr_info->ai_addrlen = sizeof(struct sockaddr_storage);
-            addr_info->ai_addr = (struct sockaddr*)((addr_info) + 1);
-            struct sockaddr_in *addr_in =
-                (struct sockaddr_in*)addr_info->ai_addr;
-#if defined(ESP_IDF_WIFI_IPV6)
-            struct sockaddr_in6 *addr_in6 =
-                (struct sockaddr_in6*)addr_info->ai_addr;
-#endif
-            mdns_ip_addr_t *current = results->addr;
-            while (current)
-            {
-                if (current->addr.type == ESP_IPADDR_TYPE_V4)
-                {
-                    addr_info->ai_family = AF_INET;
-                    addr_in->sin_family = AF_INET;
-                    addr_in->sin_port = htons(results->port);
-                    addr_in->sin_len = sizeof(struct sockaddr_in);
-                    addr_in->sin_addr.s_addr = current->addr.u_addr.ip4.addr;
-                    *addr = addr_info;
-                    break;
-                }
-#if defined(ESP_IDF_WIFI_IPV6)
-                else if (current->addr.type == ESP_IPADDR_TYPE_V6)
-                {
-                    addr_info->ai_family = AF_INET6;
-                    addr_in6->sin6_family = AF_INET6;
-                    addr_in6->sin6_port = htons(results->port);
-                    addr_in6->sin6_len = sizeof(struct sockaddr_in6);
-                    memcpy(addr_in6->sin6_addr.un.u32_addr,
-                        current->addr.u_addr.ip6.addr,
-                        sizeof(addr_in6->sin6_addr.un.u32_addr));
-                    *addr = addr_info;
-                    break;
-                }
-#else
-#endif
-                current = current->next;
-            }
-            if (*addr == nullptr)
-            {
-                // No result actually found.
-                freeaddrinfo(addr_info);
-            }
-            else
-            {
-                // Result found, add it to the cache.
-                OSMutexLock locker(&lock_);
-                mdnsClientCache_.emplace_back(service);
-                MDNSCacheAddr ca;
-                ca.timestamp_ = now_sec;
-                ca.ttl_ = results->ttl ? results->ttl : 1;
-                ca.family_ = (*addr)->ai_family;
-                ca.port_ = results->port;
-                if ((*addr)->ai_family == AF_INET)
-                {
-                    memcpy(&ca.addrIn_, addr_in, sizeof(ca.addrIn_));
-                }
-#if defined(ESP_IDF_WIFI_IPV6)
-                else if ((*addr)->ai_family == AF_INET6)
-                {
-                    memcpy(&ca.addrIn6_, addr_in6, sizeof(ca.addrIn6_));
-                }
-#endif
-                auto it = mdnsClientCache_.end() - 1;
-                it->addr_.emplace_front(ca);
-            }
-        } // if (results)
-        mdns_query_results_free(results);
+        // No result actually found.
+        freeaddrinfo(addr_info);
+        LOG(VERBOSE, "wifi: mdns_lookup() no result found.");
     }
-    if (*addr == nullptr && !looking)
-    {
-        // Start background scanning for the service.
-        mdns_scan(service);
-    }
-    return EAI_AGAIN;
+    mdns_query_results_free(results);
+
+    return *addr == nullptr ? EAI_AGAIN : 0;
 }
 
 //
@@ -558,347 +523,35 @@ int EspIdfWiFiBase::mdns_lookup(
 //
 void EspIdfWiFiBase::mdns_scan(const char *service)
 {
-    bool match = false;
-    OSMutexLock locker(&lock_);
-    for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end(); ++it)
-    {
-        if (it->service_ == service)
-        {
-            match = true;
-        }
-    }
-    if (!match)
-    {
-        // Start looking for a new service.
-        mdnsClientCache_.emplace_back(service);
-    }
-    mdns_scanning_start_or_trigger_refresh();
+    DIE("Unimplemented feature: mdns_scan().");
 }
 
 //
-// EspIdfWiFiBase::MDNSCacheItem::reset()
+// EspIdfWiFiBase::allocaddrinfo()
 //
-void EspIdfWiFiBase::MDNSCacheItem::reset(void *handle)
+struct addrinfo *EspIdfWiFiBase::allocaddrinfo()
 {
-    if (searchHandle_ && handle != searchHandle_)
-    {
-        mdns_query_async_delete((mdns_search_once_t*)searchHandle_);
-    }
-    searchHandle_ = handle;
-}
+    // The caller is expected to free the struct addrinfo using the method
+    // freeaddrinfo(). In the lwIP implementation, they use a special buffer
+    // pool to free the struct addrinfo to. Therefore, we must also allocate
+    // from the same pool.
+    #if !defined(LWIP_HDR_MEMP_H)
+    #error "lwIP memory pool implementation required and not found."
+    #endif
 
-//
-// EspIdfWiFiBase::mdns_start()
-//
-StateFlowBase::Action EspIdfWiFiBase::mdns_start()
-{
-    HASSERT(mdnsClientCache_.size() > 0);
-    if (mdnsAdvInhibitSta_)
-    {
-        mdns_adv_inhibit();
-        mdns_restore_sta();
-        mdnsAdvInhibitStaActive_ = true;
-    }
-    return call_immediately(STATE(mdns_query));
-}
+    constexpr size_t total_size =
+        sizeof(struct addrinfo) + sizeof(struct sockaddr_storage);
+    static_assert(
+        total_size <= NETDB_ELEM_SIZE, "total_size > NETDB_ELEM_SIZE");
 
-//
-// EspIdfWiFiBase::mdns_query()
-//
-StateFlowBase::Action EspIdfWiFiBase::mdns_query()
-{
-    OSMutexLock locker(&lock_);
-    mdnsClientTrigRefresh_ = false;
-    for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end(); ++it)
+    struct addrinfo *addr_info = (struct addrinfo*)memp_malloc(MEMP_NETDB);
+    if (addr_info)
     {
-        std::string name;
-        std::string proto;
-        mdns_split(it->service_.c_str(), &name, &proto);
-        it->reset((void*)mdns_query_async_new(
-            nullptr, name.c_str(), proto.c_str(), MDNS_TYPE_PTR,
-            MDNS_QUERY_ASYNC_NEW_TIMEOUT_MSEC, 3, nullptr));
-        LOG(VERBOSE, "wifi: mDNS new search query: %s.%s",
-            name.c_str(), proto.c_str());
+        memset(addr_info, 0, total_size);
+        addr_info->ai_addrlen = sizeof(struct sockaddr_storage);
+        addr_info->ai_addr = (struct sockaddr*)((addr_info) + 1);
     }
-
-    return sleep_and_call(&timer_,
-        MDNS_QUERY_CHECK_TIMEOUT_NSEC, STATE(mdns_check));
-}
-
-//
-// EspIdfWiFiBase::mdns_check()
-//
-StateFlowBase::Action EspIdfWiFiBase::mdns_check()
-{
-    bool search_still_active = false;
-    OSMutexLock locker(&lock_);
-    uint32_t now_sec = NSEC_TO_SEC(OSTime::get_monotonic());
-    // Loop through all of the service clients.
-    for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end(); ++it)
-    {
-        if (it->get() == nullptr)
-        {
-            // No active search for this cache entry.
-            LOG(VERBOSE, "wifi: mDNS no active search for this cache entry.");
-            continue;
-        }
-        mdns_result_t *mdns_result = nullptr;
-        bool result = mdns_query_async_get_results(
-            (mdns_search_once_t*)it->get(), 0, &mdns_result, nullptr);
-        if (!result)
-        {
-            // Results not ready yet.
-            LOG(VERBOSE, "wifi: mDNS client results not ready yet.");
-            search_still_active = true;
-            continue;
-        }
-        if (mdns_result == nullptr)
-        {
-            // No results for this service.
-            LOG(VERBOSE, "wifi: No mDNS client results for this service.");
-            it->reset();
-            continue;
-        }
-
-        // Loop through all the results.
-        for (mdns_result_t *cur_result = mdns_result;
-            cur_result; cur_result = cur_result->next)
-        {
-            MDNSCacheAddr cache_addr;
-            cache_addr.port_ = htons(cur_result->port);
-
-            for (mdns_ip_addr_t *addr = cur_result->addr; addr;
-                addr = addr->next)
-            {
-                // For some reason, the mdns_result_t::ip_protocol cannot
-                // be trusted. The address results list can contain both
-                // IPv4 and IPv6 addresses.
-                if (addr->addr.type == ESP_IPADDR_TYPE_V4)
-                {
-                    cache_addr.family_ = AF_INET;
-                }
-#if defined(ESP_IDF_WIFI_IPV6)
-                // OpenMRN does not support IPv6 for mdns_lookup() yet.
-                else if (addr->addr.type == ESP_IPADDR_TYPE_V6)
-                {
-                    cache_addr.family_ = AF_INET6;
-                }
-#endif
-                else
-                {
-                    // Unknown protocol.
-                    continue;
-                }
-                bool duplicate = false;
-                for (auto ait = it->addr_.begin();
-                    !duplicate && ait != it->addr_.end(); ++ait)
-                {
-                    duplicate = ait->family_ == cache_addr.family_;
-                    duplicate &= ait->port_ == cache_addr.port_;
-                    if (cache_addr.family_ == AF_INET)
-                    {
-                        duplicate &= ait->addrcmp(addr->addr.u_addr.ip4.addr);
-                    }
-#if defined(ESP_IDF_WIFI_IPV6)
-                    else if (cache_addr.family_ == AF_INET6)
-                    {
-                        duplicate &= ait->addr6cmp(addr->addr.u_addr.ip6.addr);
-                    }
-#endif
-                    if (duplicate)
-                    {
-                        // Refresh the timestamp and ttl.
-                        ait->timestamp_ = now_sec;
-                        ait->ttl_ = mdns_result->ttl ? mdns_result->ttl : 1;
-                    }
-                }
-                if (!duplicate)
-                {
-                    if (cache_addr.family_ == AF_INET)
-                    {
-                        cache_addr.set_addr(addr->addr.u_addr.ip4.addr);
-                        cache_addr.addrIn_.sin_port = cache_addr.port_;
-                        LOG(VERBOSE, "wifi: mDNS service discovered: %s\n"
-                            "     %s %s:%u", cur_result->hostname,
-                            it->service_.c_str(),
-                            ipv4_to_string(
-                                ntohl(cache_addr.get_addr())).c_str(),
-                            ntohs(cache_addr.port_));
-                    }
-#if defined(ESP_IDF_WIFI_IPV6)
-                    else if (cache_addr.family_ == AF_INET6)
-                    {
-                        cache_addr.set_addr6(addr->addr.u_addr.ip6.addr);
-                        cache_addr.addrIn6_.sin6_port = cache_addr.port_;
-                        char ip6_str[INET6_ADDRSTRLEN];
-                        LOG(VERBOSE, "wifi: mDNS service discovered: %s\n"
-                            "     %s %s:%u", cur_result->hostname,
-                            it->service_.c_str(),
-                            inet_ntop(AF_INET6, cache_addr.get_addr6(), ip6_str,
-                                INET6_ADDRSTRLEN),
-                            ntohs(cache_addr.port_));
-                    }
-#endif
-                    if (it->addr_.size() >= MDNS_RESULT_COUNT_MAX)
-                    {
-                        LOG(VERBOSE,
-                            "wifi: mDNS service evict old cache entry");
-                        it->addr_.pop_back();
-                    }
-                    cache_addr.timestamp_ = now_sec;
-                    cache_addr.ttl_ = mdns_result->ttl ? mdns_result->ttl : 1;
-                    it->addr_.emplace_front(cache_addr);
-                }
-                else
-                {
-                    LOG(VERBOSE, "wifi: mDNS service discovered duplicate.");
-                }
-            }
-        }
-        // Prune any expired entries.
-        for (auto ait = it->addr_.begin(); ait != it->addr_.end(); )
-        {
-            if ((now_sec - ait->timestamp_) > ait->ttl_)
-            {
-                ait = it->addr_.erase(ait);
-            }
-            else
-            {
-                ++ait;
-            }
-        }
-        mdns_query_results_free(mdns_result);
-        it->reset();
-    }
-    if (search_still_active)
-    {
-        // There are still active queries, sleep and check again later.
-        return sleep_and_call(
-            &timer_, MDNS_QUERY_CHECK_TIMEOUT_NSEC, STATE(mdns_check));
-    }
-    else if (mdnsClientTrigRefresh_)
-    {
-        // An mdns_scan() was triggered by the application, start another query
-        // immediately.
-        return call_immediately(STATE(mdns_query));
-    }
-    else
-    {
-        // No more active or pending queries. Block mDNS on the STA interface
-        // and resume mDNS advertising.
-        if (mdnsAdvInhibitStaActive_)
-        {
-            mdns_disable_sta();
-            mdns_adv_inhibit_remove();
-            mdnsAdvInhibitStaActive_ = false;
-        }
-        return sleep_and_call(
-            &timer_, MDNS_QUERY_INACTIVE_TIMEOUT_NSEC, STATE(mdns_start));
-    }
-}
-
-//
-// EspIdfWiFiBase::mdns_adv_inhibit()
-//
-void EspIdfWiFiBase::mdns_adv_inhibit()
-{
-    OSMutexLock locker(&lock_);
-    if (!mdnsAdvInhibit_)
-    {
-        mdnsAdvInhibit_ = true;
-        for (auto it = mdnsServices_.begin(); it != mdnsServices_.end(); ++it)
-        {
-            LOG(VERBOSE, "wifi: mDNS inhibit, service: %s, proto: %s",
-                it->name_.c_str(), it->proto_.c_str());
-            ::mdns_service_remove(it->name_.c_str(), it->proto_.c_str());
-        }
-    }
-}
-
-//
-// EspIdfWiFiBase::mdns_adv_inhibit_remove()
-//
-void EspIdfWiFiBase::mdns_adv_inhibit_remove()
-{
-   OSMutexLock locker(&lock_);
-    if (mdnsAdvInhibit_)
-    {
-        mdnsAdvInhibit_ = false;
-        for (auto it = mdnsServices_.begin(); it != mdnsServices_.end(); ++it)
-        {
-            LOG(VERBOSE, "wifi: mDNS inhibit removed, service: %s, proto: %s",
-                it->name_.c_str(), it->proto_.c_str());
-            ::mdns_service_add(nullptr, it->name_.c_str(),
-                it->proto_.c_str(), it->port_, nullptr, 0);
-        }
-    }
-}
-
-//
-// EspIdfWiFiBase::mdns_disable_sta()
-//
-void EspIdfWiFiBase::mdns_disable_sta()
-{
-#if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
-    OSMutexLock locker(&lock_);
-    HASSERT(mdnsStaLockCount_ < 10); // Check for runaway asymmetry.
-    if (mdnsStaLockCount_++ == 0)
-    {
-        ESP_ERROR_CHECK(mdns_unregister_netif(staIface_));
-        LOG(VERBOSE, "wifi: STA unregistered on mDNS.");
-    }
-#endif
-    LOG(VERBOSE, "wifi: mdns_disable_sta(): %u", mdnsStaLockCount_);
-}
-
-//
-// EspIdfWiFiBase::try_restore_sta()
-//
-void EspIdfWiFiBase::mdns_restore_sta()
-{
-#if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
-    OSMutexLock locker(&lock_);
-    HASSERT(mdnsStaLockCount_ > -10); // Check for runaway asymmetry.
-    if (--mdnsStaLockCount_ == 0)
-    {
-        if (staIface_)
-        {
-            // If the STA interface is not registered by default, register it.
-            ESP_ERROR_CHECK(mdns_register_netif(staIface_));
-            mdns_event_actions_t action = static_cast<mdns_event_actions_t>(
-                MDNS_EVENT_ENABLE_IP4 | MDNS_EVENT_ENABLE_IP6 |
-                MDNS_EVENT_ANNOUNCE_IP4 | MDNS_EVENT_ANNOUNCE_IP6);
-            ESP_ERROR_CHECK(mdns_netif_action(staIface_, action));
-            LOG(VERBOSE, "wifi: STA registered on mDNS.");
-        }
-    }
-#endif
-    LOG(VERBOSE, "wifi: mdns_retore_sta(): %u", mdnsStaLockCount_);
-}
-
-//
-// EspIdfWiFiBase::mdns_scanning_start_or_trigger_refresh()
-//
-void EspIdfWiFiBase::mdns_scanning_start_or_trigger_refresh()
-{
-    if (!mdnsClientStarted_)
-    {
-        // Start the client if not already started.
-        mdnsClientStarted_ = true;
-        notify();
-        LOG(VERBOSE, "wifi: mdns_scan() start.");
-    }
-    else if (!mdnsClientTrigRefresh_)
-    {
-        // Trigger the mDNS state machine to execute early. If a query is
-        // already taking place, a new one will start immediately following it.
-        // If a query it not taking place, one will be started immediately.
-        mdnsClientTrigRefresh_ = true;
-        CallbackExecutable *e =
-            new CallbackExecutable([this](){this->timer_.ensure_triggered();});
-        this->service()->executor()->add(e);
-        LOG(VERBOSE, "wifi: mdns_scan() trigger.");
-    }
+    return addr_info;
 }
 
 //
@@ -985,7 +638,6 @@ void EspIdfWiFiBase::wifi_event_handler(
             {
                 ipAcquiredSta_ = false; // Disconnect implies we lost IP.
                 try_fast_reconnect = true; // Try a fast reconnect.
-                mdns_disable_sta();
                 // Register a callback to run on the passed in service executor.
                 CallbackExecutable *e = new CallbackExecutable(std::bind(
                     &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, false));
@@ -1019,6 +671,13 @@ void EspIdfWiFiBase::wifi_event_handler(
                 esp_wifi_scan_start(nullptr, false);
                 LOG(VERBOSE, "wifi: STA disconnected, scanning...");
             }
+#if !defined(ESP_IDF_PREDEF_NETIF)
+            OSMutexLock locker(&lock_);
+            if (!mdnsAdvInhibitSta_)
+            {
+                mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4);
+            }
+#endif
             break;
         }
         case WIFI_EVENT_SCAN_DONE:
@@ -1093,15 +752,25 @@ void EspIdfWiFiBase::wifi_event_handler(
             char ip_addr[16];
             inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
             LOG(INFO, "wifi: Set up softAP with IP: %s", ip_addr);
+#if !defined (ESP_IDF_PREDEF_NETIF)
+            mdns_register_netif(apIface_);
+            mdns_netif_action(apIface_, MDNS_EVENT_ENABLE_IP4);
+            mdns_netif_action(apIface_, MDNS_EVENT_ANNOUNCE_IP4);
+#endif
             break;
         }
         case WIFI_EVENT_AP_STOP:
         {
             ipAcquiredAp_ = false;
+            apClientCount_ = 0;
+            ipLeased_ = false;
             // Register a callback to run on the passed in service executor.
             CallbackExecutable *e = new CallbackExecutable(std::bind(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_AP, false));
             service()->executor()->add(e);
+#if !defined (ESP_IDF_PREDEF_NETIF)
+            mdns_netif_action(apIface_, MDNS_EVENT_DISABLE_IP4);
+#endif
             break;
         }
         case WIFI_EVENT_AP_STACONNECTED:
@@ -1110,7 +779,10 @@ void EspIdfWiFiBase::wifi_event_handler(
                 (wifi_event_ap_staconnected_t *)data;
             LOG(INFO, "wifi: station " MACSTR " join, AID=%d",
                 MAC2STR(event->mac), event->aid);
-            ++apClientCount_;
+            if (ipAcquiredAp_)
+            {
+                ++apClientCount_;
+            }
             break;
         }
         case WIFI_EVENT_AP_STADISCONNECTED:
@@ -1119,9 +791,12 @@ void EspIdfWiFiBase::wifi_event_handler(
                 (wifi_event_ap_stadisconnected_t *)data;
             LOG(INFO, "wifi: station " MACSTR " leave, AID=%d",
                 MAC2STR(event->mac), event->aid);
-            if (--apClientCount_ == 0)
+            if (ipAcquiredAp_ && apClientCount_)
             {
-                ipLeased_ = false;
+                if (--apClientCount_ == 0)
+                {
+                    ipLeased_ = false;
+                }
             }
             break;
         }
@@ -1146,15 +821,6 @@ void EspIdfWiFiBase::ip_event_handler(
             ip_event_got_ip_t *d = static_cast<ip_event_got_ip_t *>(data);
             HASSERT(ipAcquiredSta_ == false);
             ipAcquiredSta_ = true;
-            mdns_restore_sta();
-            {
-                OSMutexLock locker(&lock_);
-                if (mdnsClientCache_.size())
-                {
-                    // Trigger an immediate scan in order to refresh the cache.
-                    mdns_scanning_start_or_trigger_refresh();
-                }
-            }
             char ip_addr[16];
             inet_ntoa_r(d->ip_info.ip.addr, ip_addr, 16);
             LOG(INFO, "wifi: STA got IP: %s", ip_addr);
@@ -1162,6 +828,19 @@ void EspIdfWiFiBase::ip_event_handler(
             CallbackExecutable *e = new CallbackExecutable(std::bind(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, true));
             service()->executor()->add(e);
+#if !defined(ESP_IDF_PREDEF_NETIF)
+            OSMutexLock locker(&lock_);
+            if (!mdnsAdvInhibitSta_ || mdnsAdvInhibited_)
+            {
+                // Enable mDNS on STA.
+                mdns_register_netif(staIface_);
+                ESP_ERROR_CHECK(
+                    mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
+                ESP_ERROR_CHECK(
+                    mdns_netif_action(staIface_, MDNS_EVENT_ANNOUNCE_IP4));
+                LOG(VERBOSE, "wifi: ip_event_handler() enable mDNS on STA.");
+            }
+#endif
             break;
         }
         case IP_EVENT_STA_LOST_IP:
@@ -1169,7 +848,6 @@ void EspIdfWiFiBase::ip_event_handler(
             if (ipAcquiredSta_)
             {
                 ipAcquiredSta_ = false;
-                mdns_disable_sta();
                 LOG(INFO, "wifi: STA lost IP.");
                 // Register a callback to run on the passed in service executor.
                 CallbackExecutable *e = new CallbackExecutable(std::bind(
@@ -1374,13 +1052,15 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
             init_sta();
             break;
     }
-    // Start the WiFi.
-    ESP_ERROR_CHECK(esp_wifi_start());
 
     // Initialize mDNS.
     ESP_ERROR_CHECK(mdns_init());
     mdns_hostname_set(hostname_.c_str());
     mdns_instance_name_set(hostname_.c_str());
+
+    // Start the WiFi.
+    ESP_ERROR_CHECK(esp_wifi_start());
+
     initialized_ = true;
 }
 
@@ -1413,6 +1093,12 @@ void EspIdfWiFiBase::init_softap(std::string ssid, std::string pass)
     {
         memcpy(conf.ap.password, pass.c_str(), pass_len);
         conf.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    }
+
+    if (!broadcastApSsid_)
+    {
+        // 0 = broadcast SSID (default), 1 = do not broadcast SSID
+        conf.ap.ssid_hidden = 1;
     }
 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &conf));
