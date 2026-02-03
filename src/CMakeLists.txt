@@ -62,6 +62,7 @@ set(SOURCES
     ${OPENMRNPATH}/src/openlcb/EventHandlerContainer.cxx
     ${OPENMRNPATH}/src/openlcb/EventHandlerTemplates.cxx
     ${OPENMRNPATH}/src/openlcb/EventService.cxx
+    ${OPENMRNPATH}/src/openlcb/FilteringCanHubFlow.cxx
     ${OPENMRNPATH}/src/openlcb/If.cxx
     ${OPENMRNPATH}/src/openlcb/IfCan.cxx
     ${OPENMRNPATH}/src/openlcb/IfImpl.cxx
@@ -227,6 +228,7 @@ set(TESTS ${TESTS}
     ${OPENMRNPATH}/src/openlcb/EventHandlerTemplatesRange.cxxtest
     ${OPENMRNPATH}/src/openlcb/EventIdentifyGlobal.cxxtest
     ${OPENMRNPATH}/src/openlcb/EventService.cxxtest
+    ${OPENMRNPATH}/src/openlcb/FilteringCanHubFlow.cxxtest
     ${OPENMRNPATH}/src/openlcb/HubLatency.cxxtest
     ${OPENMRNPATH}/src/openlcb/IfCan.cxxtest
     ${OPENMRNPATH}/src/openlcb/IfCanStress.cxxtest
