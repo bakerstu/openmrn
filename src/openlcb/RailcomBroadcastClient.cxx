@@ -65,7 +65,7 @@ bool RailcomBroadcastClient::is_our_event(uint64_t event_id) const
     return (event_id & ~0xFFFFULL) == railcomEventBase_;
 }
 
-RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::node_id_from_event(
+RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::parse_event(
     uint64_t event)
 {
     uint16_t lo = event & 0xFFFF;
@@ -130,8 +130,8 @@ void RailcomBroadcastClient::handle_event_report(
         return;
     }
 
-    auto id = node_id_from_event(event->event);
-    add_loco(id);
+    auto loco = parse_event(event->event);
+    add_loco(loco);
 }
 
 void RailcomBroadcastClient::add_loco(LocoInfo id)
@@ -183,14 +183,14 @@ void RailcomBroadcastClient::handle_producer_identified(
         return done->notify();
     }
 
-    auto id = node_id_from_event(event->event);
+    auto loco = parse_event(event->event);
     if (event->state == EventState::INVALID)
     {
-        del_loco(id);
+        del_loco(loco);
     }
     else if (event->state == EventState::VALID)
     {
-        add_loco(id);
+        add_loco(loco);
     }
 
     done->notify();
