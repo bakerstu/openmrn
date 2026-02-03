@@ -318,8 +318,11 @@ private:
 
                 // Sets up the direction flag.
                 LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
+                LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
+                LL_EXTI_EnableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
             }
         }
+        LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
         Debug::RailcomDriverCutout::set(true);
     }
 
@@ -386,9 +389,11 @@ private:
 
             // Set up direction capture.
             LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
         }
         HW::middle_cutout_hook();
         Debug::RailcomDriverCutout::set(true);
+        //LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
     }
 
     void end_cutout() override
