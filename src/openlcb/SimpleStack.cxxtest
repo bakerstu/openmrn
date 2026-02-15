@@ -1,7 +1,7 @@
+#include "executor/Notifiable.hxx"
+#include "openlcb/PIPClient.hxx"
 #include "openlcb/SimpleNodeInfoMockUserFile.hxx"
 #include "openlcb/SimpleStack.hxx"
-#include "openlcb/PIPClient.hxx"
-#include "executor/Notifiable.hxx"
 #include "utils/async_if_test_helper.hxx"
 
 openlcb::MockSNIPUserFile snip_user_file(
@@ -53,7 +53,8 @@ TEST_F(SimpleCanStackTest, FirmwareUpdateSupport)
     pip_client.request(NodeHandle(stack_.node()->node_id()), stack_.node(),
         new TempNotifiable([&]() { done = true; }));
 
-    while (!done) {
+    while (!done)
+    {
         stack_.executor()->loop_some();
     }
 
@@ -69,14 +70,14 @@ TEST_F(SimpleCanStackTest, FirmwareUpdateSupport)
     pip_client.request(NodeHandle(stack_.node()->node_id()), stack_.node(),
         new TempNotifiable([&]() { done = true; }));
 
-    while (!done) {
+    while (!done)
+    {
         stack_.executor()->loop_some();
     }
 
     uint64_t new_pip = pip_client.response();
     EXPECT_TRUE(new_pip & Defs::FIRMWARE_UPGRADE);
     EXPECT_EQ(new_pip, initial_pip | Defs::FIRMWARE_UPGRADE);
-
 }
 
 class SimpleTcpStackTest : public AsyncCanTest

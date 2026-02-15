@@ -51,7 +51,7 @@ public:
      * @param node node for which to add protocol to.
      * @param supported bit mask of supported @ref Defs::Protocols for the node
      */
-    ProtocolIdentificationHandler(Node* node, uint64_t supported)
+    ProtocolIdentificationHandler(Node *node, uint64_t supported)
         : IncomingMessageStateFlow(node->iface())
         , node_(node)
         , payload_(supported)
@@ -115,7 +115,8 @@ private:
         auto *b = get_allocation_result(
             node_->iface()->addressed_message_write_flow());
         /* fill in response. */
-        b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_REPLY, node_->node_id(), nmsg()->src, node_id_to_buffer(payload_));
+        b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_REPLY, node_->node_id(),
+            nmsg()->src, node_id_to_buffer(payload_));
 
         /* pass the response to the addressed message write flow */
         node_->iface()->addressed_message_write_flow()->send(b);
