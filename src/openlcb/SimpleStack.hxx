@@ -270,9 +270,9 @@ public:
     {
     }
 
-    /// Fetches the pip value from the handler, adds the bit for firmware update
-    /// protocol supported (not the one for firmware update active!) and writes
-    /// back the new payload to the pip handler.
+    /// Updates the PIP response value to include the firmware update supported
+    /// flag. Call this at the beginning of appl_main() if there is a
+    /// bootloader.
     void pip_add_firmware_update_support();
 
 protected:
