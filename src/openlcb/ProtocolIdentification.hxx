@@ -54,11 +54,8 @@ public:
     ProtocolIdentificationHandler(Node* node, uint64_t supported)
         : IncomingMessageStateFlow(node->iface())
         , node_(node)
-        , payload_()
+        , payload_(supported)
     {
-        /* store the supported protocol as a payload */
-        payload_ = node_id_to_buffer(supported);
-
         /* register our interest in the Protocol Identification Protocol */
         node_->iface()->dispatcher()->register_handler(
             this, Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, Defs::MTI_EXACT);
@@ -71,6 +68,22 @@ public:
         /* register our interest in the Protocol Identification Protocol */
         node_->iface()->dispatcher()->unregister_handler(
             this, Defs::MTI_PROTOCOL_SUPPORT_INQUIRY, Defs::MTI_EXACT);
+    }
+
+    /**
+     * @return the current response payload
+     */
+    uint64_t get_response() const
+    {
+        return payload_;
+    }
+
+    /**
+     * @param payload new response payload
+     */
+    void set_response(uint64_t payload)
+    {
+        payload_ = payload;
     }
 
 private:
@@ -102,7 +115,7 @@ private:
         auto *b = get_allocation_result(
             node_->iface()->addressed_message_write_flow());
         /* fill in response. */
-        b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_REPLY, node_->node_id(), nmsg()->src, payload_);
+        b->data()->reset(Defs::MTI_PROTOCOL_SUPPORT_REPLY, node_->node_id(), nmsg()->src, node_id_to_buffer(payload_));
 
         /* pass the response to the addressed message write flow */
         node_->iface()->addressed_message_write_flow()->send(b);
@@ -114,7 +127,7 @@ private:
     Node *node_;
 
     /** response payload */
-    Payload payload_;
+    uint64_t payload_;
 
     DISALLOW_COPY_AND_ASSIGN(ProtocolIdentificationHandler);
 };
