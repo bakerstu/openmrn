@@ -572,16 +572,6 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                                            sizeof(timeval));
                     break;
                 }
-                case SO_ERROR:
-                {
-                    /* SO_ERROR is not supported by CC32xx. Just ignore it */
-                    if (option_len == sizeof(int))
-                    {
-                        int *error = (int*)option_value;
-                        *error = 0;
-                    }
-                    result = 0;
-                }
                 case SO_RCVBUF:
                 {
                     SlSocklen_t sl_option_len = option_len;
@@ -679,6 +669,16 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                     tm->tv_usec = timeval.tv_usec;
                     *option_len = sizeof(struct timeval);
                     break;
+                }
+                case SO_ERROR:
+                {
+                    /* SO_ERROR is not supported by CC32xx. Just ignore it */
+                    if (option_len == sizeof(int))
+                    {
+                        int *error = (int*)option_value;
+                        *error = 0;
+                    }
+                    result = 0;
                 }
                 case SO_RCVBUF:
                 {
