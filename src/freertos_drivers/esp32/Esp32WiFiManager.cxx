@@ -35,7 +35,7 @@
 // Ensure we only compile this code for ESP32 MCUs
 #ifdef ESP_PLATFORM
 
-#include "Esp32WiFiManager.hxx"
+#include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "openlcb/TcpDefs.hxx"
 #include "os/MDNS.hxx"

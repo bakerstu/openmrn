@@ -33,7 +33,7 @@
  * @date 30 July 2022
  */
 
-#include "BroadcastTimeDefs.hxx"
+#include "openlcb/BroadcastTimeDefs.hxx"
 
 #include <string>
 

@@ -38,7 +38,7 @@
 #include <cstddef>
 
 #include "Can.hxx"
-#include "SPI.hxx"
+#include "freertos_drivers/common/SPI.hxx"
 
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"

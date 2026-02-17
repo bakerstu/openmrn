@@ -39,10 +39,10 @@
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 
-#include "BlinkerGPIO.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 #include "freertos_drivers/common/RamDisk.hxx"
-#include "Lpc17xx40xxGPIO.hxx" 
+#include "freertos_drivers/nxp/Lpc17xx40xxGPIO.hxx"
 #include "config.hxx"
 
 // These preprocessor symbols are used to select which physical connections

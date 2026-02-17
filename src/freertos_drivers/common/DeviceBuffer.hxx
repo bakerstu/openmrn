@@ -44,7 +44,7 @@
 #include "utils/macros.h"
 
 #ifdef OPENMRN_FEATURE_DEVTAB
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #endif // OPENMRN_FEATURE_DEVTAB
 
 /** Helper for DeviceBuffer which allows for methods to not be inlined.

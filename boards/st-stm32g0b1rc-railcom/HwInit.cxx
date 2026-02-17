@@ -37,15 +37,15 @@
 #include <new>
 #include <cstdint>
 
-#include "stm32g0xx_hal_conf.h"
+#include "freertos_drivers/st/stm32g0xx_hal_conf.h"
 #include "stm32g0xx_hal.h"
 
 #include "os/OS.hxx"
-#include "Stm32Uart.hxx"
-#include "Stm32Can.hxx"
-#include "Stm32EEPROMEmulation.hxx"
-#include "Stm32SpiPixelStrip.hxx"
-#include "Stm32MCan.hxx"
+#include "freertos_drivers/st/Stm32Uart.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32EEPROMEmulation.hxx"
+#include "freertos_drivers/st/Stm32SpiPixelStrip.hxx"
+#include "freertos_drivers/st/Stm32MCan.hxx"
 #include "hardware.hxx"
 
 /** override stdin */

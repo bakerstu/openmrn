@@ -51,9 +51,9 @@
 #include "usblib/device/usbdevice.h"
 #include "usblib/device/usbdcdc.h"
 
-#include "Serial.hxx"
+#include "freertos_drivers/common/Serial.hxx"
 #include "Can.hxx"
-#include "I2C.hxx"
+#include "freertos_drivers/common/I2C.hxx"
 
 /** Private data for this implementation of serial.
  */

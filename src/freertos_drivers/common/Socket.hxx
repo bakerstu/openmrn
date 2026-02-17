@@ -34,9 +34,9 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SOCKET_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SOCKET_HXX_
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "os/OS.hxx"
-#include "DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 
 #include <sys/stat.h>
 

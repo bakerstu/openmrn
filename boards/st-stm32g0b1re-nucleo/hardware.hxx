@@ -36,9 +36,9 @@
 #ifndef _HARDWARE_HXX_
 #define _HARDWARE_HXX_
 
-#include "Stm32Gpio.hxx"
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "utils/GpioInitializer.hxx"
-#include "BlinkerGPIO.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
 
 GPIO_PIN(LED_GREEN_RAW, LedPin, A, 5);
 

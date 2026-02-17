@@ -58,15 +58,15 @@
 
 #ifdef TIVADCC_TIVA
 #include "driverlib/sysctl.h"
-#include "TivaGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
 #else
 #include "driverlib/prcm.h"
 #include "driverlib/utils.h"
 #endif
 
 #include "freertos_drivers/common/FixedQueue.hxx"
-#include "Devtab.hxx"
-#include "RailcomDriver.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
+#include "freertos_drivers/common/RailcomDriver.hxx"
 #include "dcc/DccOutput.hxx"
 #include "dcc/Packet.hxx"
 #include "dcc/RailCom.hxx"

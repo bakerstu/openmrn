@@ -52,7 +52,7 @@
 #include "os/MmapGpio.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
-#include "PWM.hxx"
+#include "freertos_drivers/common/PWM.hxx"
 #include "i2c.h"
 #include "i2c-dev.h"
 

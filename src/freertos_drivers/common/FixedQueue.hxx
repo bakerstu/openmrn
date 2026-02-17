@@ -37,7 +37,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "executor/Notifiable.hxx"
 
 /// This structure is safe to use from an interrupt context and a regular

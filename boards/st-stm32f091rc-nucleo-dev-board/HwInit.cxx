@@ -45,11 +45,11 @@
 #include "stm32f0xx_hal.h"
 
 #include "os/OS.hxx"
-#include "Stm32Uart.hxx"
-#include "Stm32Can.hxx"
-#include "Stm32SPI.hxx"
-#include "Stm32EEPROMEmulation.hxx"
-#include "Stm32PWM.hxx"
+#include "freertos_drivers/st/Stm32Uart.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32SPI.hxx"
+#include "freertos_drivers/st/Stm32EEPROMEmulation.hxx"
+#include "freertos_drivers/st/Stm32PWM.hxx"
 #include "hardware.hxx"
 
 /** override stdin */

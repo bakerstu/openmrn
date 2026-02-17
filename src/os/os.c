@@ -47,7 +47,7 @@
 #endif // !GCC_MEGA_AVR
 
 #if defined (__FreeRTOS__)
-#include "devtab.h"
+#include "freertos_drivers/common/devtab.h"
 #include "FreeRTOS.h"
 #include "task.h"
 

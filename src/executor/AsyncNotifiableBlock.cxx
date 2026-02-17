@@ -39,7 +39,7 @@
 #define _DEFAULT_SOURCE
 #endif
 
-#include "AsyncNotifiableBlock.hxx"
+#include "executor/AsyncNotifiableBlock.hxx"
 
 #include "os/sleep.h"
 

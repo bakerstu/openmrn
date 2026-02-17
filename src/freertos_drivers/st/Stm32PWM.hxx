@@ -34,7 +34,7 @@
 #ifndef _FREEERTOS_DRIVERS_ST_STM32PWM_HXX_
 #define _FREEERTOS_DRIVERS_ST_STM32PWM_HXX_
 
-#include "PWM.hxx"
+#include "freertos_drivers/common/PWM.hxx"
 #include "utils/Uninitialized.hxx"
 
 #include "stm32f_hal_conf.hxx"

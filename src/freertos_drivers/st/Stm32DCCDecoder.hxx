@@ -33,7 +33,7 @@
  */
 
 #include "FreeRTOSConfig.h"
-#include "Stm32Gpio.hxx" // for pin definitions
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/DccDecoder.hxx"
 
 #include "stm32f_hal_conf.hxx"

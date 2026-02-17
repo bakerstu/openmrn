@@ -35,7 +35,7 @@
 #define _FREERTOS_DRIVERS_TI_CC32XXEEPROMEMULATION_HXX_
 
 //#define FLASH_SIZE CC32xx_EEPROM_SIZE
-#include "EEPROMEmulation.hxx"
+#include "freertos_drivers/common/EEPROMEmulation.hxx"
 #include "freertos_drivers/ti/CC32xxHelper.hxx"
 
 /** Emulates EEPROM in SPI-FLASH for the CC32xx platform.

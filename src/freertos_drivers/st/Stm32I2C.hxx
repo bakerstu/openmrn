@@ -36,7 +36,7 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32I2C_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32I2C_HXX_
 
-#include "I2C.hxx"
+#include "freertos_drivers/common/I2C.hxx"
 
 #include "stm32f_hal_conf.hxx"
 

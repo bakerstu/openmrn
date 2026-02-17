@@ -36,7 +36,7 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
 
-#include "GpioWrapper.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
 #include "os/Gpio.hxx"
 
 #include "stm32f_hal_conf.hxx"

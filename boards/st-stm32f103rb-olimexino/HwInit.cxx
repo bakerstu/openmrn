@@ -45,8 +45,8 @@
 
 #include "os/OS.hxx"
 //#include "Stm32F0xxUart.hxx"
-#include "Stm32Can.hxx"
-#include "Stm32Gpio.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
