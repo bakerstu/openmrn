@@ -182,14 +182,14 @@ int SocketClient::connect_with_timeout(struct addrinfo *addr, int timeout_sec)
 
     /// @todo The following sequence has not been tested on the CC32xx platform.
     ///       CC32xx does not support getsockopt() with SO_ERROR, so it is
-    ///       implemented as a call that always return no error on CC32xx.
+    ///       implemented as a call that always returns no error on CC32xx.
     ///
     ///       Based on some research, it appears that one of the following may
     ///       work on the CC32xx platform, to determine if an error occurred:
     ///
     ///       1. Following the return from ::select(), call ::connect() again.
-    ///          If the connection is successful, the return connect will either
-    ///          an appropriate error, or a positive socket value.
+    ///          ::connect() will either return an appropriate error, or a
+    ///          positive socket value.
     ///       2. Use a read fdset. If the connect failed, the read fdset might
     ///          be active.
     ///
