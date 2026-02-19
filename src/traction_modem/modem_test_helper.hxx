@@ -19,6 +19,14 @@ public:
         void(PacketFlowInterface*, Message::id_type, Message::id_type));
     MOCK_METHOD1(unregister_handler_all, void(PacketFlowInterface*));
     MOCK_METHOD1(register_fallback_handler, void(PacketFlowInterface*));
+
+    void trigger_packet_rx_callback()
+    {
+        if (pktRxCallback_)
+        {
+            pktRxCallback_();
+        }
+    }
 };
 
 class MyMockRxFlow : public MockRxFlow
@@ -104,6 +112,7 @@ protected:
                     Defs::append_uint8(&b->data()->payload, 0);
                     Defs::append_uint8(&b->data()->payload, 0);
                     Defs::append_crc(&b->data()->payload);
+                    mRxFlow_.trigger_packet_rx_callback();
                     static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
                 }
             }
@@ -147,6 +156,7 @@ protected:
             Defs::append_uint8(&b->data()->payload, 0);
             Defs::append_uint8(&b->data()->payload, 0);
             Defs::append_crc(&b->data()->payload);
+            mRxFlow_.trigger_packet_rx_callback();
             static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
             wait_for_main_executor();
             EXPECT_TRUE(link_.is_link_up());
