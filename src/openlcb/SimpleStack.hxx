@@ -264,6 +264,17 @@ public:
         return 0;
     }
 
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    virtual void set_pip(uint64_t pip)
+    {
+    }
+
+    /// Updates the PIP response value to include the firmware update supported
+    /// flag. Call this at the beginning of appl_main() if there is a
+    /// bootloader.
+    void pip_add_firmware_update_support();
+
 protected:
     /// Call this function once after the actual IO ports are set up. Calling
     /// before the executor starts looping is okay.
@@ -636,7 +647,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     /// The actual node.
@@ -673,7 +691,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     /// The actual node.
@@ -715,7 +740,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     TrainService tractionService_ {iface()};

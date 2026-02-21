@@ -1281,7 +1281,7 @@ WiFiInterface::ConnectionResult EspIdfWiFiBase::connection_result_encode(
         case WIFI_REASON_NOT_AUTHED:
             // fall through
         case WIFI_REASON_802_1X_AUTH_FAILED:
-            // fallthrough
+            // fall through
         case WIFI_REASON_ASSOC_NOT_AUTHED:
             return WiFiInterface::AUTHENTICATION_FAILED;
         case WIFI_REASON_ASSOC_EXPIRE:

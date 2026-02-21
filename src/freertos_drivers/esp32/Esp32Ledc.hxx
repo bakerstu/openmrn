@@ -83,7 +83,41 @@ namespace openmrn_arduino
 class Esp32Ledc
 {
 public:
-    /// Constructor.
+    /// Constructor using std::vector.
+    ///
+    /// @param pins is the collection of output pins to use for this instance.
+    /// @param first_channel is the first LEDC channel to use for this
+    /// Esp32Ledc instance, default is LEDC_CHANNEL_0.
+    /// @param timer_resolution is the resolution of the LEDC timer, default is
+    /// 12bit.
+    /// @param timer_hz is the LEDC timer tick frequency, default is 5kHz.
+    /// @param timer_num is the LEDC timer to use, default is LEDC_TIMER_0.
+    /// @param timer_mode is the LED timer mode to use, default is
+    /// LEDC_LOW_SPEED_MODE.
+    /// @param timer_clock is the LEDC timer clock source, default is
+    /// LEDC_AUTO_CLK.
+    ///
+    /// Note: For @param timer_mode an additional value of LEDC_HIGH_SPEED_MODE
+    /// is supported *ONLY* on the base ESP32 variant. Other variants of the
+    /// ESP32 only support LEDC_LOW_SPEED_MODE.
+    Esp32Ledc(const std::vector<uint8_t> &pins,
+              const ledc_channel_t first_channel = LEDC_CHANNEL_0,
+              const ledc_timer_bit_t timer_resolution = LEDC_TIMER_12_BIT,
+              const uint32_t timer_hz = 5000,
+              const ledc_timer_t timer_num = LEDC_TIMER_0,
+              const ledc_mode_t timer_mode = LEDC_LOW_SPEED_MODE,
+              const ledc_clk_cfg_t timer_clock = LEDC_AUTO_CLK)
+        : firstChannel_(first_channel)
+        , pins_(pins)
+    {
+        // Ensure the pin count is valid and within range of usable channels.
+        HASSERT(pins_.size() > 0 &&
+                pins_.size() <= (LEDC_CHANNEL_MAX - first_channel));
+        init_helper(first_channel, timer_resolution, timer_hz, timer_num,
+            timer_mode, timer_clock);
+    }
+
+    /// Constructor using std::initializer_list.
     ///
     /// @param pins is the collection of output pins to use for this instance.
     /// @param first_channel is the first LEDC channel to use for this
@@ -113,14 +147,8 @@ public:
         // Ensure the pin count is valid and within range of usable channels.
         HASSERT(pins_.size() > 0 &&
                 pins_.size() <= (LEDC_CHANNEL_MAX - first_channel));
-        memset(&timerConfig_, 0, sizeof(ledc_timer_config_t));
-        // timerConfig_.speed_mode will be assigned the SOC default mode, which
-        // is either HIGH speed or LOW speed depending on the hardware support.
-        timerConfig_.duty_resolution = timer_resolution;
-        timerConfig_.freq_hz = timer_hz;
-        timerConfig_.speed_mode = timer_mode;
-        timerConfig_.timer_num = timer_num;
-        timerConfig_.clk_cfg = timer_clock;
+        init_helper(first_channel, timer_resolution, timer_hz, timer_num,
+            timer_mode, timer_clock);
     }
 
     /// Initializes the LEDC peripheral.
@@ -211,6 +239,39 @@ public:
         ESP_ERROR_CHECK(ledc_fade_func_install(INTR_MODE_FLAGS));
     }
 private:
+    /// Initialization helper for construction.
+    ///
+    /// @param first_channel is the first LEDC channel to use for this
+    /// Esp32Ledc instance, default is LEDC_CHANNEL_0.
+    /// @param timer_resolution is the resolution of the LEDC timer, default is
+    /// 12bit.
+    /// @param timer_hz is the LEDC timer tick frequency, default is 5kHz.
+    /// @param timer_num is the LEDC timer to use, default is LEDC_TIMER_0.
+    /// @param timer_mode is the LED timer mode to use, default is
+    /// LEDC_LOW_SPEED_MODE.
+    /// @param timer_clock is the LEDC timer clock source, default is
+    /// LEDC_AUTO_CLK.
+    ///
+    /// Note: For @param timer_mode an additional value of LEDC_HIGH_SPEED_MODE
+    /// is supported *ONLY* on the base ESP32 variant. Other variants of the
+    /// ESP32 only support LEDC_LOW_SPEED_MODE.
+    void init_helper(const ledc_channel_t first_channel = LEDC_CHANNEL_0,
+              const ledc_timer_bit_t timer_resolution = LEDC_TIMER_12_BIT,
+              const uint32_t timer_hz = 5000,
+              const ledc_timer_t timer_num = LEDC_TIMER_0,
+              const ledc_mode_t timer_mode = LEDC_LOW_SPEED_MODE,
+              const ledc_clk_cfg_t timer_clock = LEDC_AUTO_CLK)
+    {
+        memset(&timerConfig_, 0, sizeof(ledc_timer_config_t));
+        // timerConfig_.speed_mode will be assigned the SOC default mode, which
+        // is either HIGH speed or LOW speed depending on the hardware support.
+        timerConfig_.duty_resolution = timer_resolution;
+        timerConfig_.freq_hz = timer_hz;
+        timerConfig_.speed_mode = timer_mode;
+        timerConfig_.timer_num = timer_num;
+        timerConfig_.clk_cfg = timer_clock;
+    }
+
     class Channel : public PWM
     {
     public:
