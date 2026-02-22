@@ -81,6 +81,13 @@ public:
         link_.start(uart_fd);
     }
 
+    /// Get a reference to the modem's link object.
+    /// @return reference to the modem's link object
+    Link *get_link()
+    {
+        return &link_;
+    }
+
     /// Get a reference to the train's transmit flow.
     /// @return reference to transmit flow
     TxInterface *get_tx_flow()
