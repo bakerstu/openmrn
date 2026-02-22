@@ -174,6 +174,10 @@ struct Defs
     static constexpr unsigned LEN_MEM_R = 6;
     /// Base length of the data, add the number of payload bytes.
     static constexpr unsigned LEN_MEM_W = 5;
+    /// Length of the data payload of a memory write response.
+    static constexpr unsigned LEN_MEM_W_RESP = 4;
+    /// Base length of the data payload of a memory read response.
+    static constexpr unsigned LEN_MEM_R_RESP = 2;
 
     /// Maximum allowed len value.
     static constexpr unsigned MAX_LEN = 512;
@@ -285,6 +289,26 @@ struct Defs
     static_assert(offsetof(OutputRestart, end) == (LEN_HEADER + LEN_OUTPUT_RESTART),
         "OutputRestart struct length or alignment mismatch.");
     static_assert(std::is_standard_layout<OutputRestart>::value == true);
+
+    /// Structure of a write packet.
+    struct Write
+    {
+        Header header_; ///< packet header
+        uint32_t address_; ///< address offset within space
+        uint8_t space_; ///< address space
+        uint8_t data_[0]; ///< data payload
+    };
+    static_assert(std::is_standard_layout<Write>::value == true);
+
+    /// Structure of aread packet.
+    struct Read
+    {
+        Header header_; ///< packet header
+        uint32_t address_; ///< address offset within space
+        uint8_t space_; ///< address space
+        uint8_t size_; ///< size of the read in bytes
+    };
+    static_assert(std::is_standard_layout<Read>::value == true);
 
     /// Structure of a read reply packet
     struct ReadResponse
@@ -446,6 +470,34 @@ struct Defs
         append_uint8(&p, space);
         p.append((char*)buf, count);
 
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes payload for a write response.
+    /// @param error_code error code to pass back
+    /// @param count number of bytes actually written.
+    /// @return wire formatted payload
+    static Payload get_memw_resp_payload(uint16_t error_code, uint16_t count)
+    {
+        Payload p;
+        prepare(&p, RESP_MEM_W, LEN_MEM_W_RESP);
+        append_uint16(&p, error_code);
+        append_uint16(&p, count);
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes payload for a write response.
+    /// @param error_code error code to pass back
+    /// @param data read.
+    /// @return wire formatted payload
+    static Payload get_memr_resp_payload(uint16_t error_code, Payload data)
+    {
+        Payload p;
+        prepare(&p, RESP_MEM_R, LEN_MEM_R_RESP + data.size());
+        append_uint16(&p, error_code);
+        p += data;
         append_crc(&p);
         return p;
     }
