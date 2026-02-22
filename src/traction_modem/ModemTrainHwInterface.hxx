@@ -42,10 +42,17 @@ namespace traction_modem
 class ModemTrainHwInterface
 {
 public:
+    /// Output state.
+    enum class OutputState : uint16_t
+    {
+        ON  = 0x0000, ///< output is on
+        OFF = 0xFFFF, ///< output is off
+    };
+
     /// Set an output state.
     /// @param output output number
-    /// @param effect 0 = off, 0xFFFF = on, else effect
-    virtual void output_state(uint16_t output, uint16_t effect)
+    /// @param state 0 = off, 0xFFFF = on
+    virtual void output_state(uint16_t output, uint16_t state)
     {
     }
 
@@ -55,6 +62,16 @@ public:
     {
     }
 };
+
+/// == operator for the comparing the OutputState enum value to a uint16_t.
+/// @param lhs uint16_t value
+/// @param rhs OutputState value
+/// @return true if equal, else false
+inline bool operator==(
+    const uint16_t &lhs, const ModemTrainHwInterface::OutputState &rhs)
+{
+    return lhs == static_cast<uint16_t>(rhs);
+}
 
 } // namespace traction_modem
 
