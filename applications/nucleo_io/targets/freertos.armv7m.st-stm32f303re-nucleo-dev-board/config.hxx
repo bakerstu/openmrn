@@ -3,6 +3,7 @@
 
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredExclusiveConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/MultiConfiguredPC.hxx"
@@ -60,6 +61,9 @@ using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
 using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 8>;
 using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
 
+/// Exclusive consumer groups: 4 outputs each, only one active at a time.
+using ExclusiveGroup4 = RepeatedGroup<ExclusiveConsumerConfig, 4>;
+
 // As the IO expansion boards have different available capacities
 // we are updating this define to track number of MCPs instead of
 // expansion boards.
@@ -74,7 +78,7 @@ using Ext0PC = RepeatedGroup<PCConfig, 16 * NUM_MCPIOS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x1196 + NUM_MCPIOS;
+static constexpr uint16_t CANONICAL_VERSION = 0x11A4 + NUM_MCPIOS;
 
 CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
 CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
@@ -94,10 +98,18 @@ CDI_GROUP_ENTRY(snap_switches, PulseConsumers, Name("Consumers for snap switches
 CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outputs"), RepName("Line"));
 CDI_GROUP_ENTRY(servo_consumers, ServoConsumers, Name("Servo Pin outputs"), Description("3-pin servo outputs."), RepName("Line"));
 CDI_GROUP_ENTRY(hidden_servo_5_8, ServoConsumers, Hidden(true));
-CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
-//#ifdef PORTD_SNAP
-//CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port E outputs"), Description("Line 1-4 is port E 5 - 8; offset due to Snap Switches"), RepName("Line"));
-//#endif
+CDI_GROUP_ENTRY(portd_excl_1, ExclusiveGroup4, Name("Port D exclusive group 1"),
+    Description("Lines 1-4 on port D. Only one output is active at a time."),
+    RepName("Line"));
+CDI_GROUP_ENTRY(portd_excl_2, ExclusiveGroup4, Name("Port D exclusive group 2"),
+    Description("Lines 5-8 on port D. Only one output is active at a time."),
+    RepName("Line"));
+CDI_GROUP_ENTRY(porte_excl_1, ExclusiveGroup4, Name("Port E exclusive group 1"),
+    Description("Lines 1-4 on port E. Only one output is active at a time."),
+    RepName("Line"));
+CDI_GROUP_ENTRY(porte_excl_2, ExclusiveGroup4, Name("Port E exclusive group 2"),
+    Description("Lines 5-8 on port E. Only one output is active at a time."),
+    RepName("Line"));
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 #if NUM_MCPIOS > 0
 CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("IO Expansion Board with MCP23017 Lines"),
