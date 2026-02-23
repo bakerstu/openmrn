@@ -71,7 +71,7 @@ RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::parse_event(
     uint16_t lo = event & 0xFFFF;
     if (!lo)
     {
-        return LocoInfo(0, true);
+        return LocoInfo(0, true, false);
     }
 
     // Extract address from bottom 14 bits
@@ -104,6 +104,7 @@ RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::parse_event(
     }
     unsigned dirbits = (event & 0xC000) >> 14;
     bool is_west = false;
+    bool is_entry = true;
     switch (dirbits)
     {
         case 0b11:
@@ -116,8 +117,12 @@ RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::parse_event(
         case 0b10:
             is_west = false;
             break;
+        case 0b00:
+            // exit
+            is_entry = false;
+            break;
     }
-    return LocoInfo(id, is_west);
+    return LocoInfo(id, is_west, is_entry);
 }
 
 void RailcomBroadcastClient::handle_event_report(
@@ -131,7 +136,11 @@ void RailcomBroadcastClient::handle_event_report(
     }
 
     auto loco = parse_event(event->event);
-    add_loco(loco);
+    if (loco.is_entry()) {
+        add_loco(loco);
+    } else {
+        del_loco(loco);
+    }
 }
 
 void RailcomBroadcastClient::add_loco(LocoInfo id)
@@ -184,7 +193,7 @@ void RailcomBroadcastClient::handle_producer_identified(
     }
 
     auto loco = parse_event(event->event);
-    if (event->state == EventState::INVALID)
+    if (event->state == EventState::INVALID || !loco.is_entry())
     {
         del_loco(loco);
     }
