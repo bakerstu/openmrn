@@ -88,7 +88,7 @@ public:
     /// @param size size of the data to write, caller sets to size of the data
     ///        actually written
     virtual MemoryWriteError memory_write(
-        uint8_t space, uint32_t address, const uint8_t *data, size_t *size)
+        uint8_t space, uint32_t address, Defs::Payload data, size_t *size)
     {
         *size = 0;
         return MemoryWriteError::UNSUPPORTED_SPACE;
@@ -100,7 +100,7 @@ public:
     /// @param data location to copy the data to, requested size reserved
     /// @param size size of the data to read
     virtual MemoryReadError memory_read(
-        uint8_t space, uint32_t address, Defs::Payload &data, size_t size)
+        uint8_t space, uint32_t address, Defs::Payload *data, size_t size)
     {
         return MemoryReadError::UNSUPPORTED_SPACE;
     }

@@ -80,9 +80,11 @@ private:
             {
                 Defs::Write *wr = (Defs::Write*)b->data()->payload.data();
                 size_t wr_size = be16toh(wr->header_.length_) - Defs::LEN_MEM_W;
+                Defs::Payload wr_data = b->data()->payload.substr(
+                    offsetof(Defs::Write, data_), wr_size);
                 ModemTrainHwInterface::MemoryWriteError error =
-                    hwIf_->memory_write(
-                        wr->space_, be32toh(wr->address_), wr->data_, &wr_size);
+                    hwIf_->memory_write(wr->space_, be32toh(wr->address_),
+                        std::move(wr_data), &wr_size);
                 txFlow_->send_packet(Defs::get_memw_resp_payload(
                     static_cast<uint16_t>(error), wr_size));
                 break;
@@ -95,13 +97,12 @@ private:
                 rd_data.reserve(rd_size);
                 ModemTrainHwInterface::MemoryReadError error =
                     hwIf_->memory_read(
-                        rd->space_, be32toh(rd->address_), rd_data, rd_size);
+                        rd->space_, be32toh(rd->address_), &rd_data, rd_size);
                 txFlow_->send_packet(Defs::get_memr_resp_payload(
-                    static_cast<uint16_t>(error), rd_data));
+                    static_cast<uint16_t>(error), std::move(rd_data)));
                 break;
             }
         }
-
     }
 
     TxInterface *txFlow_; ///< reference to the transmit flow

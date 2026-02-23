@@ -1,0 +1,307 @@
+#include "utils/test_main.hxx"
+
+#include "traction_modem/modem_test_helper.hxx"
+
+#include "traction_modem/MemorySpaceServer.hxx"
+
+using namespace std::string_literals;
+
+namespace traction_modem
+{
+
+/// Test object for MemorySpaceServer.
+class MemorySpaceServerTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    MemorySpaceServerTest()
+    {
+        using ::testing::_;
+        EXPECT_CALL(mRxFlow_, register_handler(_, Defs::CMD_MEM_W, _)).Times(1);
+        EXPECT_CALL(mRxFlow_, register_handler(_, Defs::CMD_MEM_R, _)).Times(1);
+        memorySpaceServer_ =
+            new MemorySpaceServer(&mTxFlow_, &mRxFlow_, &mHwIf_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    }
+
+    /// Destructor
+    ~MemorySpaceServerTest()
+    {
+    }
+
+    ::testing::StrictMock<MyMockRxFlow> mRxFlow_; ///< mock receive flow
+    ::testing::StrictMock<MockTxFlow> mTxFlow_; ///< mock transmit flow
+    ::testing::StrictMock<MockTrainHwInterface> mHwIf_; ///< mock train hardware
+    MemorySpaceServer *memorySpaceServer_; ///< memory space server instance
+};
+
+/// Append the expected CRC value.
+/// @param payload packet payload
+/// @param all crc of all bytes
+/// @param even crc of even index bytes
+/// @param odd crc of odd index bytes
+static void append_expected_crc(
+    Defs::Payload *payload, uint16_t all, uint16_t even, uint16_t odd)
+{
+    payload->push_back(all >> 8);
+    payload->push_back(all & 0xFF);
+    payload->push_back(even >> 8);
+    payload->push_back(even & 0xFF);
+    payload->push_back(odd >> 8);
+    payload->push_back(odd & 0xFF);
+}
+
+/// Append the expected CRC value.
+/// @param payload packet payload, including a prepended preamble
+static void append_expected_crc(Defs::Payload *payload)
+{
+    Defs::CRC crc;
+    crc3_crc16_ccitt(payload->data() + sizeof(uint32_t),
+         payload->size() - sizeof(uint32_t), crc.crc);
+    append_expected_crc(payload, crc.all_, crc.even_, crc.odd_);
+}
+
+TEST_F(MemorySpaceServerTest, Create)
+{
+}
+
+TEST_F(MemorySpaceServerTest, Write)
+{
+    using ::testing::_;
+    using ::testing::Return;
+    using ::testing::SetArgPointee;
+    using ::testing::DoAll;
+    using ::testing::Sequence;
+    using ::testing::Pointee;
+    using ::testing::Eq;    
+
+    Sequence s1;
+    std::string tx_data;
+    std::string wr_data = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09"s;
+
+    //
+    // Unsupported space.
+    //
+    EXPECT_CALL(mHwIf_, memory_write(
+        0xF8, 0x00000000, Eq(wr_data), Pointee(Eq(wr_data.size()))))
+            .InSequence(s1)
+            .WillOnce(DoAll(SetArgPointee<3>(0), Return(
+                ModemTrainHwInterface::MemoryWriteError::UNSUPPORTED_SPACE)));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x01\x00\x00"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_W,
+            Defs::LEN_MEM_W + wr_data.size());
+        Defs::append_uint32(&b->data()->payload, 0x00000000);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        b->data()->payload.append(wr_data);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+
+
+
+    //
+    // Partial write.
+    //
+    EXPECT_CALL(mHwIf_, memory_write(
+        0xF8, 0x00000000, Eq(wr_data), Pointee(Eq(wr_data.size()))))
+            .InSequence(s1)
+            .WillOnce(DoAll(SetArgPointee<3>(8), Return(
+                ModemTrainHwInterface::MemoryWriteError::OUT_OF_BOUNDS)));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x02\x00\x08"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_W,
+            Defs::LEN_MEM_W + wr_data.size());
+        Defs::append_uint32(&b->data()->payload, 0x00000000);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        b->data()->payload.append(wr_data);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+
+
+
+    //
+    // Partial write offset.
+    //
+    EXPECT_CALL(mHwIf_, memory_write(
+        0xF8, 0x00000006, Eq(wr_data), Pointee(Eq(wr_data.size()))))
+            .InSequence(s1)
+            .WillOnce(DoAll(SetArgPointee<3>(8), Return(
+                ModemTrainHwInterface::MemoryWriteError::OUT_OF_BOUNDS)));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x02\x00\x08"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_W,
+            Defs::LEN_MEM_W + wr_data.size());
+        Defs::append_uint32(&b->data()->payload, 0x00000006);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        b->data()->payload.append(wr_data);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+
+
+
+    //
+    // Full write.
+    //
+    EXPECT_CALL(mHwIf_, memory_write(
+        0xF8, 0x00000000, Eq(wr_data), Pointee(Eq(wr_data.size()))))
+            .InSequence(s1)
+            .WillOnce(DoAll(SetArgPointee<3>(10), Return(
+                ModemTrainHwInterface::MemoryWriteError::SUCCESS)));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x00\x00\x00\x0A"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_W,
+            Defs::LEN_MEM_W + wr_data.size());
+        Defs::append_uint32(&b->data()->payload, 0x00000000);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        b->data()->payload.append(wr_data);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+}
+
+TEST_F(MemorySpaceServerTest, Read)
+{
+    using ::testing::_;
+    using ::testing::Return;
+    using ::testing::SetArgPointee;
+    using ::testing::DoAll;
+    using ::testing::Sequence;
+    using ::testing::Pointee;
+    using ::testing::Eq; 
+    using ::testing::Invoke;   
+
+    Sequence s1;
+    std::string tx_data;
+    std::string rd_data = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09"s;
+
+    //
+    // Unsupported space.
+    //
+    EXPECT_CALL(mHwIf_, memory_read(0xF8, 0x00000000, _, 10))
+            .InSequence(s1)
+            .WillOnce(Return(
+                ModemTrainHwInterface::MemoryReadError::UNSUPPORTED_SPACE));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x02"s "\x10\x01"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_R, Defs::LEN_MEM_R);
+        Defs::append_uint32(&b->data()->payload, 0x00000000);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        Defs::append_uint8(&b->data()->payload, 10);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+
+
+
+    //
+    // Partial read.
+    //
+    EXPECT_CALL(mHwIf_, memory_read(0xF8, 0x00000000, _, 10))
+            .InSequence(s1)
+            .WillOnce(DoAll(Invoke([&rd_data](uint8_t space, uint32_t address,
+                    Defs::Payload *data, size_t size){
+                        data->append(rd_data, 0, 8);
+                    }), Return(
+                ModemTrainHwInterface::MemoryReadError::OUT_OF_BOUNDS)));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x0A"s "\x10\x02"s
+        "\x00\x01\x02\x03\x04\x05\x06\x07"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_R, Defs::LEN_MEM_R);
+        Defs::append_uint32(&b->data()->payload, 0x00000000);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        Defs::append_uint8(&b->data()->payload, 10);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+
+
+
+    //
+    // Partial read offset.
+    //
+    EXPECT_CALL(mHwIf_, memory_read(0xF8, 0x00000006, _, 10))
+            .InSequence(s1)
+            .WillOnce(DoAll(Invoke([&rd_data](uint8_t space, uint32_t address,
+                    Defs::Payload *data, size_t size){
+                        data->append(rd_data, 0, 8);
+                    }), Return(
+                ModemTrainHwInterface::MemoryReadError::OUT_OF_BOUNDS)));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x0A"s "\x10\x02"s
+        "\x00\x01\x02\x03\x04\x05\x06\x07"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_R, Defs::LEN_MEM_R);
+        Defs::append_uint32(&b->data()->payload, 0x00000006);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        Defs::append_uint8(&b->data()->payload, 10);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+
+
+
+    //
+    // Full read.
+    //
+    EXPECT_CALL(mHwIf_, memory_read(0xF8, 0x00000000, _, 10))
+            .InSequence(s1)
+            .WillOnce(DoAll(Invoke([&rd_data](uint8_t space, uint32_t address,
+                    Defs::Payload *data, size_t size){
+                        data->append(rd_data);
+                    }), Return(
+                ModemTrainHwInterface::MemoryReadError::SUCCESS)));
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x0C"s "\x00\x00"s
+        "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_MEM_R, Defs::LEN_MEM_R);
+        Defs::append_uint32(&b->data()->payload, 0x00000000);
+        Defs::append_uint8(&b->data()->payload, 0xF8);
+        Defs::append_uint8(&b->data()->payload, 10);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+}
+
+} // namespace traction_modem
