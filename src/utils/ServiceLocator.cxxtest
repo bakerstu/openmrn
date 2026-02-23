@@ -72,8 +72,8 @@ TEST_F(ServiceLocatorTests, register_via_interface)
 
     // Releasing the instances we allocated doesn't release the instance from
     // the locator.
-    first == nullptr;
-    second == nullptr;
+    first = nullptr;
+    second = nullptr;
     service = ServiceLocator<OtherInterface>::get_service();
     ASSERT_NE(nullptr, service);
     EXPECT_EQ("Two", service->get_name());
