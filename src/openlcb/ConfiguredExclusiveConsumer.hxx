@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2025, Balazs Racz
+ * Copyright (c) 2026, Rick Lull
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
  * configured events turns on the corresponding GPIO and turns off all other
  * GPIOs in the group.
  *
- * @author Balazs Racz
- * @date 19 Feb 2025
+ * @author Rick Lull and Claude Code
+ * @date 21 Feb 2026
  */
 
 #ifndef _OPENLCB_CONFIGUREDEXCLUSIVECONSUMER_HXX_
