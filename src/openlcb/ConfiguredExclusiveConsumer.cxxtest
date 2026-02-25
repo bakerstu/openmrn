@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2025, Balazs Racz
+ * Copyright (c) 2026, Rick Lull
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,8 @@
  *
  * Unit tests for ConfiguredExclusiveConsumer.
  *
- * @author Balazs Racz
- * @date 19 Feb 2025
+ * @author Rick Lull and Claude Code
+ * @date 21 Feb 2026
  */
 
 #include "utils/async_if_test_helper.hxx"

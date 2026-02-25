@@ -44,6 +44,14 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 
 //#define PORTD_SNAP
 
+// Exlusive outputs can be configured on any group of general GPIO outputs
+// At minimum, 2 outputs would be grouped together. For use to drive a signal head, 
+// 3 or 4 outputs should be grouped. As the DevKit has 16 total outputs across Port D 
+// and E, for this example, we are grouping them into 4 outputs to keep this even.
+//
+#define PORTD_EXCLUSIVE
+#define PORTE_EXCLUSIVE
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
@@ -78,7 +86,7 @@ using Ext0PC = RepeatedGroup<PCConfig, 16 * NUM_MCPIOS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x11A4 + NUM_MCPIOS;
+static constexpr uint16_t CANONICAL_VERSION = 0x11A6 + NUM_MCPIOS;
 
 CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
 CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
@@ -92,24 +100,34 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 CDI_GROUP_ENTRY(nucleo_onboard, NucleoGroup);
-//#ifdef PORTD_SNAP
+#ifdef PORTD_SNAP
 CDI_GROUP_ENTRY(snap_switches, PulseConsumers, Name("Consumers for snap switches"), Description("These are on port D"), RepName("Line"));
-//#endif
+#endif
 CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outputs"), RepName("Line"));
 CDI_GROUP_ENTRY(servo_consumers, ServoConsumers, Name("Servo Pin outputs"), Description("3-pin servo outputs."), RepName("Line"));
 CDI_GROUP_ENTRY(hidden_servo_5_8, ServoConsumers, Hidden(true));
+#ifdef PORTD_SNAP
+CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port E outputs"), Description("Line 1-4 is port E 5 - 8; offset due to Snap Switches"), RepName("Line"));
+#else
+CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
+#endif
+
+#ifdef PORTD_EXCLUSIVE
 CDI_GROUP_ENTRY(portd_excl_1, ExclusiveGroup4, Name("Port D exclusive group 1"),
     Description("Lines 1-4 on port D. Only one output is active at a time."),
     RepName("Line"));
 CDI_GROUP_ENTRY(portd_excl_2, ExclusiveGroup4, Name("Port D exclusive group 2"),
     Description("Lines 5-8 on port D. Only one output is active at a time."),
     RepName("Line"));
+#endif
+#ifdef PORTE_EXCLUSIVE
 CDI_GROUP_ENTRY(porte_excl_1, ExclusiveGroup4, Name("Port E exclusive group 1"),
     Description("Lines 1-4 on port E. Only one output is active at a time."),
     RepName("Line"));
 CDI_GROUP_ENTRY(porte_excl_2, ExclusiveGroup4, Name("Port E exclusive group 2"),
     Description("Lines 5-8 on port E. Only one output is active at a time."),
     RepName("Line"));
+#endif
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 #if NUM_MCPIOS > 0
 CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("IO Expansion Board with MCP23017 Lines"),
