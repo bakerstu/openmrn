@@ -331,7 +331,7 @@ constexpr const MmapGpio PORTE_LINE6(output_register, 10, true);
 constexpr const MmapGpio PORTE_LINE7(output_register, 9, true);
 constexpr const MmapGpio PORTE_LINE8(output_register, 8, true);
 
-#ifndef PORTD_EXCLUSIVE && PORTE_EXCLUSIVE
+#if !defined(PORTD_EXCLUSIVE) && !defined(PORTE_EXCLUSIVE)
 constexpr const Gpio *const kPortDEGpio[] = {
 #ifndef PORTD_SNAP
     &PORTD_LINE1, &PORTD_LINE2, &PORTD_LINE3, &PORTD_LINE4, //

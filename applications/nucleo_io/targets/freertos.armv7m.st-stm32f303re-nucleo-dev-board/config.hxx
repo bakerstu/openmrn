@@ -49,8 +49,8 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 // 3 or 4 outputs should be grouped. As the DevKit has 16 total outputs across Port D 
 // and E, for this example, we are grouping them into 4 outputs to keep this even.
 //
-//#define PORTD_EXCLUSIVE
-//#define PORTE_EXCLUSIVE
+#define PORTD_EXCLUSIVE
+#define PORTE_EXCLUSIVE
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
@@ -86,7 +86,7 @@ using Ext0PC = RepeatedGroup<PCConfig, 16 * NUM_MCPIOS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x11A4 + NUM_MCPIOS;
+static constexpr uint16_t CANONICAL_VERSION = 0x11A6 + NUM_MCPIOS;
 
 CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
 CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
