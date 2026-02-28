@@ -38,6 +38,7 @@
 #include "openlcb/TrainInterface.hxx"
 #include "traction_modem/Defs.hxx"
 #include "traction_modem/MemorySpace.hxx"
+#include "traction_modem/MemorySpaceServer.hxx"
 #include "traction_modem/Output.hxx"
 #include "traction_modem/Link.hxx"
 
@@ -65,6 +66,7 @@ public:
         , cvSpace_(service, &link_)
         , fuSpace_(service, &link_)
         , output_(tx_flow, rx_flow, hw_interface)
+        , memorySpaceServer_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
     {
     }
@@ -219,6 +221,8 @@ private:
     CvSpace fuSpace_;
     /// Output handler.
     Output output_;
+    // Memory space handler for the modem.
+    MemorySpaceServer memorySpaceServer_;
     /// True if the last set was estop, false if it was a speed.
     bool inEStop_ = false;
     /// Is the wireless active.
