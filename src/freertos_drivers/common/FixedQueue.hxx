@@ -160,9 +160,9 @@ private:
     T storage_[SIZE];
     /// The index of the element to return next upon a read. This element is
     /// typically full (unless the queue is empty itself).
-    uint8_t rdIndex_;
+    volatile uint8_t rdIndex_;
     /// The index of the element where to write the next input to.
-    uint8_t wrIndex_;
+    volatile uint8_t wrIndex_;
     /// How many elements are there in the queue.
     volatile uint8_t count_;
 };
