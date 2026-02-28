@@ -35,8 +35,10 @@
 #define _TRACTION_MODEM_DEFS_HXX_
 
 #include <string>
+#include <endian.h>
 
 #include "openlcb/Velocity.hxx"
+#include "os/os.h"
 #include "utils/Crc.hxx"
 
 namespace traction_modem
@@ -474,7 +476,7 @@ struct Defs
         return p;
     }
 
-    /// Computes payload for a write response.
+    /// Computes payload for a read response.
     /// @param error_code error code to pass back
     /// @param count number of bytes actually written.
     /// @return wire formatted payload

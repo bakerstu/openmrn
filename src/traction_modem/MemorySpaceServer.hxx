@@ -26,7 +26,8 @@
  *
  * @file MemorySpaceServer.hxx
  *
- * Logic for handling memory space read/write requests to the modem.
+ * Logic for handling memory space read/write requests to the modem. Most memory
+ * space writes occur from modem to decoder. This is in the opposite direction.
  *
  * @author Stuart Baker
  * @date 22 Feb 2026
@@ -43,7 +44,8 @@
 namespace traction_modem
 {
 
-/// Handler for memory space reads/writes to the modem.
+/// Handler for memory space reads/writes to the modem. Most memory space
+/// writes occur from modem to decoder. This is in the opposite direction.
 class MemorySpaceServer : public PacketFlowInterface
 {
 public:
@@ -68,7 +70,13 @@ public:
     }
 
 private:
-    /// Receive for memory write commands.
+    /// Shortcut for accessing the ModemTrainHwInterface::MemoryWriteError
+    using MemoryWriteError = ModemTrainHwInterface::MemoryWriteError;
+
+    /// Shortcut for accessing the ModemTrainHwInterface::MemoryReadError
+    using MemoryReadError = ModemTrainHwInterface::MemoryReadError;
+
+    /// Receive for memory write/read commands.
     /// @buf incoming message
     /// @prio message priority
     void send(Buffer<Message> *buf, unsigned prio) override
@@ -79,7 +87,16 @@ private:
             case Defs::CMD_MEM_W:
             {
                 Defs::Write *wr = (Defs::Write*)b->data()->payload.data();
-                size_t wr_size = be16toh(wr->header_.length_) - Defs::LEN_MEM_W;
+                size_t wr_size =
+                    be16toh(wr->header_.length_) - Defs::LEN_MEM_W;
+                if (wr_size > Defs::MAX_WRITE_DATA_LEN)
+                {
+                    // Invalid write length. This should only occur if we are
+                    // being attacked to invoke a buffer overrun.
+                    txFlow_->send_packet(Defs::get_memw_resp_payload(
+                        static_cast<uint16_t>(MemoryWriteError::OUT_OF_BOUNDS),
+                        wr_size));
+                }
                 Defs::Payload wr_data = b->data()->payload.substr(
                     offsetof(Defs::Write, data_), wr_size);
                 ModemTrainHwInterface::MemoryWriteError error =

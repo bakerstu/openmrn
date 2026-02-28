@@ -87,7 +87,7 @@ TEST_F(MemorySpaceServerTest, Write)
             .InSequence(s1)
             .WillOnce(DoAll(SetArgPointee<3>(0), Return(
                 ModemTrainHwInterface::MemoryWriteError::UNSUPPORTED_SPACE)));
-    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x01\x00\x00"s;
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x81\x00\x00"s;
     append_expected_crc(&tx_data);
     EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
     {
@@ -113,7 +113,7 @@ TEST_F(MemorySpaceServerTest, Write)
             .InSequence(s1)
             .WillOnce(DoAll(SetArgPointee<3>(8), Return(
                 ModemTrainHwInterface::MemoryWriteError::OUT_OF_BOUNDS)));
-    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x02\x00\x08"s;
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x82\x00\x08"s;
     append_expected_crc(&tx_data);
     EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
     {
@@ -139,7 +139,7 @@ TEST_F(MemorySpaceServerTest, Write)
             .InSequence(s1)
             .WillOnce(DoAll(SetArgPointee<3>(8), Return(
                 ModemTrainHwInterface::MemoryWriteError::OUT_OF_BOUNDS)));
-    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x02\x00\x08"s;
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x01"s "\x00\x04"s "\x10\x82\x00\x08"s;
     append_expected_crc(&tx_data);
     EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
     {
@@ -204,7 +204,7 @@ TEST_F(MemorySpaceServerTest, Read)
             .InSequence(s1)
             .WillOnce(Return(
                 ModemTrainHwInterface::MemoryReadError::UNSUPPORTED_SPACE));
-    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x02"s "\x10\x01"s;
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x02"s "\x10\x81"s;
     append_expected_crc(&tx_data);
     EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
     {
@@ -231,7 +231,7 @@ TEST_F(MemorySpaceServerTest, Read)
                         data->append(rd_data, 0, 8);
                     }), Return(
                 ModemTrainHwInterface::MemoryReadError::OUT_OF_BOUNDS)));
-    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x0A"s "\x10\x02"s
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x0A"s "\x10\x82"s
         "\x00\x01\x02\x03\x04\x05\x06\x07"s;
     append_expected_crc(&tx_data);
     EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
@@ -259,7 +259,7 @@ TEST_F(MemorySpaceServerTest, Read)
                         data->append(rd_data, 0, 8);
                     }), Return(
                 ModemTrainHwInterface::MemoryReadError::OUT_OF_BOUNDS)));
-    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x0A"s "\x10\x02"s
+    tx_data = "\x41\xd2\xc3\x7a"s "\x90\x00"s "\x00\x0A"s "\x10\x82"s
         "\x00\x01\x02\x03\x04\x05\x06\x07"s;
     append_expected_crc(&tx_data);
     EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);

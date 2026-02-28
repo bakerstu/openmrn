@@ -35,6 +35,7 @@
 #ifndef _TRACTION_MODEMTRAINHWINTERFACE_HXX_
 #define _TRACTION_MODEMTRAINHWINTERFACE_HXX_
 
+#include "openlcb/MemoryConfig.hxx"
 #include "traction_modem/Defs.hxx"
 
 namespace traction_modem
@@ -54,18 +55,25 @@ public:
     /// Memory write errors.
     enum class MemoryWriteError : uint16_t
     {
-        SUCCESS           = 0x0000, ///< no error occurred
-        UNSUPPORTED_SPACE = 0x1001, ///< unsupported address space
-        OUT_OF_BOUNDS     = 0x1002, ///< address out of bounds
-        READ_ONLY         = 0x1003 ///< write to a read only address space
+        /// no error occurred
+        SUCCESS           = openlcb::Defs::ErrorCodes::ERROR_CODE_OK,
+        /// unsupported address space
+        UNSUPPORTED_SPACE = openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN,
+        /// address out of bounds
+        OUT_OF_BOUNDS     = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS,
+        /// write to a read only address space
+        READ_ONLY         = openlcb::MemoryConfigDefs::ERROR_WRITE_TO_RO,
     };
 
     /// Memory read errors.
     enum class MemoryReadError : uint16_t
     {
-        SUCCESS           = 0x0000, ///< no error occurred
-        UNSUPPORTED_SPACE = 0x1001, ///< unsupported address space
-        OUT_OF_BOUNDS     = 0x1002, ///< address out of bounds
+        /// no error occurred
+        SUCCESS           = openlcb::Defs::ErrorCodes::ERROR_CODE_OK,
+        /// unsupported address space
+        UNSUPPORTED_SPACE = openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN,
+        /// address out of bounds
+        OUT_OF_BOUNDS     = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS,
     };
 
     /// Set an output state.
@@ -81,7 +89,7 @@ public:
     {
     }
 
-    /// Handle a memory write request.
+    /// Handle a memory write request from the decoder to the modem.
     /// @param space address space
     /// @param address address offset within the address space
     /// @param data data to write
@@ -94,7 +102,7 @@ public:
         return MemoryWriteError::UNSUPPORTED_SPACE;
     }
 
-    /// Handle a memory read request.
+    /// Handle a memory read request from the decoder to the modem.
     /// @param space address space
     /// @param address address offset within the address space
     /// @param data location to copy the data to, requested size reserved
