@@ -56,6 +56,10 @@ struct Feedback : public DCCFeedback
         ch1Size = 0;
         ch2Size = 0;
         channel = 0;
+        haveCh1Dir = 0;
+        ch1Dir = 0;
+        haveCh2Dir = 0;
+        ch2Dir = 0;
     }
 
     /// Appends a byte to the channel 1 payload.
