@@ -31,7 +31,7 @@
  * @date 2 May 2015
  */
 
-#include "TivaFlash.hxx"
+#include "freertos_drivers/ti/TivaFlash.hxx"
 
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"

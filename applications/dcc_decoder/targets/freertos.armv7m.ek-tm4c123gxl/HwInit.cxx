@@ -49,13 +49,13 @@
 
 #include "hardware.hxx"
 
-#include "TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
 
-#include "TivaEEPROMEmulation.hxx"
-#include "TivaEEPROMBitSet.hxx"
-#include "TivaGPIO.hxx"
-#include "DummyGPIO.hxx"
-#include "bootloader_hal.h"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/ti/TivaEEPROMBitSet.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "openlcb/bootloader_hal.h"
 
 struct Debug
 {
@@ -65,7 +65,7 @@ struct Debug
     typedef DummyPin CapTimerOverflow;
 };
 
-#include "TivaDCCDecoder.hxx"
+#include "freertos_drivers/ti/TivaDCCDecoder.hxx"
 
 
 /** override stdin */

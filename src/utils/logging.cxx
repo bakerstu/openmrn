@@ -31,7 +31,7 @@
  * @date 3 August 2013
  */
 
-#include "logging.h"
+#include "utils/logging.h"
 
 #if defined(__linux__) || defined(__MACH__)
 char logbuffer[4096];

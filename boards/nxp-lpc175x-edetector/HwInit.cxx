@@ -37,10 +37,10 @@
 #include "chip.h"
 
 #include "os/OS.hxx"
-#include "Lpc17xx40xxUart.hxx"
-#include "Lpc17xx40xxCan.hxx"
-#include "Lpc17xx40xxGPIO.hxx"
-#include "Lpc17xx40xxEEPROMEmulation.hxx"
+#include "freertos_drivers/nxp/Lpc17xx40xxUart.hxx"
+#include "freertos_drivers/nxp/Lpc17xx40xxCan.hxx"
+#include "freertos_drivers/nxp/Lpc17xx40xxGPIO.hxx"
+#include "freertos_drivers/nxp/Lpc17xx40xxEEPROMEmulation.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

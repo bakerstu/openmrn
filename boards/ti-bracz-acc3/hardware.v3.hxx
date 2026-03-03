@@ -3,8 +3,8 @@
 
 #define USE_WII_CHUCK
 
-#include "TivaGPIO.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
