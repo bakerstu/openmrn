@@ -62,10 +62,11 @@ public:
     /// This structure is kept in the current_locos array.
     struct LocoInfo
     {
-        LocoInfo(NodeID id, bool is_west)
+        LocoInfo(NodeID id, bool is_west, bool is_entry)
             : nodeId_(id)
         {
             set_west(is_west);
+            set_entry(is_entry);
         }
         /// @return the Node ID of the locomotive.
         NodeID node_id() const
@@ -82,6 +83,13 @@ public:
             return isWest_ != 0;
         }
 
+        /// @return true if the report is an entry, false if it's an exit.
+        bool is_entry() const
+        {
+            return isEntry_ != 0;
+        }
+
+        
         bool empty()
         {
             return nodeId_ == 0;
@@ -101,11 +109,18 @@ public:
             isWest_ = is_west ? 1 : 0;
         }
 
+        void set_entry(bool is_entry)
+        {
+            isEntry_ = is_entry ? 1 : 0;
+        }
+        
         /// Locomotive Node ID.
         uint64_t nodeId_ : 48;
         /// Observed polarity of the RailCom messages, 1 = positive polarity
         /// (west).
         uint64_t isWest_ : 1;
+        /// 1 for entry, 0 for exit.
+        uint64_t isEntry_ : 1;
         // There is additional space here for more properties; for example
         // those from RailCom ID3.
     };
