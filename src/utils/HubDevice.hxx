@@ -326,8 +326,8 @@ public:
         ReadThread(FdHubPort<HFlow> *port) : ReadThreadBase(port)
         {
             init();
-            start(port->fill_thread_name('R', port->fd_), 0,
-                  port->kReadThreadStackSize);
+            start(port->fill_thread_name('R', port->fd_),
+                  kReadThreadPriority, port->kReadThreadStackSize);
         }
         
         ~ReadThread() {
@@ -365,6 +365,8 @@ public:
         /** We will allocate this many bytes for read buffer. This is the
          * maximum number of bytes that we'll send. */
         static const int kBufSize;
+        /** Priority to use for read thread; 0 is default priority. */
+        static const int kReadThreadPriority;
     };
 
 private:
