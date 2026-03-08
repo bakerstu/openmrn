@@ -40,6 +40,11 @@ const int FdHubPort<CanHubFlow>::ReadThread::kUnit = sizeof(struct can_frame);
 template <>
 const int FdHubPort<CanHubFlow>::ReadThread::kBufSize = sizeof(
     struct can_frame);
+#if defined(__FreeRTOS__) || defined(ESP_PLATFORM)
+template <>
+const int FdHubPort<CanHubFlow>::ReadThread::kReadThreadPriority =
+    configMAX_PRIORITIES - 1;
+#endif
 
 template <>
 void FdHubPort<CanHubFlow>::ReadThread::init()
@@ -60,6 +65,7 @@ void FdHubPort<CanHubFlow>::ReadThread::send_message(const void *buf, int size)
 
 template <> const int FdHubPort<HubFlow>::ReadThread::kUnit = 1;
 template <> const int FdHubPort<HubFlow>::ReadThread::kBufSize = 64;
+template <> const int FdHubPort<HubFlow>::ReadThread::kReadThreadPriority = 0;
 
 
 template <>
