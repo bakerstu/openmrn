@@ -13,7 +13,7 @@ using ::testing::InvokeWithoutArgs;
 extern "C" {
 /** This calls into the bootloader main. */
 extern void bootloader_entry();
-
+extern volatile unsigned g_bootloader_busy;
 extern Atomic g_bootloader_lock;
 }
 
@@ -102,8 +102,6 @@ private:
 BootloaderPort *g_bootloader_port = nullptr;
 
 extern "C" {
-
-extern volatile unsigned g_bootloader_busy;
 
 void bootloader_led(enum BootloaderLed led, bool value)
 {

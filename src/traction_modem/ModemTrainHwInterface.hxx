@@ -35,6 +35,9 @@
 #ifndef _TRACTION_MODEMTRAINHWINTERFACE_HXX_
 #define _TRACTION_MODEMTRAINHWINTERFACE_HXX_
 
+#include "openlcb/MemoryConfig.hxx"
+#include "traction_modem/Defs.hxx"
+
 namespace traction_modem
 {
 
@@ -42,10 +45,41 @@ namespace traction_modem
 class ModemTrainHwInterface
 {
 public:
+    /// Output state.
+    enum class OutputState : uint16_t
+    {
+        ON  = 0x0000, ///< output is on
+        OFF = 0xFFFF, ///< output is off
+    };
+
+    /// Memory write errors.
+    enum class MemoryWriteError : uint16_t
+    {
+        /// no error occurred
+        SUCCESS           = openlcb::Defs::ErrorCodes::ERROR_CODE_OK,
+        /// unsupported address space
+        UNSUPPORTED_SPACE = openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN,
+        /// address out of bounds
+        OUT_OF_BOUNDS     = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS,
+        /// write to a read only address space
+        READ_ONLY         = openlcb::MemoryConfigDefs::ERROR_WRITE_TO_RO,
+    };
+
+    /// Memory read errors.
+    enum class MemoryReadError : uint16_t
+    {
+        /// no error occurred
+        SUCCESS           = openlcb::Defs::ErrorCodes::ERROR_CODE_OK,
+        /// unsupported address space
+        UNSUPPORTED_SPACE = openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN,
+        /// address out of bounds
+        OUT_OF_BOUNDS     = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS,
+    };
+
     /// Set an output state.
     /// @param output output number
-    /// @param effect 0 = off, 0xFFFF = on, else effect
-    virtual void output_state(uint16_t output, uint16_t effect)
+    /// @param state 0 = off, 0xFFFF = on
+    virtual void output_state(uint16_t output, uint16_t state)
     {
     }
 
@@ -54,7 +88,41 @@ public:
     virtual void output_restart(uint16_t output)
     {
     }
+
+    /// Handle a memory write request from the decoder to the modem.
+    /// @param space address space
+    /// @param address address offset within the address space
+    /// @param data data to write
+    /// @param size size of the data to write, caller sets to size of the data
+    ///        actually written
+    virtual MemoryWriteError memory_write(
+        uint8_t space, uint32_t address, Defs::Payload data, size_t *size)
+    {
+        *size = 0;
+        return MemoryWriteError::UNSUPPORTED_SPACE;
+    }
+
+    /// Handle a memory read request from the decoder to the modem.
+    /// @param space address space
+    /// @param address address offset within the address space
+    /// @param data location to copy the data to, requested size reserved
+    /// @param size size of the data to read
+    virtual MemoryReadError memory_read(
+        uint8_t space, uint32_t address, Defs::Payload *data, size_t size)
+    {
+        return MemoryReadError::UNSUPPORTED_SPACE;
+    }
 };
+
+/// == operator for the comparing the OutputState enum value to a uint16_t.
+/// @param lhs uint16_t value
+/// @param rhs OutputState value
+/// @return true if equal, else false
+inline bool operator==(
+    const uint16_t &lhs, const ModemTrainHwInterface::OutputState &rhs)
+{
+    return lhs == static_cast<uint16_t>(rhs);
+}
 
 } // namespace traction_modem
 
