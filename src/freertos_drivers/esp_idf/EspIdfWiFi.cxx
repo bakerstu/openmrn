@@ -658,16 +658,19 @@ void EspIdfWiFiBase::wifi_event_handler(
                 // or scan for APs. Otherwise, there will be a crash.
                 break;
             }
-            if (try_fast_reconnect)
+            if (try_fast_reconnect ||
+                (fastConnectOnlySta_ && get_role() == WlanRole::STA))
             {
                 // First reconnect attempt (use last channel), or forced "fast"
                 // connect (use any channel if not first attempt).
-                sta_connect_fast(true);
+                sta_connect_fast(try_fast_reconnect);
                 LOG(VERBOSE,
                     "wifi: STA disconnected, fast reconnect attempt...");
             }
             else if (fastConnectOnlySta_)
             {
+                // Multi-role (AP + STA) active.
+                //
                 // This is not a first connection attempt. Put a delay in so
                 // that radio bandwidth is not monopolized by connect attempts.
                 CallbackExecutable *e = new CallbackExecutable(std::bind(
@@ -727,11 +730,22 @@ void EspIdfWiFiBase::wifi_event_handler(
                 // a connection.
                 if (match_index < 0)
                 {
-                    // Start a timer to have some blanking time between scans.
-                    // When the timer expires, another scan will be started.
-                    CallbackExecutable *e = new CallbackExecutable(std::bind(
-                        &APScanTimer::restart, &apScanTimer_));
-                    service()->executor()->add(e);
+                    if (get_role() == WlanRole::STA)
+                    {
+                        // Start a timer to have some blanking time between
+                        // scans. When the timer expires, another scan will be
+                        // started. This helps preserve bandwith on the AP.
+                        CallbackExecutable *e = new CallbackExecutable(std::bind(
+                            &APScanTimer::restart, &apScanTimer_));
+                        service()->executor()->add(e);
+                    }
+                    else
+                    {
+                        // When no AP mode is not active, scanning bandwidth
+                        // is not  a concern, and all channels can be scanned
+                        // without inter scan delay for faster discovery.
+                        esp_wifi_scan_start(&SCAN_CONFIG, false);
+                    }
                 }
                 else
                 {
@@ -1347,7 +1361,7 @@ long long EspIdfWiFiBase::APScanTimer::timeout()
     }
     else
     {
-        // When no AP clients are connected scanning bandwidth is not as much
+        // When no AP clients are connected, scanning bandwidth is not as much
         // of a concern, and all channels can be scanned for faster discovery.
         scan_config_background.channel = 0;
     }
