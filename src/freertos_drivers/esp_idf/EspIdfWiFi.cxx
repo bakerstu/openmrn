@@ -1351,12 +1351,15 @@ long long EspIdfWiFiBase::APScanTimer::timeout()
 
     if (WiFiInterface::instance()->get_ap_sta_count() > 0)
     {
+        wifi_country_t country;
+        esp_wifi_get_country(&country);
+        uint8_t max_channel = country.schan + country.nchan - 1;
         // When there is a connected client in AP mode, only scan one channel
         // at a time. This ensures that the latency with connected clients
         // remains reasonable.
-        if (++scan_config_background.channel > 11)
+        if (++scan_config_background.channel > max_channel)
         {
-            scan_config_background.channel = 1;
+            scan_config_background.channel = country.schan;
         }
     }
     else
