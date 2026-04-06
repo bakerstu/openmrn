@@ -192,6 +192,7 @@ public:
     {
         request()->resultCode = OPERATION_PENDING;
         auto* pgm = get_dcc_output(DccOutput::PGM);
+        HASSERT(pgm);
         const bool has_short = pgm->get_disable_output_reasons() &
             (uint8_t)DccOutput::DisableReason::SHORTED;
 
@@ -287,13 +288,13 @@ private:
     /// from the queue.
     Action reset_flush_done() {
         auto* pgm = get_dcc_output(DccOutput::PGM);
-        if (pgm)
-        {
-            // Enables power to the program track now that we have only reset
-            // packets in the queue.
-            pgm->clear_disable_output_for_reason(
-                DccOutput::DisableReason::INITIALIZATION_PENDING);
-        }
+        HASSERT(pgm);
+        
+        // Enables power to the program track now that we have only reset
+        // packets in the queue.
+        pgm->clear_disable_output_for_reason(
+            DccOutput::DisableReason::INITIALIZATION_PENDING);
+        
         return return_ok();
     }
 
@@ -305,12 +306,11 @@ private:
         // 3. call the hardware to switch over to mainline mode
         // 4. reenable normal packet source by removing override source.
         auto* pgm = get_dcc_output(DccOutput::PGM);
-        if (pgm)
-        {
-            // Symmetric to {\link reset_flush_done }.
-            pgm->disable_output_for_reason(
-                DccOutput::DisableReason::INITIALIZATION_PENDING);
-        }
+        HASSERT(pgm);
+        
+        // Symmetric to {\link reset_flush_done }.
+        pgm->disable_output_for_reason(
+            DccOutput::DisableReason::INITIALIZATION_PENDING);
 
         request()->packetToSend_.set_dcc_idle();
         if (!request()->repeatCount_)
