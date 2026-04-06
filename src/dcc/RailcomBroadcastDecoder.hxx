@@ -56,6 +56,7 @@ public:
         , currentL_(0)
         , countH_(0)
         , countL_(0)
+        , countOcc_(0)
         , currentAddress_(0)
         , lastAddress_(0)
     {
@@ -96,10 +97,18 @@ private:
     /// when we're getting empty packets.
     static const uint8_t MIN_EMPTY_COUNT = 8;
 
+    /// This is how far we count up when we get occupancy==true reports.
+    static const uint8_t MAX_OCC = 31;
+    /// When counting down with occupancy==false, this is the threshold where
+    /// we conclude the block is empty.
+    static const uint8_t MIN_OCC = 3;
+
+    
     uint8_t currentH_; ///< last received high address bits
     uint8_t currentL_; ///< last received low address bits
-    uint8_t countH_;   ///< observed repeat count of high address bits
-    uint8_t countL_;   ///< observed repeat count of low address bits
+    uint8_t countH_ : 4;   ///< observed repeat count of high address bits
+    uint8_t countL_ : 4;   ///< observed repeat count of low address bits
+    uint8_t countOcc_ : 5;   ///< observed repeat count of occupancy
 
     uint16_t currentAddress_; ///< last valid address (0 if no valid address)
 

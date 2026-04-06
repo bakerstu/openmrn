@@ -39,194 +39,117 @@
 #include "dcc/TrackIf.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include "openlcb/WellKnownEventRangeConsumer.hxx"
 
 namespace openlcb
 {
 
-/// Base (generic protocol) implementation of a DCC accessory consumer.
-class DccAccyConsumerBase : public SimpleEventHandler
+/// The Null DCC accessory consumer listens to the well-known events for DCC
+/// accessory (e.g. turnout) commands. The state is stored in memory and allows
+/// query by is_state_known(address) and get_state(address).
+class NullDccAccyConsumer : public WellKnownEventRangeConsumer
 {
-protected:
+public:
+    /// Constant representing the Normal (active) state.
+    static constexpr bool STATE_NORMAL = true;
+    /// Constant representing the Reverse (inactive) state.
+    static constexpr bool STATE_REVERSED = false;
+    /// Constant representing the largest address that is valid for bit state
+    /// and query.
+    static constexpr unsigned MAX_ADDRESS = 2048;
+    
+    static const EventRangeConfig* get_config()
+    {
+        static constexpr EventRangeConfig cfg = {
+            TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
+            TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
+            12, // 4096 events (12 bits)
+            MAX_ADDRESS // 2048 state bits (4096 events map to 2048 outputs)
+        };
+        return &cfg;
+    }
+
     /// Constructs a listener for DCC accessory control.
     /// @param node is the virtual node that will be listening for events and
     /// responding to Identify messages.
-    DccAccyConsumerBase(Node *node)
-        : node_(node)
+    /// @param track is the interface through which we will be writing DCC
+    /// accessory packets.
+    NullDccAccyConsumer(Node *node)
+        : WellKnownEventRangeConsumer(node, get_config())
     {
-        EventRegistry::instance()->register_handler(
-            EventRegistryEntry(
-                this, TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE),
-            12);
-        EventRegistry::instance()->register_handler(
-            EventRegistryEntry(
-                this, TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE),
-            12);
-        memset(lastSetState_, 0, sizeof(lastSetState_));
-        memset(isStateKnown_, 0, sizeof(isStateKnown_));
     }
 
-    /// Destructor.
-    ~DccAccyConsumerBase()
-    {
-        EventRegistry::instance()->unregister_handler(this);
+    /// Translates a user address to a binary address and checks the internal
+    /// state whether we have a known state.
+    /// @param user_address is a user-visible DCC accessory address, 1 to 2048.
+    /// @return true if the state is known (i.e., we've seen an event for
+    /// normal or reversed until now.
+    bool is_accy_state_known(unsigned user_address) {
+        return is_state_known(
+            dcc::Defs::accy_address_user_to_binary(user_address));
     }
 
-    void handle_identify_global(const EventRegistryEntry &registry_entry,
-        EventReport *event, BarrierNotifiable *done) OVERRIDE
-    {
-        AutoNotify an(done);
-        if (event->dst_node && event->dst_node != node_)
-        {
-            return;
-        }
-        if (registry_entry.event ==
-            TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE)
-        {
-            event->event_write_helper<1>()->WriteAsync(node_,
-                Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-                eventid_to_buffer(EncodeRange(
-                    TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
-                    4095)),
-                done->new_child());
-        }
-        if (registry_entry.event ==
-            TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE)
-        {
-            event->event_write_helper<2>()->WriteAsync(node_,
-                Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-                eventid_to_buffer(EncodeRange(
-                    TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
-                    4095)),
-                done->new_child());
-        }
+    /// Translates a user address to a binary address and checks the internal
+    /// state whether that turnout is normal or reversed.
+    /// @param user_address is a user-visible DCC accessory address, 1 to 2048.
+    /// @return true if the turnout state is normal, false if reversed.
+    bool is_accy_state_normal(unsigned user_address) {
+        return get_state(dcc::Defs::accy_address_user_to_binary(
+                   user_address)) == STATE_NORMAL;
     }
-
-    void handle_event_report(const EventRegistryEntry &registry_entry,
-        EventReport *event, BarrierNotifiable *done) override
+    
+protected:
+    void action_impl() override
     {
-        AutoNotify an(done);
-        if (!parse_event(event->event))
-        {
-            return;
-        }
-        uint32_t m = (1U) << eventMask_;
-        isStateKnown_[eventOfs_] |= m;
-        if (normalReverse_)
-        {
-            lastSetState_[eventOfs_] |= m;
-        }
-        else
-        {
-            lastSetState_[eventOfs_] &= ~m;
-        }
-
-        send_accy_command();
+        // Noop implementation.
     }
-
-    void handle_identify_consumer(const EventRegistryEntry &entry,
-        EventReport *event, BarrierNotifiable *done) override
-    {
-        AutoNotify an(done);
-        if (!parse_event(event->event))
-        {
-            return;
-        }
-        uint32_t m = (1U) << eventMask_;
-        EventState s;
-        if (isStateKnown_[eventOfs_] & m)
-        {
-            if (lastSetState_[eventOfs_] & m)
-            {
-                // normal
-                s = EventState::VALID;
-            }
-            else
-            {
-                // reversed
-                s = EventState::INVALID;
-            }
-            if (normalReverse_ != 1)
-            {
-                // query was reversed. invert the event state
-                s = invert_event_state(s);
-            }
-        }
-        else
-        {
-            s = EventState::UNKNOWN;
-        }
-        Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + s;
-        event->event_write_helper<1>()->WriteAsync(node_, mti,
-            WriteHelper::global(), eventid_to_buffer(event->event),
-            done->new_child());
-    }
-
-    /// Send the actual accessory command.
-    virtual void send_accy_command() = 0;
-
+    
     /// Parses an event into an openlcb accessory offset.
-    /// @return true if the event is in the accessory range, false if this
-    /// event can be ignored.
-    /// @param on_off will be set to true if this is an activate event, false
-    /// if it is an inactivate event.
-    /// @param ofs will be set to the offset in the state_ arrays.
-    /// @param mask will be set to a single bit value that marks the location
-    /// in the state_ arrays.
-    bool parse_event(EventId event)
+    bool parse_event(EventId event, uint32_t *address, bool *value) override
     {
-        if (event >= TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE &&
-            event <
-                TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + 4096)
+        uint32_t dcc_address;
+        if (event >= cfg_->activate_base &&
+            event < cfg_->activate_base + (1UL << cfg_->mask_bits))
         {
             onOff_ = 1;
-            dccAddress_ =
-                event - TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE;
+            dcc_address = event - cfg_->activate_base;
         }
-        else if (event >=
-                TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE &&
-            event <
-                TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + 4096)
+        else if (event >= cfg_->inactivate_base &&
+            event < cfg_->inactivate_base + (1UL << cfg_->mask_bits))
         {
             onOff_ = 0;
-            dccAddress_ =
-                event - TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE;
+            dcc_address = event - cfg_->inactivate_base;
         }
         else
         {
             return false;
         }
-        normalReverse_ = dccAddress_ & 1;
-        eventOfs_ = dccAddress_ >> 6;
-        eventMask_ = (dccAddress_ >> 1) & 31;
+
+        // Populate DccAccyConsumer specific members
+        dccAddress_ = dcc_address;
+
+        // Populate base class generic properties
+        // Normal/Reverse is determined by LSB of dccAddress. 1 = Normal, 0 =
+        // Reverse.
+        *value = (dcc_address & 1) ? STATE_NORMAL : STATE_REVERSED;
+
+        // Address is dccAddress / 2.
+        *address = dcc_address >> 1;
+
         return true;
     }
 
-    /// Parsed event state: 1 = activate (C=1), 2 = deactivate (C=0).
+protected:
+    /// Parsed event state: 1 = activate (C=1), 0 = deactivate (C=0).
     unsigned onOff_ : 1;
-    /// Parsed event state: 1 = normal (D0=1), 0 = reversed (D0=0).
-    unsigned normalReverse_ : 1;
     /// Parsed event state: dcc address (0..4095) without inverting or encoding.
     unsigned dccAddress_ : 12;
-    /// Parsed event state: offset in the state_ array.
-    unsigned eventOfs_ : 6;
-    /// Parsed event state: bit index (0..31) in the uint32 in the state_ array
-    /// entry pointed to by eventOfs_.
-    unsigned eventMask_ : 5;
-
-    /// each bit determines what the last command sent to the accessory address
-    /// was. bit==0 is reverse. bit==1 is normal.
-    uint32_t lastSetState_[64];
-    /// each bit determines whether we've sent a command to that accessory
-    /// address yet or not. bit==0 means unknown state, bit==1 means state is
-    /// known.
-    uint32_t isStateKnown_[64];
-
-    /// OpenLCB node to export the consumer on.
-    Node *node_;
 };
 
-/// Specialized (DCC protocol) implementation of a DCC accessory consumer.
-class DccAccyConsumer : public DccAccyConsumerBase
+/// The DCC accessory consumer listens to the well-known events for DCC
+/// accessory (e.g. turnout) commands, and generates the respective DCC
+/// packets.
+class DccAccyConsumer : public NullDccAccyConsumer
 {
 public:
     /// Constructs a listener for DCC accessory control.
@@ -235,19 +158,14 @@ public:
     /// @param track is the interface through which we will be writing DCC
     /// accessory packets.
     DccAccyConsumer(Node *node, dcc::TrackIf *track)
-        : DccAccyConsumerBase(node)
+        : NullDccAccyConsumer(node)
         , track_(track)
-    {
-    }
-
-    /// Destructor.
-    ~DccAccyConsumer()
     {
     }
 
 private:
     /// Send the actual accessory command.
-    void send_accy_command() override
+    void action_impl() override
     {
         dcc::TrackIf::message_type *pkt;
         mainBufferPool->alloc(&pkt);

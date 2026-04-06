@@ -186,6 +186,8 @@ extern const uint32_t HSEValue; /*!< Value of the External oscillator in Hz */
   * @brief Include module's header file
   */
 
+#include "stm32l4xx_ll_exti.h"
+ 
 #ifdef HAL_RCC_MODULE_ENABLED
   #include "stm32l4xx_hal_rcc.h"
 #endif /* HAL_RCC_MODULE_ENABLED */

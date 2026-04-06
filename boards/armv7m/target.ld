@@ -18,12 +18,13 @@ SECTIONS
     /* MAIN TEXT SECTION */    
     .text : ALIGN(4)
     {
+        __start_bin = .;
         FILL(0xff)
         KEEP(*(.interrupt_vector))
 
         /* Makes place for the app header to be filled in by the bootloader
         checksum program. */
-        . = __app_header_offset;
+        . = __start_bin + __app_header_offset;
         QUAD(0); /* App header: checksum for vector table. */
         QUAD(0);
         LONG(0); /* App header: data size */

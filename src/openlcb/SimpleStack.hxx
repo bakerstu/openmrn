@@ -48,6 +48,7 @@
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/EventService.hxx"
+#include "openlcb/FilteringCanHubFlow.hxx"
 #include "openlcb/IfCan.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
@@ -262,6 +263,17 @@ public:
     {
         return 0;
     }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    virtual void set_pip(uint64_t pip)
+    {
+    }
+
+    /// Updates the PIP response value to include the firmware update supported
+    /// flag. Call this at the beginning of appl_main() if there is a
+    /// bootloader.
+    void pip_add_firmware_update_support();
 
 protected:
     /// Call this function once after the actual IO ports are set up. Calling
@@ -502,7 +514,7 @@ private:
         /// This flow is the connection between the stack and the device
         /// drivers. It also acts as a hub to multiple different clients or CAN
         /// ports.
-        CanHubFlow canHub0_;
+        FilteringCanHubFlow canHub0_;
         /// Implementation of OpenLCB interface.
         IfCan ifCan_;
         /// Datagram service (and clients) matching the interface.
@@ -635,7 +647,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     /// The actual node.
@@ -672,7 +691,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     /// The actual node.
@@ -714,7 +740,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     TrainService tractionService_ {iface()};

@@ -108,7 +108,7 @@ private:
     }
     /// Feedback key is set by the DCC decoder driver. The feedback packet must
     /// carry the same feedback key or else it will not be transmitted.
-    void set_feedback_key(uint32_t key) override
+    void set_feedback_key(uint32_t key, uint16_t dcc_address) override
     {
         expectedFeedbackKey_ = key;
     }

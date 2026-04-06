@@ -76,14 +76,18 @@ public:
      * - Second param is a notifiable (ownership is not transferred). The
      * callee must invoke this notifiable when the socket has been torn down in
      * order to restart the search with the same parameters.
+     * @param timeout_sec Connection timeout in seconds, values <= 0 use default
+     * timeout. A sensible value is usually around 5 seconds.
      */
     SocketClient(Service *service, ExecutorBase *connect_executor,
         ExecutorBase *mdns_executor, std::unique_ptr<SocketClientParams> params,
-        std::function<void(int, Notifiable *)> connect_callback)
+        std::function<void(int, Notifiable *)> connect_callback,
+        int timeout_sec = -1)
         : StateFlowBase(service)
         , callback_(connect_callback)
         , connectExecutor_(connect_executor)
         , mdnsExecutor_(mdns_executor)
+        , connectTimeoutSec_(timeout_sec)
         , strategyOffset_(0)
         , mdnsPending_(false)
         , mdnsJoin_(false)
@@ -253,6 +257,18 @@ public:
      *  @return fd of the connected socket.
      */
     static int connect(struct addrinfo *addr);
+
+    /** Connects a tcp socket to the specified remote address. Returns -1 if
+     *  unsuccessful; returns the fd if successful.
+     *
+     *  @param addr IP(v4/v6) addrinfo structure describing the remote host. May
+     *  be null. Ownership is not transferred. Will not be used after the
+     *  funciton returns.
+     *  @param timeout_sec in seconds. any value <= 0 means default timeout.
+     *
+     *  @return fd of the connected socket.
+     */
+    static int connect_with_timeout(struct addrinfo *addr, int timeout_sec);
 
     /// Converts a struct addrinfo to a dotted-decimal notation IP address.
     /// @param addr is an addrinfo returned by getaddrinfo or gethostbyname.
@@ -427,7 +443,8 @@ private:
             params_->log_message(SocketClientParams::CONNECT_FAILED_SELF);
             return;
         }
-        fd_ = SocketClient::connect(addr.get());
+        fd_ =
+            SocketClient::connect_with_timeout(addr.get(), connectTimeoutSec_);
         if (fd_ >= 0)
         {
             params_->set_last(host.c_str(), port);
@@ -452,15 +469,25 @@ private:
     /// State that gets called when we have a completed connection in fd_.
     Action connected()
     {
+        bool need_close = false;
+        int fd_close = -1;
         {
             AtomicHolder h(this);
             if (requestShutdown_)
             {
-                ::close(fd_);
+                fd_close = fd_;
                 fd_ = -1;
-                return exit();
+                need_close = true;
             }
-            isConnected_ = true;
+            else
+            {
+                isConnected_ = true;
+            }
+        }
+        if (need_close)
+        {
+            ::close(fd_close);
+            return exit();
         }
         callback_(fd_, this);
         return wait_and_call(STATE(start_connection));
@@ -632,6 +659,10 @@ private:
     std::array<Attempt, 5> strategyConfig_{{
         Attempt::WAIT_RETRY,
     }};
+
+    /// Timeout in seconds for establishing a connection, <= 0, default timeout.
+    int connectTimeoutSec_;
+
     /// What is the next step in the strategy. Index into the strategyConfig_
     /// array. Guarded by Atomic *this.
     uint8_t strategyOffset_ : 3;

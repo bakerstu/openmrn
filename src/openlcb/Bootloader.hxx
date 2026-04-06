@@ -366,8 +366,8 @@ void handle_memory_config_frame()
                 set_error_code(DatagramDefs::INVALID_ARGUMENTS);
                 return;
             }
-            // fall through
         }
+        // fall through
         case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
         {
             // Poor man's reset. Clears the entire state machine, which will
@@ -392,8 +392,8 @@ void handle_memory_config_frame()
                 set_error_code(r);
                 return;
             }
-            // fall through
         }
+        // fall through
         case MemoryConfigDefs::COMMAND_RESET:
         {
             set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
@@ -1027,8 +1027,12 @@ bool bootloader_init() {
     {
         bool request = request_bootloader();
         bootloader_led(LED_REQUEST, request);
-        bool csum_ok = check_application_checksum();
-        bootloader_led(LED_CSUM_ERROR, !csum_ok);
+        bool csum_ok = false;
+        if (!request)
+        {
+            csum_ok = check_application_checksum();
+            bootloader_led(LED_CSUM_ERROR, !csum_ok);
+        }
         if (!request && csum_ok)
         {
             g_bootloader_busy = 0;

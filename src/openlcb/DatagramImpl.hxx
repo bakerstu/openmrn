@@ -327,7 +327,8 @@ private:
                         return;
                     }
                 }
-            } // fall through
+            }
+            // fall through
             case Defs::MTI_DATAGRAM_REJECTED:
             {
                 result_ &= ~0xffff;

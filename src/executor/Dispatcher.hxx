@@ -141,13 +141,13 @@ protected:
 
     /// Iterate on potential handlers, matching the ID of the incoming message
     /// to the handlers' masks. @return next action
-    STATE_FLOW_STATE(iterate);
+    virtual STATE_FLOW_STATE(iterate);
     /// State after a clone-and-send operation is complete.  @return next action
     STATE_FLOW_STATE(clone_done);
     /// State when the entire iteration is done.  @return next action
     STATE_FLOW_STATE(iteration_done);
 
-private:
+protected:
     /// true if this flow should negate the match condition.
     bool negateMatch_;
     template<class T>
@@ -187,13 +187,12 @@ private:
     /// Index of the next handler to look at.
     size_t currentIndex_;
 
-protected:
     /// If non-NULL we still need to call this handler.
     UntypedHandler *lastHandlerToCall_{nullptr};
     /// Handler to give all messages that were not matched by any other handler
     /// registration.
     UntypedHandler *fallbackHandler_{nullptr};
-private:
+
     /// Protects handler add / remove against iteration.
     OSMutex lock_;
 };

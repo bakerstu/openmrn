@@ -177,8 +177,6 @@ void external0_1_interrupt_handler(void) __attribute__ ((weak, alias ("default_i
 void external2_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void external4_15_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void ucpd_usb_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-
-
 void dma_ch1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void dma_ch2_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void  dma_ch4_5_6_7_dma2_ch1_2_3_4_5_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));

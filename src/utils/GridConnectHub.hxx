@@ -115,6 +115,10 @@ public:
     ///
     GcPacketPrinter(CanHubFlow *can_hub, bool timestamped);
     ~GcPacketPrinter();
+
+    /// @return the underlying port object.
+    CanHubPortInterface *get_port();
+
 private:
     /// pImpl class.
     struct Impl;

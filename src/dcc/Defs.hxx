@@ -187,6 +187,10 @@ enum
     ADR_MOBILE_SHORT = 0b00111000,
     /// Mask for 7-bit mobile decoders
     ADR_MOBILE_SHORT_MASK = 0xFF,
+    /// Consist address (7-bit mobile decoder)
+    ADR_CONSIST_SHORT = 0b00111001,
+    /// Mask for consist address
+    ADR_CONSIST_SHORT_MASK = 0xFF,
     /// 14-bit mobile decoders
     ADR_MOBILE_LONG = 0,
     /// Maximum value of the first byte for a 14-bit mobile decoder.

@@ -46,6 +46,13 @@ namespace dcc
  * broadcast. */
 bool RailcomBroadcastDecoder::process_packet(const dcc::Feedback &packet)
 {
+    const uint8_t b0 = packet.dccAddress >> 8;
+    const bool is_mobile_decoder =
+        ((1 <= b0 && b0 <= 127) || (192 <= b0 && b0 <= 231));
+    if (!is_mobile_decoder)
+    {
+        return false;
+    }
     if (packet.ch1Size)
     {
         return process_data(packet.ch1Data, packet.ch1Size) &&
@@ -135,9 +142,20 @@ void RailcomBroadcastDecoder::set_occupancy(bool value)
 {
     if (value)
     {
+        if (countOcc_ < MAX_OCC)
+        {
+            ++countOcc_;
+        }
         return;
     }
-    notify_empty();
+    if (countOcc_)
+    {
+        --countOcc_;
+    }
+    if (countOcc_ < MIN_OCC)
+    {
+        notify_empty();
+    }
 }
 
 void RailcomBroadcastDecoder::notify_empty()
