@@ -304,6 +304,7 @@ private:
                 dma_ch(i)->CCR |= DMA_CCR_EN; // enable DMA
             }
         }
+        HW::start_dir_capture();
         Debug::RailcomDriverCutout::set(true);
     }
 
@@ -357,7 +358,18 @@ private:
             LL_USART_ClearFlag_FE(uart(i));
             LL_USART_Enable(uart(i));
         }
-        HW::middle_cutout_hook();
+        HW::stop_dir_capture();
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
+        {
+            if (!returnedPackets_[i])
+            {
+                continue;
+            }
+            if (returnedPackets_[i]->ch1Size == 2)
+            {
+                //returnedPackets_[i]->ch1D
+            }
+        }
         Debug::RailcomDriverCutout::set(true);
     }
 
