@@ -36,13 +36,13 @@
 #include <stdlib.h>
 
 template <>
-const int FdHubPort<CanHubFlow>::ReadThread::kUnit = sizeof(struct can_frame);
+const int FdHubPort<CanHubFlow>::ReadThread::UNIT = sizeof(struct can_frame);
 template <>
-const int FdHubPort<CanHubFlow>::ReadThread::kBufSize = sizeof(
+const int FdHubPort<CanHubFlow>::ReadThread::BUF_SIZE = sizeof(
     struct can_frame);
 #if defined(__FreeRTOS__) || defined(ESP_PLATFORM)
 template <>
-const int FdHubPort<CanHubFlow>::ReadThread::kReadThreadPriority =
+const int FdHubPort<CanHubFlow>::ReadThread::READ_THREAD_PRIORITY =
     OSThread::get_priority_max();
 #endif
 
@@ -63,9 +63,9 @@ void FdHubPort<CanHubFlow>::ReadThread::send_message(const void *buf, int size)
     port()->hub_->send(b, 0);
 }
 
-template <> const int FdHubPort<HubFlow>::ReadThread::kUnit = 1;
-template <> const int FdHubPort<HubFlow>::ReadThread::kBufSize = 64;
-template <> const int FdHubPort<HubFlow>::ReadThread::kReadThreadPriority = 0;
+template <> const int FdHubPort<HubFlow>::ReadThread::UNIT = 1;
+template <> const int FdHubPort<HubFlow>::ReadThread::BUF_SIZE = 64;
+template <> const int FdHubPort<HubFlow>::ReadThread::READ_THREAD_PRIORITY = 0;
 
 
 template <>
@@ -97,14 +97,14 @@ void FdHubPort<HubFlow>::ReadThread::send_message(const void *buf, int size)
 }
 
 /// Prefix for thread names created by the FdHubPort for reading and writing.
-static const char kThreadPrefix[] = "thread_fd_";
+static const char THREAD_PREFIX[] = "thread_fd_";
 
 void FdHubPortBase::fill_thread_name(char *buf, char mode, int fd)
 {
-    memcpy(buf, kThreadPrefix, sizeof(kThreadPrefix));
+    memcpy(buf, THREAD_PREFIX, sizeof(THREAD_PREFIX));
     static_assert(
-        sizeof(kThreadPrefix) == 11, "size of thread prefix incorrect");
-    char *p = buf + sizeof(kThreadPrefix) - 1;
+        sizeof(THREAD_PREFIX) == 11, "size of thread prefix incorrect");
+    char *p = buf + sizeof(THREAD_PREFIX) - 1;
     *p++ = mode;
     *p++ = '_';
     char *q = p;

@@ -51,14 +51,14 @@ public:
 #ifdef ESP_PLATFORM
     // TODO: shrink these if possible
     /// How many bytes of stack should we allocate to the write thread's stack.
-    static const int kWriteThreadStackSize = 2048;
+    static const int WRITE_THREAD_STACK_SIZE = 2048;
     /// How many bytes of stack should we allocate to the read thread's stack.
-    static const int kReadThreadStackSize = 2048;
+    static const int READ_THREAD_STACK_SIZE = 2048;
 #else
     /// How many bytes of stack should we allocate to the write thread's stack.
-    static const int kWriteThreadStackSize = 1000;
+    static const int WRITE_THREAD_STACK_SIZE = 1000;
     /// How many bytes of stack should we allocate to the read thread's stack.
-    static const int kReadThreadStackSize = 1000;
+    static const int READ_THREAD_STACK_SIZE = 1000;
 #endif // ESP_PLATFORM
 
     /// Constructor.
@@ -67,7 +67,7 @@ public:
     /// the hub (usually due to an error).
     FdHubPortBase(int fd, Notifiable *done)
         : FdHubPortInterface(fd)
-        , writeThread_(fill_thread_name('W', fd), 3, kWriteThreadStackSize)
+        , writeThread_(fill_thread_name('W', fd), 3, WRITE_THREAD_STACK_SIZE)
         , writeService_(&writeThread_)
         , barrier_(done)
         , hasError_(0)
@@ -327,7 +327,7 @@ public:
         {
             init();
             start(port->fill_thread_name('R', port->fd_),
-                  kReadThreadPriority, port->kReadThreadStackSize);
+                  READ_THREAD_PRIORITY, port->READ_THREAD_STACK_SIZE);
         }
         
         ~ReadThread() {
@@ -343,13 +343,13 @@ public:
         /** @param this is the minimum number of bytes that we will send. */
         int unit() OVERRIDE
         {
-            return kUnit;
+            return UNIT;
         }
         /** @return We will allocate this many bytes for read buffer. This is
          * the maximum number of bytes that we'll send. */
         int buf_size() OVERRIDE
         {
-            return kBufSize;
+            return BUF_SIZE;
         }
         /** Sends off a buffer */
         void send_message(const void *buf, int size) OVERRIDE;
@@ -361,12 +361,12 @@ public:
         SemaphoreNotifiableBlock* semaphores_{nullptr};
 
         /** This is the minimum number of bytes that we will send. */
-        static const int kUnit;
+        static const int UNIT;
         /** We will allocate this many bytes for read buffer. This is the
          * maximum number of bytes that we'll send. */
-        static const int kBufSize;
+        static const int BUF_SIZE;
         /** Priority to use for read thread; 0 is default priority. */
-        static const int kReadThreadPriority;
+        static const int READ_THREAD_PRIORITY;
     };
 
 private:
