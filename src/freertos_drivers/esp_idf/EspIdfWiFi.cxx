@@ -33,7 +33,7 @@
  */
 
 // Uncomment following line to enable verbose logging.
-//#define LOGLEVEL VERBOSE
+#define LOGLEVEL VERBOSE
 
 #include "freertos_drivers/esp_idf/EspIdfWiFi.hxx"
 
@@ -75,6 +75,9 @@ static const wifi_scan_config_t SCAN_CONFIG =
         .ghz_2_channels = 0,
         .ghz_5_channels = 0,
     },
+#if ESP_IDF_VERSION > ESP_IDF_VERSION_VAL(5,4,2)
+    .coex_background_scan = false,
+#endif
 };
 
 //
@@ -658,12 +661,26 @@ void EspIdfWiFiBase::wifi_event_handler(
                 // or scan for APs. Otherwise, there will be a crash.
                 break;
             }
-            if (try_fast_reconnect || fastConnectOnlySta_)
+            if (try_fast_reconnect ||
+                (fastConnectOnlySta_ && get_role() == WlanRole::STA))
             {
                 // First reconnect attempt (use last channel), or forced "fast"
                 // connect (use any channel if not first attempt).
                 sta_connect_fast(try_fast_reconnect);
-                LOG(VERBOSE, "wifi: STA disconnected, fast reconnect attempt...");
+                LOG(VERBOSE,
+                    "wifi: STA disconnected, fast reconnect attempt...");
+            }
+            else if (fastConnectOnlySta_)
+            {
+                // Multi-role (AP + STA) active.
+                //
+                // This is not a first connection attempt. Put a delay in so
+                // that radio bandwidth is not monopolized by connect attempts.
+                CallbackExecutable *e = new CallbackExecutable(std::bind(
+                    &STAConnectTimer::restart, &STAConnectTimer_));
+                service()->executor()->add(e);
+                LOG(VERBOSE, "wifi: STA disconnected, delayed fast reconnect "
+                    "attempt...");
             }
             else
             {
@@ -716,14 +733,22 @@ void EspIdfWiFiBase::wifi_event_handler(
                 // a connection.
                 if (match_index < 0)
                 {
-                    /// @todo If we get into a situation where we are
-                    ///       continuously scanning forever, does this effect
-                    ///       the quality of the AP or BLE performance, since
-                    ///       there is only one radio? Not sure. Need to do
-                    ///       some practical testing. Perhaps there should be
-                    ///       some delay between scans.
-                    // No profile match found, scan again.
-                    esp_wifi_scan_start(nullptr, false);
+                    if (get_role() == WlanRole::STA)
+                    {
+                        // Start a timer to have some blanking time between
+                        // scans. When the timer expires, another scan will be
+                        // started. This helps preserve bandwith on the AP.
+                        CallbackExecutable *e = new CallbackExecutable(std::bind(
+                            &APScanTimer::restart, &apScanTimer_));
+                        service()->executor()->add(e);
+                    }
+                    else
+                    {
+                        // When no AP mode is not active, scanning bandwidth
+                        // is not  a concern, and all channels can be scanned
+                        // without inter scan delay for faster discovery.
+                        esp_wifi_scan_start(&SCAN_CONFIG, false);
+                    }
                 }
                 else
                 {
@@ -1281,7 +1306,7 @@ WiFiInterface::ConnectionResult EspIdfWiFiBase::connection_result_encode(
         case WIFI_REASON_NOT_AUTHED:
             // fall through
         case WIFI_REASON_802_1X_AUTH_FAILED:
-            // fallthrough
+            // fall through
         case WIFI_REASON_ASSOC_NOT_AUTHED:
             return WiFiInterface::AUTHENTICATION_FAILED;
         case WIFI_REASON_ASSOC_EXPIRE:
@@ -1295,4 +1320,67 @@ WiFiInterface::ConnectionResult EspIdfWiFiBase::connection_result_encode(
         case WIFI_REASON_ASSOC_COMEBACK_TIME_TOO_LONG:
             return WiFiInterface::ASSOCIATION_FAILED;
     }
+}
+
+//
+// EspIdfWiFiBase::APScanTimer::timeout()
+//
+long long EspIdfWiFiBase::APScanTimer::timeout()
+{
+    // Background scan parameters.
+    static wifi_scan_config_t scan_config_background =
+    {
+        .ssid = nullptr,      // any SSID
+        .bssid = nullptr,     // any BSSID
+        .channel = 1,         // any channel
+        .show_hidden = false, // do not include "hidden" SSIDs
+        .scan_type = WIFI_SCAN_TYPE_ACTIVE, // active scan
+        .scan_time =
+        {
+            .active =
+            {
+                .min = 0,  // milliseconds
+                .max = 30, // milliseconds
+            },
+            .passive = 30, // milliseconds
+        },
+        .home_chan_dwell_time = 30, // milliseconds
+        .channel_bitmap =
+        {
+            .ghz_2_channels = 0,
+            .ghz_5_channels = 0,
+        },
+    };
+
+    if (WiFiInterface::instance()->get_ap_sta_count() > 0)
+    {
+        wifi_country_t country;
+        esp_wifi_get_country(&country);
+        uint8_t max_channel = country.schan + country.nchan - 1;
+        // When there is a connected client in AP mode, only scan one channel
+        // at a time. This ensures that the latency with connected clients
+        // remains reasonable.
+        if (++scan_config_background.channel > max_channel)
+        {
+            scan_config_background.channel = country.schan;
+        }
+    }
+    else
+    {
+        // When no AP clients are connected, scanning bandwidth is not as much
+        // of a concern, and all channels can be scanned for faster discovery.
+        scan_config_background.channel = 0;
+    }
+    esp_wifi_scan_start(&scan_config_background, false);
+    return NONE;
+}
+
+//
+// EspIdfWiFiBase::STAConnectTimer::timeout()
+//
+long long EspIdfWiFiBase::STAConnectTimer::timeout()
+{
+    static_cast<EspIdfWiFiBase*>(WiFiInterface::instance())
+        ->sta_connect_fast(false);
+    return NONE;
 }

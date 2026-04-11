@@ -413,6 +413,13 @@ void SimpleStackBase::factory_reset_all_events(
     }
 }
 
+void SimpleStackBase::pip_add_firmware_update_support()
+{
+    uint64_t pip = get_pip();
+    pip |= Defs::FIRMWARE_UPGRADE;
+    set_pip(pip);
+}
+
 void SimpleCanStackBase::add_gridconnect_port(
     const char *path, Notifiable *on_exit)
 {

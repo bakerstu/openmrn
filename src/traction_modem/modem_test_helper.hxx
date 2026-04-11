@@ -52,6 +52,10 @@ class MockTrainHwInterface : public ModemTrainHwInterface
 public:
     MOCK_METHOD2(output_state, void(uint16_t, uint16_t));
     MOCK_METHOD1(output_restart, void(uint16_t));
+    MOCK_METHOD4(memory_write, MemoryWriteError(
+        uint8_t, uint32_t, Defs::Payload, size_t *));
+    MOCK_METHOD4(memory_read, MemoryReadError(
+        uint8_t, uint32_t, Defs::Payload *, size_t));
 };
 
 /// Base class for tests that handles some of the "link" infrastructure.

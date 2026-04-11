@@ -72,6 +72,9 @@ extern "C" {
 /** socket option send timeout */
 #define SO_SNDTIMEO  (4)
 
+/** socket option error */
+#define SO_ERROR     (5)
+
 /** socket option for receive buffer size */
 #define SO_RCVBUF    (8)
 
