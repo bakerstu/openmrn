@@ -235,16 +235,9 @@ struct Stm32GpioOptionDefs
     DECLARE_OPTIONALARG(Pin, pin, uint16_t, 11, 0xffff);
     /// Sets the GPIO pin number, 0..15. Required.
     DECLARE_OPTIONALARG(PinNum, pin_num, uint8_t, 12, 0xff);
-    /// Sets the GPIO port number for the exti line, like LL_EXTI_CONFIG_PORTA,
-    /// etc. Required.
-    DECLARE_OPTIONALARG(ExtiPort, exti_port, uint32_t, 13, 0xf);
-    /// Sets the GPIO line config number for the exti line, like
-    /// LL_EXTI_CONFIG_LINE7, etc. Required.
-    DECLARE_OPTIONALARG(
-        ExtiLineConfig, exti_line_config, uint32_t, 14, 0xffffffff);
 
-    using Base = OptionalArg<Stm32GpioOptionDefs, GpioMode, Pull, Speed, AfMode,
-        PeriphBase, Pin, PinNum, ExtiPort, ExtiLineConfig>;
+    using Base = OptionalArg<Stm32GpioOptionDefs, GpioMode, Pull, Speed,
+        AfMode, PeriphBase, Pin, PinNum>;
 };
 
 /// Constexpr class for representing the actual options that are defined on a
@@ -268,8 +261,6 @@ public:
     DEFINE_OPTIONALARG(PeriphBase, periph_base, uint32_t);
     DEFINE_OPTIONALARG(Pin, pin, uint16_t);
     DEFINE_OPTIONALARG(PinNum, pin_num, uint8_t);
-    DEFINE_OPTIONALARG(ExtiPort, exti_port, uint32_t);
-    DEFINE_OPTIONALARG(ExtiLineConfig, exti_line_config, uint32_t);
 
     constexpr bool is_af() const
     {
@@ -346,8 +337,6 @@ public:
     struct NAME##_PinDefs                                                      \
     {                                                                          \
         using PeriphBase = Stm32GpioOptions::PeriphBase;                       \
-        using ExtiPort = Stm32GpioOptions::ExtiPort;                           \
-        using ExtiLineConfig = Stm32GpioOptions::ExtiLineConfig;               \
         using Pin = Stm32GpioOptions::Pin;                                     \
         using PinNum = Stm32GpioOptions::PinNum;                               \
         using GpioMode = Stm32GpioOptions::GpioMode;                           \
@@ -393,9 +382,7 @@ public:
         static constexpr Stm32GpioOptions opts()                               \
         {                                                                      \
             return Stm32GpioOptions(PeriphBase(GPIO##PORTNAME##_BASE),         \
-                ExtiPort(LL_EXTI_CONFIG_PORT##PORTNAME), Pin(GPIO_PIN_##NUM),  \
-                PinNum(NUM), ExtiLineConfig(LL_EXTI_CONFIG_LINE##NUM),         \
-                ##ARGS);                                                       \
+                Pin(GPIO_PIN_##NUM), PinNum(NUM), ##ARGS);                     \
         }                                                                      \
     };                                                                         \
     typedef BaseClass<NAME##_PinDefs> NAME##_Pin

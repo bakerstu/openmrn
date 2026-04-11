@@ -348,6 +348,17 @@ private:
                 returnedPackets_[i]->ch1Data[0] = 0xF8;
                 returnedPackets_[i]->ch1Size = 1;
             }
+            else if (returnedPackets_[i]->ch1Size)
+            {
+                // Checks the direction.
+                returnedPackets_[i]->haveCh1Dir = 1;
+                // Direction is "west" if the current came in with a positive
+                // sense. That means that the DIR pin has never seen a low
+                // edge.
+                returnedPackets_[i]->ch1Dir =
+                    (LL_EXTI_IsActiveFallingFlag_0_31(
+                        HW::RAILCOM_DIR_EXTI[i])) == 0;
+            }
 
             // Set up channel 2 reception with DMA.
             dma_ch(i)->CNDTR = 6;
@@ -401,6 +412,17 @@ private:
                 {
                     returnedPackets_[i]->add_ch2_data(0xF8);
                 }
+            }
+            else if (returnedPackets_[i]->ch2Size)
+            {
+                // Checks the direction.
+                returnedPackets_[i]->haveCh2Dir = 1;
+                // Direction is "west" if the current came in with a positive
+                // sense. That means that the DIR pin has never seen a low
+                // edge.
+                returnedPackets_[i]->ch2Dir =
+                    (LL_EXTI_IsActiveFallingFlag_0_31(
+                        HW::RAILCOM_DIR_EXTI[i])) == 0;
             }
 
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
