@@ -1,3 +1,5 @@
+#include "executor/Notifiable.hxx"
+#include "openlcb/PIPClient.hxx"
 #include "openlcb/SimpleNodeInfoMockUserFile.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/async_if_test_helper.hxx"
@@ -32,7 +34,6 @@ class SimpleCanStackTest : public AsyncCanTest
 protected:
     ~SimpleCanStackTest()
     {
-        twait();
     }
 
     SimpleCanStack stack_ {TEST_NODE_ID};
@@ -40,6 +41,43 @@ protected:
 
 TEST_F(SimpleCanStackTest, create)
 {
+}
+
+TEST_F(SimpleCanStackTest, FirmwareUpdateSupport)
+{
+    // Create a PIP client on the stack's interface to query the stack's node
+    PIPClient pip_client(stack_.iface());
+    bool done = false;
+
+    // First query: should NOT have firmware update support
+    pip_client.request(NodeHandle(stack_.node()->node_id()), stack_.node(),
+        new TempNotifiable([&]() { done = true; }));
+
+    while (!done)
+    {
+        stack_.executor()->loop_some();
+    }
+
+    // Check for success
+    uint64_t initial_pip = pip_client.response();
+    EXPECT_FALSE(initial_pip & Defs::FIRMWARE_UPGRADE);
+
+    // Enable firmware update support
+    stack_.pip_add_firmware_update_support();
+
+    // Second query: should HAVE firmware update support
+    done = false;
+    pip_client.request(NodeHandle(stack_.node()->node_id()), stack_.node(),
+        new TempNotifiable([&]() { done = true; }));
+
+    while (!done)
+    {
+        stack_.executor()->loop_some();
+    }
+
+    uint64_t new_pip = pip_client.response();
+    EXPECT_TRUE(new_pip & Defs::FIRMWARE_UPGRADE);
+    EXPECT_EQ(new_pip, initial_pip | Defs::FIRMWARE_UPGRADE);
 }
 
 class SimpleTcpStackTest : public AsyncCanTest

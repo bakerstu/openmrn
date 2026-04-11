@@ -362,6 +362,8 @@ protected:
     EspIdfWiFiBase(Service *service, const char *hostname)
         : lock_(true) // Recursive.
         , initialized_(false)
+        , apScanTimer_(service)
+        , STAConnectTimer_(service)
           // This initial value ensures the first lookup will not sleep.
         , mdnsLookupTimestamp_(-(MDNS_LOOKUP_BLANKING_TIME_MAX_MSEC + 1))
         , mdnsLookupLock_()
@@ -420,6 +422,44 @@ protected:
     bool initialized_; ///< initialization complete
 
 private:
+    /// Helper timer for periodic background AP scanning.
+    class APScanTimer : public Timer
+    {
+    public:
+        /// Constructor.
+        /// @param service Service to bind this object to
+        APScanTimer(Service *service)
+            : Timer(service->executor()->active_timers())
+        {
+            // Prime the update period so that the restart() API can be used.
+            update_period(AP_SCAN_BACKGROUND_BLANKING_PERIOD_NSEC);
+        }
+
+    private:
+        /// Called on the executor of the timer.
+        /// @return Timer::NONE (do not restart the timer)
+        long long timeout() override;
+    };
+
+    /// Helper timer for periodic background connect attempts.
+    class STAConnectTimer : public Timer
+    {
+    public:
+        /// Constructor.
+        /// @param service Service to bind this object to
+        STAConnectTimer(Service *service)
+            : Timer(service->executor()->active_timers())
+        {
+            // Prime the update period so that the restart() API can be used.
+            update_period(STA_CONNECT_BACKGROUND_BLANKING_PERIOD_NSEC);
+        }
+
+    private:
+        /// Called on the executor of the timer.
+        /// @return Timer::NONE (do not restart the timer)
+        long long timeout() override;
+    };
+
     /// Metadata for a registered mDNS service.
     struct MDNSService
     {
@@ -456,6 +496,14 @@ private:
     /// Minimum RSSI threshold for an AP signal before a connection attempt
     /// will be made in STA mode.
     static constexpr int8_t STA_CONNECT_RSSI_THRESHOLD = -100;
+
+    /// This is the downtime between back to back background scans.
+    static constexpr long long AP_SCAN_BACKGROUND_BLANKING_PERIOD_NSEC =
+        SEC_TO_NSEC(1);
+
+    /// This is the downtime between back to back fast connect attempts.
+    static constexpr long long STA_CONNECT_BACKGROUND_BLANKING_PERIOD_NSEC =
+        SEC_TO_NSEC(3);
 
     /// Split a service into its name and protocol parts
     /// @param service service, e.g. _openlcb-can._tcp
@@ -598,6 +646,8 @@ private:
         const std::string &ssid, std::string *pass = nullptr,
         uint8_t *sec = nullptr, uint8_t index = 0) = 0;
 
+    APScanTimer apScanTimer_; ///< Timer instance for AP scanning
+    STAConnectTimer STAConnectTimer_; ///< Timer instance for STA connections
     long long mdnsLookupTimestamp_; ///< timestamp for the last mDNS lookup
     OSMutex mdnsLookupLock_; /// only allow one mDNS lookup at a time.
     std::mt19937 mdnsLookupRd_; ///< random distribution for mDNS query timeout
@@ -623,6 +673,9 @@ private:
     bool mdnsAdvInhibitSta_;
     /// true if only to use fast connect credentials
     bool fastConnectOnlySta_;
+
+    /// Allow private access by the STA Connect Timer "helper".
+    friend class STAConnectTimer;
 };
 
 /// Default implementation of the hardware specific definitions.
