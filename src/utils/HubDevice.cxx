@@ -43,7 +43,7 @@ const int FdHubPort<CanHubFlow>::ReadThread::kBufSize = sizeof(
 #if defined(__FreeRTOS__) || defined(ESP_PLATFORM)
 template <>
 const int FdHubPort<CanHubFlow>::ReadThread::kReadThreadPriority =
-    configMAX_PRIORITIES - 1;
+    OSThread::get_priority_max();
 #endif
 
 template <>
