@@ -348,18 +348,7 @@ private:
                 returnedPackets_[i]->ch1Data[0] = 0xF8;
                 returnedPackets_[i]->ch1Size = 1;
             }
-            else if (returnedPackets_[i]->ch1Size)
-            {
-                // Checks the direction.
-                returnedPackets_[i]->haveCh1Dir = 1;
-                // Direction is "west" if the current came in with a positive
-                // sense. That means that the DIR pin has never seen a low
-                // edge.
-                returnedPackets_[i]->ch1Dir =
-                    (LL_EXTI_IsActiveFallingFlag_0_31(
-                        HW::RAILCOM_DIR_EXTI[i])) == 0;
-            }
-
+            
             // Set up channel 2 reception with DMA.
             dma_ch(i)->CNDTR = 6;
             dma_ch(i)->CMAR = (uint32_t)returnedPackets_[i]->ch2Data;
@@ -370,22 +359,34 @@ private:
             LL_USART_Enable(uart(i));
         }
         HW::stop_dir_capture();
-        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
+        if (HW::dir_capture_count)
         {
-            if (!returnedPackets_[i])
+            for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
             {
-                continue;
+                if (!returnedPackets_[i])
+                {
+                    continue;
+                }
+                if (returnedPackets_[i]->ch1Size == 2)
+                {
+                    returnedPackets_[i]->haveCh1Dir = 1;
+                    // How many ticks we expect to be zero. For each byte 4 data
+                    // bits and one start bit should be zero. For each zero bit
+                    // we expect 4 samples to be low (one per usec).
+                    uint32_t nominal = returnedPackets_[i]->ch1Size * 5 * 4;
+                    returnedPackets_[i]->ch1Dir =
+                        (HW::dir_counter[i] >= (nominal * 3 / 4)) &&
+                        (HW::dir_counter[i] <= (nominal * 6 / 4));
+                }
             }
-            if (returnedPackets_[i]->ch1Size == 2)
-            {
-                //returnedPackets_[i]->ch1D
-            }
+            HW::start_dir_capture();
         }
         Debug::RailcomDriverCutout::set(true);
     }
 
     void end_cutout() override
     {
+        HW::stop_dir_capture();
         HW::disable_measurement();
         bool have_packets = false;
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
@@ -413,16 +414,17 @@ private:
                     returnedPackets_[i]->add_ch2_data(0xF8);
                 }
             }
-            else if (returnedPackets_[i]->ch2Size)
+            else if (returnedPackets_[i]->ch2Size && (HW::dir_capture_count))
             {
-                // Checks the direction.
+                // We have a direction.
                 returnedPackets_[i]->haveCh2Dir = 1;
+                uint32_t nominal = returnedPackets_[i]->ch2Size * 5 * 4;
                 // Direction is "west" if the current came in with a positive
                 // sense. That means that the DIR pin has never seen a low
                 // edge.
                 returnedPackets_[i]->ch2Dir =
-                    (LL_EXTI_IsActiveFallingFlag_0_31(
-                        HW::RAILCOM_DIR_EXTI[i])) == 0;
+                    (HW::dir_counter[i] >= (nominal * 3 / 4)) &&
+                    (HW::dir_counter[i] <= (nominal * 6 / 4));
             }
 
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
