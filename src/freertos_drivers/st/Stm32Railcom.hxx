@@ -359,7 +359,7 @@ private:
             LL_USART_Enable(uart(i));
         }
         HW::stop_dir_capture();
-        if (HW::dir_capture_count)
+        if (HW::has_dir_capture)
         {
             for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
             {
@@ -370,13 +370,8 @@ private:
                 if (returnedPackets_[i]->ch1Size == 2)
                 {
                     returnedPackets_[i]->haveCh1Dir = 1;
-                    // How many ticks we expect to be zero. For each byte 4 data
-                    // bits and one start bit should be zero. For each zero bit
-                    // we expect 4 samples to be low (one per usec).
-                    uint32_t nominal = returnedPackets_[i]->ch1Size * 5 * 4;
                     returnedPackets_[i]->ch1Dir =
-                        (HW::dir_counter[i] >= (nominal * 3 / 4)) &&
-                        (HW::dir_counter[i] <= (nominal * 6 / 4));
+                        !HW::get_dir_capture(i, returnedPackets_[i]->ch1Size);
                 }
             }
             HW::start_dir_capture();
@@ -414,17 +409,15 @@ private:
                     returnedPackets_[i]->add_ch2_data(0xF8);
                 }
             }
-            else if (returnedPackets_[i]->ch2Size && (HW::dir_capture_count))
+            else if (returnedPackets_[i]->ch2Size && (HW::has_dir_capture))
             {
                 // We have a direction.
                 returnedPackets_[i]->haveCh2Dir = 1;
-                uint32_t nominal = returnedPackets_[i]->ch2Size * 5 * 4;
                 // Direction is "west" if the current came in with a positive
                 // sense. That means that the DIR pin has never seen a low
                 // edge.
                 returnedPackets_[i]->ch2Dir =
-                    (HW::dir_counter[i] >= (nominal * 3 / 4)) &&
-                    (HW::dir_counter[i] <= (nominal * 6 / 4));
+                    !HW::get_dir_capture(i, returnedPackets_[i]->ch2Size);
             }
 
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
