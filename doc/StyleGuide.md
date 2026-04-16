@@ -21,9 +21,9 @@
   - [Run Time Type Information (RTTI)](#run-time-type-information-rtti)
   - [C++ Streams](#c-streams)
   - [Preincrement and Predecrement](#preincrement-and-predecrement)
-  - [8, 16, 32, and 64 Bit Compatibility](#8-16-32-and-64-bit-compatibility)
+  - [Bit Compatibility (8, 16, 32, and 64 )](#bit-compatibility-8-16-32-and-64)
   - [Preprocessor Macros](#preprocessor-macros)
-  - [0 and nullptr/NULL](#0-and-nullptrnull)
+  - [nullptr/NULL and 0](#nullptrnull-and-0)
   - [auto](#auto)
   - [Brace Initialization](#brace-initialization)
   - [Boost](#boost)
@@ -556,7 +556,7 @@ cout << "string";   // not allowed
 
 In use cases where ++i form can be used instead of i++, use the ++i form. The ++i form produces fewer instructions.
 
-### 8, 16, 32, and 64 Bit Compatibility {#8-16-32-and-64-bit-compatibility}
+### Bit Compatibility (8, 16, 32, and 64) {#bit-compatibility-8-16-32-and-64}
 
 Code shall be written to be compatible with targets having native bit sizes including 32 and 64 bits. OpenMRN is not guaranteed to be compatible with 8 and 16 bit targets, however, reasonable efforts shall be made to try and maintain compatibility with these smaller targets. Note that in the C standard, the "int" type is not guaranteed to be greater than 16 bits, and on many 8 and 16 bit targets, an "int" is indeed 16 bits.
 
@@ -564,7 +564,7 @@ Code shall be written to be compatible with targets having native bit sizes incl
 
 The use of preprocessor macros is not forbidden. However, inline functions, enums, and const variables are preferred.
 
-### 0 and nullptr/NULL {#0-and-nullptrnull}
+### nullptr/NULL and 0 {#nullptrnull-and-0}
 
 Use 0 for integers, 0.0 for reals, nullptr or NULL for pointers, and '\0' for chars. In C++ source code, nullptr is preferred over NULL, and NULL is considered deprecated.
 
