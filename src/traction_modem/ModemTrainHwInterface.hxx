@@ -76,6 +76,13 @@ public:
         OUT_OF_BOUNDS     = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS,
     };
 
+    /// Program track mode.
+    enum class ProgramTrackMode : uint8_t
+    {
+        EXIT  = 0, ///< exit program track mode
+        ENTRY = 1, ///< enter program track mode
+    };
+
     /// Set an output state.
     /// @param output output number
     /// @param state 0 = off, 0xFFFF = on
@@ -86,6 +93,13 @@ public:
     /// Restart an output (synchronize lighting effect).
     /// @param output output number
     virtual void output_restart(uint16_t output)
+    {
+    }
+
+    /// Handle a program track mode change request from the decoder.
+    /// @param mode EXIT = leave program track mode, ENTRY = enter program
+    ///        track mode
+    virtual void program_track(ProgramTrackMode mode)
     {
     }
 
