@@ -246,13 +246,13 @@ protected:
         unsigned increments = microseconds / 20000;
         for (unsigned i = 0; i < increments; ++i)
         {
-            FakeClock::instance()->advance(20000);
+            FakeClock::instance()->advance(USEC_TO_NSEC(20000));
             wait_for_main_executor();
         }
         unsigned remaining = microseconds % 20000;
         if (remaining > 0)
         {
-            FakeClock::instance()->advance(remaining);
+            FakeClock::instance()->advance(USEC_TO_NSEC(remaining));
             wait_for_main_executor();
         }
         wait_for_main_executor();
@@ -354,11 +354,11 @@ TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
     // after sync, time should be Jan 1, 1970 00:01:00
     EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 500);
+    wait();
 
     // wait 960 fast seconds (16 minutes).
     // 960 / 500 = 1.92 fast seconds
     sleep_helper(1920000);
-
 
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 1020, 1021));
@@ -379,6 +379,7 @@ TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
     // after sync, time should be Jan 1, 1970 00:19:00
     EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 500);
+    wait();
 
     // wait 960 fast seconds (16 minutes).
     // 960 / 500 = 1.92 fast seconds

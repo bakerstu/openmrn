@@ -26,11 +26,12 @@ public:
 
     void sleep_helper(unsigned usec)
     {
-        FakeClock::instance()->advance(50000);
+        const unsigned kStepUsec = 5000;
+        FakeClock::instance()->advance(USEC_TO_NSEC(kStepUsec));
         wait_for_main_executor();
-        if (usec > 50000)
+        if (usec > kStepUsec)
         {
-            sleep_helper(usec - 50000);
+            sleep_helper(usec - kStepUsec);
         }
     }
 
@@ -83,12 +84,22 @@ protected:
             sleep_helper(10000);
             wait();
         }
-        twait();
+        // Drain any remaining timers (e.g. server's 3-sec post-start sync
+        // timer) via fake-clock advances.  wait_for_main_timers() uses real
+        // usleep() which deadlocks when FakeClock is active.
+        wait_for_main_executor();
+        while (!g_executor.active_timers()->empty())
+        {
+            sleep_helper(10000);
+            wait_for_main_executor();
+        }
+        wait_for_main_executor();
 
         delete alarm_;
         delete server_;
     }
 
+    FakeClock clk_;
     BroadcastTimeServer *server_;
     BroadcastTimeAlarm *alarm_;
 };
@@ -115,6 +126,7 @@ TEST_F(BroadcastTimeAlarmTest, SetPeriod)
     server_->set_year(1970);
     server_->set_rate_quarters(2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
@@ -140,6 +152,7 @@ TEST_F(BroadcastTimeAlarmTest, SetFutureExpires)
     server_->set_year(1970);
     server_->set_rate_quarters(2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
@@ -165,6 +178,7 @@ TEST_F(BroadcastTimeAlarmTest, SetFutureDoesNotExpire)
     server_->set_year(1970);
     server_->set_rate_quarters(2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
@@ -187,19 +201,23 @@ TEST_F(BroadcastTimeAlarmTest, SetFutureJumpOver)
     server_->set_year(1970);
     server_->set_rate_quarters(2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
     EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
     alarm_->set(60);
+    wait();
 
     EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     // jump over
     server_->set_time(2, 0);
+    wait();
 
     EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
     // jump back
-    server_->set_time(0, 0);    
+    server_->set_time(0, 0);
+    wait();
 };
 
 TEST_F(BroadcastTimeAlarmTest, SetFutureExpiresBackward)
@@ -216,6 +234,7 @@ TEST_F(BroadcastTimeAlarmTest, SetFutureExpiresBackward)
     server_->set_year(1970);
     server_->set_rate_quarters(-2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
@@ -241,6 +260,7 @@ TEST_F(BroadcastTimeAlarmTest, SetFutureDoesNotExpireBackward)
     server_->set_year(1970);
     server_->set_rate_quarters(-2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
@@ -263,19 +283,23 @@ TEST_F(BroadcastTimeAlarmTest, SetFutureJumpOverBackward)
     server_->set_year(1970);
     server_->set_rate_quarters(-2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
     EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
     alarm_->set(129600 - 60);
+    wait();
 
     EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     // jump over
     server_->set_time(10, 0);
+    wait();
 
     EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
     // jump back
-    server_->set_time(12, 0);    
+    server_->set_time(12, 0);
+    wait();
 };
 
 TEST_F(BroadcastTimeAlarmTest, Date)
@@ -292,6 +316,7 @@ TEST_F(BroadcastTimeAlarmTest, Date)
     server_->set_year(1970);
     server_->set_rate_quarters(2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
@@ -305,13 +330,14 @@ TEST_F(BroadcastTimeAlarmTest, Date)
     // allow date rollover
     sleep_helper(030000);
 
-    // now test backwards
+    // now test backwards (use Jan 2 to keep fast timestamps positive)
     server_->stop();
     server_->set_rate_quarters(-2000);
     server_->set_time(0, 0);
-    server_->set_date(1, 1);
+    server_->set_date(1, 2);
     server_->set_year(1970);
     server_->start();
+    wait();
 
     EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
     sleep_helper(110000);
@@ -340,16 +366,19 @@ TEST_F(BroadcastTimeAlarmTest, Minute)
     server_->set_year(1970);
     server_->set_rate_quarters(2000);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
+    // A fires immediately at t=0 via force_on_match (tm_sec==0)
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     BroadcastTimeAlarmMinute ma(node_, server_,
         std::bind(&BroadcastTimeAlarmTest::update_callback, this,
                   std::placeholders::_1));
+    wait();
 
     EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     sleep_helper(110000);
-    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     // allow time to expire
     sleep_helper(030000);
 
@@ -388,16 +417,19 @@ TEST_F(BroadcastTimeAlarmTest, MinuteBackward)
     server_->set_date(1, 2);
     server_->set_year(1970);
     server_->start();
+    wait();
 
     ::testing::Sequence s1;
 
+    // A fires at first timer expiry (tm_sec==59 at t=0 triggers force_on_match)
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     BroadcastTimeAlarmMinute ma(node_, server_,
         std::bind(&BroadcastTimeAlarmTest::update_callback, this,
                   std::placeholders::_1));
+    wait();
 
     EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     sleep_helper(110000);
-    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     // allow time to expire
     sleep_helper(030000);
 
@@ -412,7 +444,7 @@ TEST_F(BroadcastTimeAlarmTest, MinuteBackward)
 
     EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     // jump back
-    server_->set_time(11, 54);    
+    server_->set_time(11, 54);
     sleep_helper(030000);
 
     ma.shutdown();

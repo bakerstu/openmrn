@@ -137,10 +137,11 @@ public:
 
 protected:
     /// Entry point to state flow.
-    /// @return next state setup()
+    /// @return wait_and_call(setup) after initializing the barrier notifiable
     virtual Action entry()
     {
-        return call_immediately(STATE(setup));
+        bnPtr_ = bn_.reset(this);
+        return wait_and_call(STATE(setup));
     }
 
     /// Called by the clock when time, rate, or running state has changed.
