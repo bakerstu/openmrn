@@ -24,14 +24,21 @@ public:
         done->notify();
     }
 
+    /// Helper function for sleeping.
+    /// @param usec how long to sleep in microseconds
     void sleep_helper(unsigned usec)
     {
-        const unsigned kStepUsec = 5000;
-        FakeClock::instance()->advance(USEC_TO_NSEC(kStepUsec));
-        wait_for_main_executor();
-        if (usec > kStepUsec)
+        const unsigned kStepUsec = 1000;
+        while (usec >= kStepUsec)
         {
-            sleep_helper(usec - kStepUsec);
+            FakeClock::instance()->advance(USEC_TO_NSEC(kStepUsec));
+            wait_for_main_executor();
+            usec -= kStepUsec;
+        }
+        if (usec > 0)
+        {
+            FakeClock::instance()->advance(USEC_TO_NSEC(usec));
+            wait_for_main_executor();
         }
     }
 

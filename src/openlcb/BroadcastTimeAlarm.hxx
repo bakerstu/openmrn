@@ -222,6 +222,8 @@ private:
 #endif
 
         AtomicHolder h(this);
+        fprintf(stderr, "[%p] setup: set_=%d running_=%d bnPtr_=%p\n",
+            (void*)this, (int)set_, (int)running_, (void*)bnPtr_);
         if (set_)
         {
             set_ = false;
@@ -232,6 +234,7 @@ private:
             {
                 // have already met the alarm conditions,
                 // typically won't get here
+                fprintf(stderr, "[%p] setup: already expired, calling expired\n", (void*)this);
                 return call_immediately(STATE(expired));
             }
             else if (clock_->is_running())
@@ -241,11 +244,14 @@ private:
                     clock_->real_nsec_until_fast_time_abs(expires_,
                                                           &real_expires);
                 HASSERT(result);
+                fprintf(stderr, "[%p] setup: starting timer for %lld ns\n", (void*)this, real_expires);
                 return sleep_and_call(&timer_, real_expires, STATE(timeout));
             }
+            fprintf(stderr, "[%p] setup: not running, falling through to wait\n", (void*)this);
         }
 
         bnPtr_ = bn_.reset(this);
+        fprintf(stderr, "[%p] setup: waiting, bnPtr_=%p\n", (void*)this, (void*)bnPtr_);
         return wait_and_call(STATE(setup));
     }
 
@@ -271,24 +277,31 @@ private:
     Action expired()
     {
         bnPtr_ = bn_.reset(this);
+        fprintf(stderr, "[%p] expired: bnPtr_=%p set_=%d running_=%d\n",
+            (void*)this, (void*)bnPtr_, (int)set_, (int)running_);
         if (running_ && clock_->is_running() && callback_)
         {
             running_ = false;
             callback_(bnPtr_->new_child());
+            fprintf(stderr, "[%p] expired: after callback set_=%d running_=%d\n",
+                (void*)this, (int)set_, (int)running_);
         }
-
+        wakeup_.trigger();
+        fprintf(stderr, "[%p] expired: after trigger, entering wait\n", (void*)this);
         return wait_and_call(STATE(setup));
     }
 
     /// Wakeup the state machine. Must be called from this service's executor.
     void wakeup()
     {
+        fprintf(stderr, "[%p] wakeup: bnPtr_=%p\n", (void*)this, (void*)bnPtr_);
         timer_.ensure_triggered();
         if (bnPtr_)
         {
             bnPtr_ = nullptr;
             bn_.notify();
         }
+        fprintf(stderr, "[%p] wakeup done\n", (void*)this);
     }
 
     Wakeup wakeup_; ///< wakeup helper for scheduling alarms
