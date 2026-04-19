@@ -397,13 +397,13 @@ protected:
         {
             // AMD frames
             CAN_FILTER1 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x10701000,
-            CAN_MASK1 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+            CAN_MASK1 = CanMessageData::CAN_EXT_FRAME_MASK | 0x0FFFF000,
             // Initialization complete
             CAN_FILTER2 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19100000,
-            CAN_MASK2 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+            CAN_MASK2 = CanMessageData::CAN_EXT_FRAME_MASK | 0x0FFFF000,
             // Verified node ID number
             CAN_FILTER3 = CanMessageData::CAN_EXT_FRAME_FILTER | 0x19170000,
-            CAN_MASK3 = CanMessageData::CAN_EXT_FRAME_MASK | 0x1FFFF000,
+            CAN_MASK3 = CanMessageData::CAN_EXT_FRAME_MASK | 0x0FFFF000,
         };
 
         IfCan* if_can() { return parent_->if_can(); }

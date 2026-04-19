@@ -762,13 +762,7 @@ void handle_input_frame()
     }
     uint32_t can_id = GET_CAN_FRAME_ID_EFF(state_.input_frame);
     int dlc = state_.input_frame.can_dlc;
-    if (CanDefs::get_priority(can_id) != CanDefs::NORMAL_PRIORITY)
-    {
-        // Non-OpenLCB frame. Ignore.
-        state_.input_frame_full = 0;
-        return;
-    }
-    else if ((can_id & 0xfff) == state_.alias)
+    if ((can_id & 0xfff) == state_.alias)
     {
         // Alias conflict.
         if (CanDefs::is_cid_frame(can_id))

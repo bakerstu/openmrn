@@ -594,6 +594,20 @@ TEST_F(BootloaderTest, VerifyAddressed)
     exit_bootloader();
 }
 
+// VerifyNodeIdAddressed with priority bit cleared must still be processed.
+TEST_F(BootloaderTest, VerifyAddressedPriorityBitZero)
+{
+    proper_startup();
+
+    expect_packet(":X191704AAN1A2A3A4A5A6A;");
+    // Priority bit cleared: 0x19488321 -> 0x09488321
+    send_packet(":X09488321N04AA;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
 TEST_F(BootloaderTest, VerifyGlobal)
 {
     proper_startup();

@@ -137,7 +137,7 @@ public:
             (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
             (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
         CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
-            CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
+            CanDefs::FRAME_TYPE_MASK |
             CanDefs::CAN_FRAME_TYPE_MASK,
     };
 
