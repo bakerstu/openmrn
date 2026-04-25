@@ -334,7 +334,7 @@ public:
                   "enabling pull-up is not possible.");
     // GPIO 0, 5 and 15 typically have pull-up resistors.
     static_assert(!PDEN ||
-                  (PDEN && (PIN_NUM != 0 && PIN_NUM != 5 && PIN_NUM == 15)),
+                  (PDEN && (PIN_NUM != 0 && PIN_NUM != 5 && PIN_NUM != 15)),
                   "GPIO 0, 5, 15 typically have built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
 #endif // CONFIG_IDF_TARGET_ESP32S2
