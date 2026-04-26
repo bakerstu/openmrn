@@ -58,6 +58,20 @@ TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
     ifCan_->frame_dispatcher()->unregister_handler(&h, 0x195B4000, 0x1FFFF000);
 }
 
+// Per the OpenLCB standard, the priority bit (bit 28) should be "send as 1,
+// don't check on receipt." CAN frames with priority bit = 0 must still be
+// dispatched to the correct handler.
+TEST_F(AsyncIfTest, InjectFrameAndExpectHandlerPriorityBitZero)
+{
+    StrictMock<MockCanFrameHandler> h;
+    ifCan_->frame_dispatcher()->register_handler(&h, 0x195B4000, 0x0FFFF000);
+    // Priority bit cleared: 0x195B432D -> 0x095B432D
+    EXPECT_CALL(h, handle_message(IsExtCanFrameWithId(0x095B432D), _));
+    send_packet(":X095B432DN05010103;");
+    wait();
+    ifCan_->frame_dispatcher()->unregister_handler(&h, 0x195B4000, 0x0FFFF000);
+}
+
 TEST_F(AsyncIfTest, WriteFrame)
 {
     print_all_packets();
@@ -124,6 +138,20 @@ TEST_F(AsyncIfTest, RemoteAliasLearned)
     });
 }
 
+// AMD frame with priority bit cleared must still be learned.
+TEST_F(AsyncIfTest, RemoteAliasLearnedPriorityBitZero)
+{
+    // Priority bit cleared: 0x10701782 -> 0x00701782
+    send_packet(":X00701782N010203040506;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x782U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
+        EXPECT_EQ(UINT64_C(0x010203040506),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+    });
+}
+
 TEST_F(AsyncIfTest, AMEReceiveSupport)
 {
     // Example virtual node.
@@ -134,11 +162,18 @@ TEST_F(AsyncIfTest, AMEReceiveSupport)
     send_packet_and_expect_response(":X10702643N050101011877;",
                                     ":X10701729N050101011877;");
     wait();
+    send_packet_and_expect_response(":X00702643N050101011877;",
+                                    ":X10701729N050101011877;");
+    wait();
     send_packet(":X10702643N050101011878;");
     wait();
     expect_packet(":X1070122AN02010D000003;");
     expect_packet(":X10701729N050101011877;");
     send_packet(":X10702643N;");
+    wait();
+    expect_packet(":X1070122AN02010D000003;");
+    expect_packet(":X10701729N050101011877;");
+    send_packet(":X00702643N;");
     wait();
 }
 
