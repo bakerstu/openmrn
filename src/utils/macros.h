@@ -204,7 +204,7 @@ extern const char* g_death_file;
 /// @param BASE_CLASS the name of the immediate base class
 #define INHERIT_CONSTEXPR_CONSTRUCTOR(CURRENT_CLASS, BASE_CLASS)               \
     template <typename... Args>                                                \
-    explicit constexpr CURRENT_CLASS(Args... args)                             \
+    explicit constexpr __attribute__((always_inline)) CURRENT_CLASS(Args... args) \
         : BASE_CLASS(args...)                                                  \
     {                                                                          \
     }

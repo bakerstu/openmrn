@@ -232,7 +232,7 @@ public:
         return entry(openlcb::EntryMarker<LINE>());                            \
     }                                                                          \
     static constexpr typename decltype(TYPE::config_renderer())::OptionsType   \
-        NAME##_options()                                                       \
+            __attribute__((always_inline)) NAME##_options()              \
     {                                                                          \
         using SelfType = TYPE;                                                 \
         using OptionsType =                                                    \
