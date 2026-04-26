@@ -762,13 +762,7 @@ void handle_input_frame()
     }
     uint32_t can_id = GET_CAN_FRAME_ID_EFF(state_.input_frame);
     int dlc = state_.input_frame.can_dlc;
-    if (CanDefs::get_priority(can_id) != CanDefs::NORMAL_PRIORITY)
-    {
-        // Non-OpenLCB frame. Ignore.
-        state_.input_frame_full = 0;
-        return;
-    }
-    else if ((can_id & 0xfff) == state_.alias)
+    if ((can_id & 0xfff) == state_.alias)
     {
         // Alias conflict.
         if (CanDefs::is_cid_frame(can_id))
@@ -809,8 +803,8 @@ void handle_input_frame()
         state_.input_frame_full = 0;
         return;
     }
-    else if ((can_id >> 12) == (0x1A000 | state_.alias) ||
-        (can_id >> 12) == (0x1B000 | state_.alias))
+    else if (((can_id >> 12) & ~0x10000) == (0x0A000 | state_.alias) ||
+             ((can_id >> 12) & ~0x10000) == (0x0B000 | state_.alias))
     {
         // Datagram start frame.
 
@@ -831,8 +825,8 @@ void handle_input_frame()
         }
     }
 #ifdef BOOTLOADER_DATAGRAM
-    else if ((can_id >> 12) == (0x1C000 | state_.alias) ||
-        (can_id >> 12) == (0x1D000 | state_.alias))
+    else if (((can_id >> 12) & ~0x10000) == (0x0C000 | state_.alias) ||
+             ((can_id >> 12) & ~0x10000) == (0x0D000 | state_.alias))
     {
         if (!state_.incoming_datagram_pending ||
             CanDefs::get_src(can_id) != state_.write_src_alias)
@@ -863,12 +857,12 @@ void handle_input_frame()
     }
 #endif
 #ifdef BOOTLOADER_STREAM
-    else if ((can_id >> 12) == (0x1F000 | state_.alias) && dlc > 1)
+    else if (((can_id >> 12) & ~0x10000) == (0x0F000 | state_.alias) && dlc > 1)
     {
         return handle_stream_data();
     }
 #endif
-    else if ((can_id >> 24) == 0x19)
+    else if (((can_id >> 24) & ~0x10) == 0x09)
     {
         // global or addressed message
         Defs::MTI mti = (Defs::MTI)CanDefs::get_mti(can_id);

@@ -630,6 +630,32 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
     wait();
 }
 
+TEST_F(AsyncIfTest, PriorityBitZero)
+{
+    static const NodeAlias alias = 0x210U;
+    static const NodeID id = 0x050101FFFFDDULL;
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&GenMessage::src, Field(&NodeHandle::id, id)),
+                Field(&GenMessage::dst, NodeHandle({0, 0})),
+                Field(&GenMessage::dstNode, IsNull()),
+                Field(&GenMessage::payload,
+                      IsBufferValue(UINT64_C(0x0102030405060708))))),
+            _));
+    ifCan_->dispatcher()->register_handler(&h, 0x5B4, 0xffff);
+
+    RX(ifCan_->remote_aliases()->add(id, alias));
+
+    // Priority 0 (X09...) instead of normal priority 1 (X19...)
+    send_packet(":X095B4210N0102030405060708;");
+    wait();
+}
+
 TEST_F(AsyncIfTest, PassGlobalMessageToIfUnknownSource)
 {
     static const NodeAlias alias = 0x210U;
@@ -677,6 +703,34 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
 
     // The "verify nodeid handler" will respond.
     send_packet_and_expect_response(":X19488210N022A;",
+                                    ":X1917022AN02010d000003;");
+    wait();
+}
+
+TEST_F(AsyncNodeTest, PassAddressedMessageToIfPriorityZero)
+{
+    print_all_packets();
+    static const NodeAlias alias = 0x210U;
+    static const NodeID id = 0x050101FFFFDDULL;
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&GenMessage::mti, Defs::MTI_VERIFY_NODE_ID_ADDRESSED),
+                Field(&GenMessage::src, Field(&NodeHandle::alias, alias)),
+                Field(&GenMessage::src, Field(&NodeHandle::id, id)),
+                Field(&GenMessage::dst, Field(&NodeHandle::alias, 0x22A)),
+                Field(&GenMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                Field(&GenMessage::dstNode, node_))),
+            _));
+    ifCan_->dispatcher()->register_handler(&h, 0x488, 0xffff);
+
+    RX(ifCan_->remote_aliases()->add(id, alias));
+
+    // Priority 0 (X09...) instead of normal priority 1 (X19...)
+    send_packet_and_expect_response(":X09488210N022A;",
                                     ":X1917022AN02010d000003;");
     wait();
 }
