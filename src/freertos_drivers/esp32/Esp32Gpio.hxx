@@ -98,7 +98,7 @@ public:
     // the DevKitM-1 board.
     static_assert(!(PIN_NUM >= 11 && PIN_NUM <= 17)
                 , "Pin is reserved for flash usage.");
-#else // ESP32
+#elif CONFIG_IDF_TARGET_ESP32
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 39, "Valid pin range is 0..39.");
     static_assert(PIN_NUM != 24, "Pin does not exist");
     static_assert(!(PIN_NUM >= 28 && PIN_NUM <= 31), "Pin does not exist");
@@ -120,7 +120,7 @@ public:
                 , "Pin is reserved for PSRAM usage.");
 #endif // BOARD_HAS_PSRAM
 #endif // ESP32_PICO
-#endif // CONFIG_IDF_TARGET_ESP32S2 / CONFIG_IDF_TARGET_ESP32S3
+#endif // CONFIG_IDF_TARGET_ESP32
 
     /// Sets the output state of the connected GPIO pin.
     ///
@@ -326,7 +326,7 @@ public:
     static_assert(!PDEN || (PDEN && PIN_NUM != 9),
                   "GPIO 9 typically has a built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#else // ESP32
+#elif CONFIG_IDF_TARGET_ESP32
     // GPIO 2, 4 and 12 typically have pull-down resistors.
     static_assert(!PUEN ||
                   (PUEN && (PIN_NUM != 2 && PIN_NUM != 4 && PIN_NUM != 12)),
@@ -337,7 +337,7 @@ public:
                   (PDEN && (PIN_NUM != 0 && PIN_NUM != 5 && PIN_NUM != 15)),
                   "GPIO 0, 5, 15 typically have built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#endif // CONFIG_IDF_TARGET_ESP32S2
+#endif // CONFIG_IDF_TARGET_ESP32
     /// Initializes the hardware pin.
     static void hw_init()
     {
