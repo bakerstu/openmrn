@@ -57,7 +57,7 @@ CFLAGS += -c $(CORECFLAGS) -std=c99 -Wstrict-prototypes  \
 CXXFLAGS += -c $(CORECFLAGS) -std=c++14 -D_ISOC99_SOURCE \
             -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS -D__LINEAR_MAP__ \
             -fno-exceptions -fno-rtti \
-            -Wsuggest-override -Wno-psabi \
+            -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
 
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \

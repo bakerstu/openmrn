@@ -31,6 +31,7 @@
  * @date 6 January 2018
  */
 
+#include <array>
 #include <fcntl.h>
 #include <unistd.h>
 #include "stropts.h"
@@ -294,8 +295,8 @@ private:
             ctl.off.counts = (counts + (channel * 256)) % 0x1000;
         }
 
-        htole16(ctl.on.word);
-        htole16(ctl.off.word);
+        ctl.on.word = htole16(ctl.on.word);
+        ctl.off.word = htole16(ctl.off.word);
 
         Registers offset = (Registers)(LED0_ON_L + (channel * 4));
         register_write_multiple(offset, &ctl, sizeof(ctl));

@@ -58,6 +58,7 @@ CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
 
 CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
+            -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
             -fno-exceptions
 

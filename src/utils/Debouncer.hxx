@@ -61,6 +61,8 @@
 #ifndef _UTILS_DEBOUNCER_HXX_
 #define _UTILS_DEBOUNCER_HXX_
 
+#include <cstdint>
+
 /** This debouncer will update state if for N consecutive attempts the input
  * value is the same. */
 class QuiesceDebouncer
