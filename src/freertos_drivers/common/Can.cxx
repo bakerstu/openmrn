@@ -34,7 +34,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <fcntl.h>
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "Can.hxx"
 #include "can_frame.h"
 

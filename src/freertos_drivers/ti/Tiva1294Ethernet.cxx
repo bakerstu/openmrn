@@ -66,7 +66,7 @@
 #include "semphr.h"
 #include "timers.h"
 
-#include "Tiva1294Ethernet.hxx"
+#include "freertos_drivers/ti/Tiva1294Ethernet.hxx"
 #include "FreeRTOSIPConfig.h"
 #include "FreeRTOS_IP.h"
 #include "NetworkInterface.h"

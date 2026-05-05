@@ -41,7 +41,7 @@
 #include "gpio_17xx_40xx.h"
 #include "iocon_17xx_40xx.h"
 #include "os/Gpio.hxx"
-#include "GpioWrapper.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
 
 /// Static GPIO implementation for the NXP LPC microcontrollers.
 /// @param PORT is the port number (like 0, 1, 2). E.g. for P1.12 this is 1.

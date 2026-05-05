@@ -33,9 +33,9 @@
 
 #define SUPPORT_SL_R1_API
 
-#include "CC32xxSocket.hxx"
-#include "CC32xxWiFi.hxx"
-#include "CC32xxHelper.hxx"
+#include "freertos_drivers/net_cc32xx/CC32xxSocket.hxx"
+#include "freertos_drivers/net_cc32xx/CC32xxWiFi.hxx"
+#include "freertos_drivers/ti/CC32xxHelper.hxx"
 
 #include <memory>
 #include <fcntl.h>

@@ -40,9 +40,9 @@
 #include "stm32l4xx_hal.h"
 
 #include "os/OS.hxx"
-#include "Stm32Uart.hxx"
-#include "Stm32Can.hxx"
-#include "Stm32EEPROMEmulation.hxx"
+#include "freertos_drivers/st/Stm32Uart.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32EEPROMEmulation.hxx"
 #include "hardware.hxx"
 
 /** override stdin */

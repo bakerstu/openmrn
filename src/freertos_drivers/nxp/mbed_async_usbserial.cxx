@@ -34,7 +34,7 @@
 
 #include "mbed.h"
 #include "USBSerial.h"
-#include "Serial.hxx"
+#include "freertos_drivers/common/Serial.hxx"
 #include "os/os.h"
 #include "utils/macros.h"
 #include "portmacro.h"

@@ -52,7 +52,7 @@
 #include "usblib/device/usbdevice.h"
 #include "usblib/device/usbdcdc.h"
 
-#include "TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
 
 /** This is fixed and equals the USB packet size that the CDC device will
  * advertise to be able to receive. This is a performance parameter, 64 is the

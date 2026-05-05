@@ -31,7 +31,7 @@
  * @date 1 January 2018
  */
 
-#include "SPIFFS.hxx"
+#include "freertos_drivers/spiffs/SPIFFS.hxx"
 
 #include <fcntl.h>
 

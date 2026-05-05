@@ -35,7 +35,7 @@
 #define _FREERTOS_DRIVERS_TI_TIVASPI_HXX_
 
 
-#include "SPI.hxx"
+#include "freertos_drivers/common/SPI.hxx"
 #include "driverlib/ssi.h"
 #include "inc/hw_ssi.h"
 #include "inc/hw_types.h"

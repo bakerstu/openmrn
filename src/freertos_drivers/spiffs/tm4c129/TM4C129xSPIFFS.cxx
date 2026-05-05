@@ -44,7 +44,7 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/cpu.h"
 
-#include "TM4C129xSPIFFS.hxx"
+#include "freertos_drivers/spiffs/tm4c129/TM4C129xSPIFFS.hxx"
 #include "../cc32x0sf/TiSPIFFSImpl.hxx"
 
 /// Explicit instantion of the template so that the functions get compiled and

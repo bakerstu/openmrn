@@ -37,7 +37,7 @@
 #ifndef _OPENLCB_SIMPLENODEINFOMOCKUSERFILE_HXX_
 #define _OPENLCB_SIMPLENODEINFOMOCKUSERFILE_HXX_
 
-#include "SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
 #ifdef __FreeRTOS__
 #include "freertos_drivers/common/RamDisk.hxx"
 #endif

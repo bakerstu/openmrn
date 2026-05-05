@@ -46,11 +46,11 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "TivaDev.hxx"
-#include "TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
 #include "hardware.hxx"
 
-#include "FreeRTOSTCP.hxx"
+#include "freertos_drivers/net_freertos_tcp/FreeRTOSTCP.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

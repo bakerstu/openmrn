@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "utils/constants.hxx"
 #include "utils/RingBuffer.hxx"
 

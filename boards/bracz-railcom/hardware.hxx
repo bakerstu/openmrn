@@ -1,7 +1,7 @@
 #ifndef _HARDWARE_HXX_
 #define _HARDWARE_HXX_
 
-#include "TivaGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "driverlib/rom_map.h"
 #include "driverlib/timer.h"
 #include "utils/GpioInitializer.hxx"
@@ -11,8 +11,8 @@
 #include "inc/hw_timer.h"
 
 // note : this might cause problems in the bootloader compilation
-#include "DummyGPIO.hxx"
-#include "BlinkerGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "utils/Debouncer.hxx"
 
 #define HARDWARE_REVA
@@ -106,7 +106,7 @@ typedef GpioInitializer<                            //
 
 #ifndef PINDEFS_ONLY
 
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 struct Debug
 {

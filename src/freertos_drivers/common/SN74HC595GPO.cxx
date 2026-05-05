@@ -33,5 +33,5 @@
  * @date 23 February 2020
  */
 
-#include "SN74HC595GPO.hxx"
+#include "freertos_drivers/common/SN74HC595GPO.hxx"
 

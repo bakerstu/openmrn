@@ -31,7 +31,7 @@
  * @date 31 January 2015
  */
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 #include <sys/stat.h>
 

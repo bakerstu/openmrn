@@ -31,7 +31,7 @@
  * @date 6 January 2018
  */
 
-#include "PCA9685PWM.hxx"
+#include "freertos_drivers/common/PCA9685PWM.hxx"
 
 //
 // entry()

@@ -31,7 +31,7 @@
  * @date 18 Aug 2021
  */
 
-#include "TivaSPI.hxx"
+#include "freertos_drivers/ti/TivaSPI.hxx"
 
 #include "inc/hw_memmap.h"
 #include "driverlib/sysctl.h"

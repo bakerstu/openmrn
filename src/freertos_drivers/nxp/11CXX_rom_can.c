@@ -35,7 +35,7 @@
 
 #ifdef TARGET_LPC11Cxx
 
-#include "11CXX_rom_driver_CAN.h"
+#include "freertos_drivers/nxp/11CXX_rom_driver_CAN.h"
 #include "can.h"
 
 typedef	struct _ROM {

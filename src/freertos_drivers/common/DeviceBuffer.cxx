@@ -32,7 +32,7 @@
  * @date 2 March 2015
  */
 
-#include "DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 
 #include "openmrn_features.h"
 

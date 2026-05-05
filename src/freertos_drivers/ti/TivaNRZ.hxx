@@ -35,7 +35,7 @@
  * @date 29 Nov 2014
  */
 
-#include "TivaDCC.hxx" // for FixedQueue
+#include "freertos_drivers/ti/TivaDCC.hxx"
 
 /*
 struct DCCDecode

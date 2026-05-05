@@ -31,7 +31,7 @@
  * @date 24 June 2015
  */
 
-#include "EEPROMEmulation.hxx"
+#include "freertos_drivers/common/EEPROMEmulation.hxx"
 
 #include <cstring>
 

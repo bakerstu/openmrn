@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_NXP_LPC17xx40xxEEPROMEMULATION_HXX_
 #define _FREERTOS_DRIVERS_NXP_LPC17xx40xxEEPROMEMULATION_HXX_
 
-#include "EEPROMEmulation.hxx"
+#include "freertos_drivers/common/EEPROMEmulation.hxx"
 
 /** Emulates EEPROM in FLASH for the LPC17xx and LPC40xx platforms.
  * The EEPROM file size is limited to the @ref SECTOR_SIZE / 2.

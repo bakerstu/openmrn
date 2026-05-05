@@ -1,9 +1,9 @@
 #ifndef _HARDWARE_HXX_
 #define _HARDWARE_HXX_
 
-#include "TivaGPIO.hxx"
-#include "DummyGPIO.hxx"
-#include "BlinkerGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "driverlib/rom_map.h"
 #include "utils/GpioInitializer.hxx"
 

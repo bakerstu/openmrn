@@ -35,7 +35,7 @@
 #ifndef _FREEERTOS_DRIVERS_TI_TIVAPWM_HXX_
 #define _FREEERTOS_DRIVERS_TI_TIVAPWM_HXX_
 
-#include "PWM.hxx"
+#include "freertos_drivers/common/PWM.hxx"
 
 #include "driverlib/timer.h"
 

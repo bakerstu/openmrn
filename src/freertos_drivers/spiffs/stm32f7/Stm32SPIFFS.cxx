@@ -33,7 +33,7 @@
  * @date 13 July 2019
  */
 
-#include "Stm32SPIFFS.hxx"
+#include "freertos_drivers/spiffs/stm32f7/Stm32SPIFFS.hxx"
 #include "spiffs.h"
 #include "stm32f_hal_conf.hxx"
 

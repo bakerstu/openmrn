@@ -1,8 +1,8 @@
 #ifndef _ACC_TIVA_2_HARDWARE_HXX_
 #define _ACC_TIVA_2_HARDWARE_HXX_
 
-#include "TivaGPIO.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"

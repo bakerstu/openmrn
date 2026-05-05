@@ -41,7 +41,7 @@
 #include "os/os.h"
 
 #if OPENMRN_FEATURE_DEVICE_SELECT
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #endif
 
 #if OPENMRN_HAVE_PSELECT

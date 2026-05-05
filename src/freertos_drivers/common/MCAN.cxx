@@ -35,7 +35,7 @@
 #define _DEFAULT_SOURCE
 #endif
 
-#include "MCAN.hxx"
+#include "freertos_drivers/common/MCAN.hxx"
 
 #include <fcntl.h>
 #include <unistd.h>

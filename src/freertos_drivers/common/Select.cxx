@@ -34,7 +34,7 @@
 #include <fcntl.h>
 #include <sys/select.h>
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 /** event used to wakeup select calls */
 static OSEvent wakeup;
