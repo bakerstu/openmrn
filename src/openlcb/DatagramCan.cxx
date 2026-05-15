@@ -134,11 +134,9 @@ public:
     enum
     {
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
-            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
-            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
+            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT),
         CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
-            CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
-            CanDefs::CAN_FRAME_TYPE_MASK,
+            CanDefs::FRAME_TYPE_MASK | CanDefs::CAN_FRAME_TYPE_MASK,
     };
 
     CanDatagramParser(IfCan *iface);
