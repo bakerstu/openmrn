@@ -56,7 +56,7 @@
 ///
 /// - The file does not remember its size. fstat always returns the maximum
 ///   size.
-template <class FLASH> class FlashFile : public DeviceFile
+template <class FlashType> class FlashFile : public DeviceFile
 {
 public:
     /// Constructor.
@@ -68,7 +68,7 @@ public:
     /// on a sector boundary on the flash device. The unit is whatever address
     /// the flash driver understands.
     /// @param size maximum size of this file on flash.
-    FlashFile(const char *name, FLASH *flash, size_t address, size_t size)
+    FlashFile(const char *name, FlashType *flash, size_t address, size_t size)
         : DeviceFile(name)
         , flash_(flash)
         , flashStart_(address)
@@ -153,7 +153,7 @@ public:
 
 private:
     /// Accessor to the flash device.
-    FLASH *flash_;
+    FlashType *flash_;
     /// Offset where our file start on flash.
     size_t flashStart_;
     /// How many bytes our file is on flash.
