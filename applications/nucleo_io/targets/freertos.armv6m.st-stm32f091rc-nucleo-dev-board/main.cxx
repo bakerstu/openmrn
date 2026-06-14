@@ -42,6 +42,7 @@
 
 #include "openlcb/SimpleStack.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredExclusiveConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/ServoConsumer.hxx"
 
@@ -330,7 +331,7 @@ constexpr const MmapGpio PORTE_LINE6(output_register, 10, true);
 constexpr const MmapGpio PORTE_LINE7(output_register, 9, true);
 constexpr const MmapGpio PORTE_LINE8(output_register, 8, true);
 
-
+#if !defined(PORTD_EXCLUSIVE) && !defined(PORTE_EXCLUSIVE)
 constexpr const Gpio *const kPortDEGpio[] = {
 #ifndef PORTD_SNAP
     &PORTD_LINE1, &PORTD_LINE2, &PORTD_LINE3, &PORTD_LINE4, //
@@ -342,9 +343,57 @@ constexpr const Gpio *const kPortDEGpio[] = {
 
 openlcb::MultiConfiguredConsumer portde_consumers(stack.node(), kPortDEGpio,
     ARRAYSIZE(kPortDEGpio), cfg.seg().portde_consumers());
+#endif
+
+#ifdef PORTD_EXCLUSIVE
+// ======================================================================
+// Port D exclusive groups: lines 1-4 and 5-8 are mutually exclusive.
+// ======================================================================
+
+/// Port D lines 1, 2, 3, 4 — exclusive group 1.
+constexpr const Gpio *const kPortDExcl1Gpio[] = {
+    &PORTD_LINE1, &PORTD_LINE2, &PORTD_LINE3, &PORTD_LINE4,
+};
+
+openlcb::ConfiguredExclusiveConsumer portd_excl_1(stack.node(),
+    kPortDExcl1Gpio, ARRAYSIZE(kPortDExcl1Gpio),
+    cfg.seg().portd_excl_1());
+
+/// Port D lines 5, 6, 7, 8 — exclusive group 2.
+constexpr const Gpio *const kPortDExcl2Gpio[] = {
+    &PORTD_LINE5, &PORTD_LINE6, &PORTD_LINE7, &PORTD_LINE8,
+};
+
+openlcb::ConfiguredExclusiveConsumer portd_excl_2(stack.node(),
+    kPortDExcl2Gpio, ARRAYSIZE(kPortDExcl2Gpio),
+    cfg.seg().portd_excl_2());
+#endif
+
+#ifdef PORTE_EXCLUSIVE
+// ======================================================================
+// Port E exclusive groups: lines 1-4 and 5-8 are mutually exclusive.
+// ======================================================================
+
+/// Port E lines 1, 2, 3, 4 — exclusive group 1.
+constexpr const Gpio *const kPortEExcl1Gpio[] = {
+    &PORTE_LINE1, &PORTE_LINE2, &PORTE_LINE3, &PORTE_LINE4,
+};
+
+openlcb::ConfiguredExclusiveConsumer porte_excl_1(stack.node(),
+    kPortEExcl1Gpio, ARRAYSIZE(kPortEExcl1Gpio),
+    cfg.seg().porte_excl_1());
+
+/// Port E lines 5, 6, 7, 8 — exclusive group 2.
+constexpr const Gpio *const kPortEExcl2Gpio[] = {
+    &PORTE_LINE5, &PORTE_LINE6, &PORTE_LINE7, &PORTE_LINE8,
+};
+
+openlcb::ConfiguredExclusiveConsumer porte_excl_2(stack.node(),
+    kPortEExcl2Gpio, ARRAYSIZE(kPortEExcl2Gpio),
+    cfg.seg().porte_excl_2());
+#endif
 
 #ifdef PORTD_SNAP
-
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_1(
     stack.node(), cfg.seg().snap_switches().entry<0>(), (const Gpio*)&PORTD_LINE1);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_2(
