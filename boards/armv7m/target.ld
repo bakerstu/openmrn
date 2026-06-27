@@ -13,6 +13,8 @@ __cs3_heap_end = __top_RAM - 1024;
 __start_ram = ORIGIN(RAM);
 __end_ram = __top_RAM;
 
+REGION_ALIAS("REGION_PGM", FLASH);
+
 SECTIONS
 {
     /* MAIN TEXT SECTION */    
@@ -140,6 +142,14 @@ SECTIONS
 
         _edata = .;
     } > RAM AT>FLASH
+
+
+    .measurement : ALIGN(4)
+    {
+        __flash_use = .;
+        __flash_first = ORIGIN(REGION_PGM);
+        __flash_last = ORIGIN(REGION_PGM) + LENGTH(REGION_PGM);
+    } > REGION_PGM   
 
 
     /* MAIN BSS SECTION */
