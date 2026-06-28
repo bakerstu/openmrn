@@ -58,3 +58,7 @@ CXXSRCS += \
 
 DEAD_CXX +=  \
            Stream.cxx \
+
+# Disable LTO for DefaultCdi.o to prevent false-positive ODR warnings
+DefaultCdi.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+

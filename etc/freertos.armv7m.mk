@@ -14,7 +14,7 @@ PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 AS = $(PREFIX)gcc
 CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)gcc))
 CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)g++))
-AR = $(PREFIX)ar
+AR = $(PREFIX)gcc-ar
 LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
@@ -50,7 +50,7 @@ endif
 
 COMPILEOPT = -c
 
-ASFLAGS = $(COMPILEOPT) $(ARCHFLAGS)
+ASFLAGS = $(COMPILEOPT) -flto $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
@@ -64,7 +64,7 @@ CFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
 
 CXXFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
-            -fno-exceptions -fno-rtti \
+            -fno-exceptions -fno-rtti -fno-use-cxa-atexit -flto \
             -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
 
@@ -73,7 +73,7 @@ CXXFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             #-D__USE_LIBSTDCPP__ #-D__STDC_VERSION__=199901
 
 
-LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
+LDFLAGS += -g -fdata-sections -ffunction-sections -flto -T target.ld \
            $(ARCHFLAGS) -Os \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
@@ -91,10 +91,6 @@ SYSLIBRARIES +=
 SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--wrap=__cxa_pure_virtual \
           -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
-          -Wl,--wrap=__cxa_atexit \
-          -Wl,--defsym=__wrap___cxa_atexit=ignore_fn \
-          -Wl,--wrap=__aeabi_atexit \
-          -Wl,--defsym=__wrap___aeabi_atexit=ignore_fn \
           -Wl,--wrap=_ZSt20__throw_length_errorPKc \
           -Wl,--defsym=__wrap__ZSt20__throw_length_errorPKc=abort \
           -Wl,--wrap=__cxa_throw   \
@@ -140,4 +136,7 @@ endif
 
 
 EXTENTION = .elf
+
+LDFLAGSEXTRA += -Wl,--whole-archive -lconsole -lopenlcb -lwithrottle -ldcc -lexecutor -lutils -los -lble -ltraction_modem -Wl,--no-whole-archive
+
 

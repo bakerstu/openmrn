@@ -18,7 +18,7 @@ PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 AS = $(PREFIX)gcc
 CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)gcc))
 CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)g++))
-AR = $(PREFIX)ar
+AR = $(PREFIX)gcc-ar
 LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
@@ -44,7 +44,7 @@ ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce \
 
 ARCHFLAGS = -g -MD -MP -march=armv6-m -mthumb -mfloat-abi=soft
 
-ASFLAGS = -c $(ARCHFLAGS)
+ASFLAGS = -c -flto $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHOPTIMIZATION) $(ARCHFLAGS) -Wall -Werror \
              -Wno-unknown-pragmas -fdata-sections -ffunction-sections \
@@ -56,11 +56,11 @@ CFLAGS += -c $(CORECFLAGS) -std=c99 -Wstrict-prototypes  \
 
 CXXFLAGS += -c $(CORECFLAGS) -std=c++14 -D_ISOC99_SOURCE \
             -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS -D__LINEAR_MAP__ \
-            -fno-exceptions -fno-rtti \
+            -fno-exceptions -fno-rtti -fno-use-cxa-atexit -flto \
             -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
 
-LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
+LDFLAGS += -g -fdata-sections -ffunction-sections -flto -T target.ld \
            -march=armv6-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv6-m \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn -Wl,--undefined=cpuload_tick $(LDFLAGSEXTRA) $(LDFLAGSENV) \
@@ -72,13 +72,19 @@ LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
 # triggering call we just crash. This way we simulate as if newlib had been
 # compiled with -fno-exception. Most of these can be removed once we remove
 # usage of std::string.
-SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
-          -Wl,--wrap=__cxa_pure_virtual \
-          -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
-          -Wl,--wrap=__cxa_atexit \
+
+ifeq (1,2)
+   -Wl,--wrap=__cxa_atexit \
           -Wl,--defsym=__wrap___cxa_atexit=ignore_fn \
           -Wl,--wrap=__aeabi_atexit \
           -Wl,--defsym=__wrap___aeabi_atexit=ignore_fn \
+
+endif
+
+
+SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
+          -Wl,--wrap=__cxa_pure_virtual \
+          -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
           -Wl,--wrap=_ZSt20__throw_length_errorPKc \
           -Wl,--defsym=__wrap__ZSt20__throw_length_errorPKc=abort \
           -Wl,--wrap=__cxa_throw   \
@@ -105,4 +111,20 @@ SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=__wrap___aeabi_unwind_cpp_pr1=abort \
 
 EXTENTION = .elf
+
+OBJEXTRA += $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/libatomic.o
+
+# Disable LTO for constant definitions so their assembly symbols are indexed in archives
+%/constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+
+%/nmranet_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+nmranet_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+
+%/dcc_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+dcc_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+
+
+
+
 
