@@ -35,6 +35,7 @@
 #ifndef _TRACTION_MODEMTRAINHWINTERFACE_HXX_
 #define _TRACTION_MODEMTRAINHWINTERFACE_HXX_
 
+#include "dcc/Defs.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "traction_modem/Defs.hxx"
 
@@ -75,6 +76,43 @@ public:
         /// address out of bounds
         OUT_OF_BOUNDS     = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS,
     };
+
+    /// Report the current velocity in response to a query.
+    /// @param target commanded (target) velocity
+    /// @param current current velocity
+    virtual void velocity_status(
+        Defs::DCCVelocity target, Defs::DCCVelocity current)
+    {
+    }
+
+    /// Report the status of a function in response to a query.
+    /// @param fn function number
+    /// @param value function value; for binary functions, 0 is off, 1 is on
+    virtual void function_status(uint32_t fn, uint16_t value)
+    {
+    }
+
+    /// Get the current value of a function.
+    /// @param address function number
+    /// @return current function value
+    virtual uint16_t get_fn(uint32_t address)
+    {
+        return 0;
+    }
+
+    /// Get the legacy (DCC) address of the decoder.
+    /// @return legacy address
+    virtual uint32_t legacy_address()
+    {
+        return 0;
+    }
+
+    /// Get the type of legacy protocol in use.
+    /// @return legacy address type
+    virtual dcc::TrainAddressType legacy_address_type()
+    {
+        return dcc::TrainAddressType::DCC_LONG_ADDRESS;
+    }
 
     /// Set an output state.
     /// @param output output number

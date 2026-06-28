@@ -39,6 +39,9 @@
 #include "traction_modem/Defs.hxx"
 #include "traction_modem/MemorySpace.hxx"
 #include "traction_modem/MemorySpaceServer.hxx"
+#include "traction_modem/FunctionStatus.hxx"
+#include "traction_modem/VelocityStatus.hxx"
+#include "traction_modem/ModemTrainHwInterface.hxx"
 #include "traction_modem/Output.hxx"
 #include "traction_modem/Link.hxx"
 
@@ -61,10 +64,13 @@ public:
         ModemTrainHwInterface *hw_interface)
         : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
+        , hwIf_(hw_interface)
         , link_(tx_flow, rx_flow)
         , linkManager_(service, &link_)
         , cvSpace_(service, &link_)
         , fuSpace_(service, &link_)
+        , velocityStatus_(tx_flow, rx_flow, hw_interface)
+        , functionStatus_(tx_flow, rx_flow, hw_interface)
         , output_(tx_flow, rx_flow, hw_interface)
         , memorySpaceServer_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
@@ -179,25 +185,21 @@ public:
     /// @return the current value of the function
     uint16_t get_fn(uint32_t address) override
     {
-        /// @todo Need to implement this.
-        return 0;
+        return hwIf_->get_fn(address);
     }
 
     /// @Get the legacy address.
     /// @return legacy address (typically DCC)
     uint32_t legacy_address() override
     {
-        /// @todo What should this be? Should we do a CV1/17/18/29 read to get
-        ///       this?
-        return 883;
+        return hwIf_->legacy_address();
     }
 
     /// Get the type of legacy protocol in use.
     /// @return the legacy address type
     dcc::TrainAddressType legacy_address_type() override
     {
-        /// @todo What should this be. Should we do a CV29 read to get this?
-        return dcc::TrainAddressType::DCC_LONG_ADDRESS;
+        return hwIf_->legacy_address_type();
     }
 
 private:
@@ -211,6 +213,8 @@ private:
     TxInterface *txFlow_;
     /// Handles receiving message frames.
     RxInterface *rxFlow_;
+    /// Hardware specific interface.
+    ModemTrainHwInterface *hwIf_;
     /// Link status object.
     Link link_;
     /// Link Management object.
@@ -219,6 +223,10 @@ private:
     CvSpace cvSpace_;
     /// Space for firmware updates.
     CvSpace fuSpace_;
+    /// Velocity status handler.
+    VelocityStatus velocityStatus_;
+    /// Function status handler.
+    FunctionStatus functionStatus_;
     /// Output handler.
     Output output_;
     // Memory space handler for the modem.

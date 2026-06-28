@@ -92,7 +92,9 @@ set(SRCS
     ${OPENMRNPATH}/src/os/TempFile.cxx
     ${OPENMRNPATH}/src/os/watchdog.c
 
+    ${OPENMRNPATH}/src/traction_modem/FunctionStatus.cxx
     ${OPENMRNPATH}/src/traction_modem/Output.cxx
+    ${OPENMRNPATH}/src/traction_modem/VelocityStatus.cxx
 
     ${OPENMRNPATH}/src/utils/Base64.cxx
     ${OPENMRNPATH}/src/utils/Blinker.cxx

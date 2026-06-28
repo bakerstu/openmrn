@@ -81,7 +81,7 @@ struct Defs
         CMD_SPEED_SET          = 0x0100, ///< set velocity
         CMD_FN_SET             = 0x0101, ///< set function
         CMD_ESTOP_SET          = 0x0102, ///< emergency stop request
-        CMD_SPEED_QUERY        = 0x0110, ///< query current speed
+        CMD_SPEED_QUERY        = 0x0110, ///< query current velocity
         CMD_FN_QUERY           = 0x0111, ///< query function status
         CMD_DC_DCC_PRESENT     = 0x0200, ///< DC/DCC present
         CMD_WIRELESS_PRESENT   = 0x0201, ///< wireless present
@@ -104,7 +104,7 @@ struct Defs
         RESP_FN_SET             = RESPONSE | CMD_FN_SET,
         /// emergency stop response
         RESP_ESTOP_SET          = RESPONSE | CMD_ESTOP_SET,
-        /// query current speed response
+        /// query current velocity response
         RESP_SPEED_QUERY        = RESPONSE | CMD_SPEED_QUERY,
         /// query function status response
         RESP_FN_QUERY           = RESPONSE | CMD_FN_QUERY,
@@ -158,8 +158,16 @@ struct Defs
     static constexpr unsigned LEN_BAUD_RATE_REQUEST = 2;
     /// Length of the data payload of a set function packet.
     static constexpr unsigned LEN_FN_SET = 6;
+    /// Length of the data payload of a function query packet.
+    static constexpr unsigned LEN_FN_QUERY = 4;
+    /// Length of the data payload of a function query response packet.
+    static constexpr unsigned LEN_FN_QUERY_RESP = 6;
     /// Length of the data payload of a set speed packet.
     static constexpr unsigned LEN_SPEED_SET = 1;
+    /// Length of the data payload of a speed query packet.
+    static constexpr unsigned LEN_SPEED_QUERY = 0;
+    /// Length of the data payload of a speed query response packet.
+    static constexpr unsigned LEN_SPEED_QUERY_RESP = 4;
     /// Length of the data payload of a set estop packet.
     static constexpr unsigned LEN_ESTOP_SET = 0;
     /// Length of the data payload of a wireless present packet.
@@ -194,6 +202,20 @@ struct Defs
     static constexpr unsigned OFS_LEN = 6;
     /// Offset of the first data byte in the packet.
     static constexpr unsigned OFS_DATA = 8;
+
+    /// Velocity structure mirroring NMRA 128 Speed Step format.
+    /// Single byte with direction bit and 7-bit speed value (0-127).
+    /// Speed value 0 = normal stop, 1 = emergency stop, 2-127 = proportional
+    /// speed steps. Used for motor control and Advanced Operations instructions.
+    typedef union
+    {
+        uint8_t data;               ///< Full 8-bit data
+        struct
+        {
+            uint8_t speed     : 7;  ///< Speed: 0=stop, 1=E-stop, 2-127=speed
+            uint8_t direction : 1;  ///< Direction: 0=reverse, 1=forward
+        };
+    } DCCVelocity;
 
     /// The header of a message.
     struct Header
@@ -280,6 +302,36 @@ struct Defs
         "OutputStateQueryResponse struct length or alignment mismatch.");
     static_assert(
         std::is_standard_layout<OutputStateQueryResponse>::value == true);
+
+    /// Structure of a function status query response.
+    struct FunctionStatusQueryResponse
+    {
+        Header header_; ///< packet header
+        uint32_t fn_; ///< function number (24-bits)
+        uint16_t value_; ///< function value
+        uint8_t end; ///< used for alignment and length validation only
+    };
+    static_assert(
+        offsetof(FunctionStatusQueryResponse, end) ==
+            (LEN_HEADER + LEN_FN_QUERY_RESP),
+        "FunctionStatusQueryResponse struct length or alignment mismatch.");
+    static_assert(
+        std::is_standard_layout<FunctionStatusQueryResponse>::value == true);
+
+    /// Structure of a speed query response.
+    struct SpeedQueryResponse
+    {
+        Header header_; ///< packet header
+        uint16_t error_; ///< error code
+        uint8_t targetSpeed_; ///< commanded speed (DCC 128-step encoding)
+        uint8_t currentSpeed_; ///< current speed (DCC 128-step encoding)
+        uint8_t end; ///< used for alignment and length validation only
+    };
+    static_assert(
+        offsetof(SpeedQueryResponse, end) ==
+            (LEN_HEADER + LEN_SPEED_QUERY_RESP),
+        "SpeedQueryResponse struct length or alignment mismatch.");
+    static_assert(std::is_standard_layout<SpeedQueryResponse>::value == true);
 
     /// Structure of an output restart command (synchronize lighting effect)
     struct OutputRestart
@@ -389,6 +441,19 @@ struct Defs
         return p;
     }
 
+    /// Computes payload to query a function.
+    /// @param fn function number
+    /// @return wire formatted payload
+    static Payload get_fn_query_payload(unsigned fn)
+    {
+        Payload p;
+        prepare(&p, CMD_FN_QUERY, LEN_FN_QUERY);
+        append_uint32(&p, fn);
+
+        append_crc(&p);
+        return p;
+    }
+
     /// Computes payload to set a function.
     /// @param fn function number
     /// @param value function value. For binary functions, 0 is off, 1 is on.
@@ -399,6 +464,17 @@ struct Defs
         prepare(&p, CMD_FN_SET, LEN_FN_SET);
         append_uint32(&p, fn);
         append_uint16(&p, value);
+
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes the payload to query the current speed.
+    /// @return wire formatted payload
+    static Payload get_speed_query_payload()
+    {
+        Payload p;
+        prepare(&p, CMD_SPEED_QUERY, LEN_SPEED_QUERY);
 
         append_crc(&p);
         return p;
