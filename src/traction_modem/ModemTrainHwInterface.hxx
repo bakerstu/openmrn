@@ -48,8 +48,8 @@ public:
     /// Output state.
     enum class OutputState : uint16_t
     {
-        ON  = 0x0000, ///< output is on
-        OFF = 0xFFFF, ///< output is off
+        OFF = 0x0000, ///< output is off
+        ON  = 0xFFFF, ///< output is on
     };
 
     /// Memory write errors.
