@@ -44,7 +44,9 @@ ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce \
 
 ARCHFLAGS = -g -MD -MP -march=armv6-m -mthumb -mfloat-abi=soft
 
-ASFLAGS = -c -flto $(ARCHFLAGS)
+LTOFLAG = -flto
+
+ASFLAGS = -c $(LTOFLAG) $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHOPTIMIZATION) $(ARCHFLAGS) -Wall -Werror \
              -Wno-unknown-pragmas -fdata-sections -ffunction-sections \
@@ -56,7 +58,7 @@ CFLAGS += -c $(CORECFLAGS) -std=c99 -Wstrict-prototypes  \
 
 CXXFLAGS += -c $(CORECFLAGS) -std=c++14 -D_ISOC99_SOURCE \
             -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS -D__LINEAR_MAP__ \
-            -fno-exceptions -fno-rtti -fno-use-cxa-atexit -flto \
+            -fno-exceptions -fno-rtti -fno-use-cxa-atexit $(LTOFLAG) \
             -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
 
@@ -115,14 +117,11 @@ EXTENTION = .elf
 OBJEXTRA += $(OPENMRNPATH)/targets/$(TARGET)/freertos_drivers/libatomic.o
 
 # Disable LTO for constant definitions so their assembly symbols are indexed in archives
-%/constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
-constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+constants.o: LTOFLAG =
 
-%/nmranet_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
-nmranet_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+nmranet_constants.o: LTOFLAG =
 
-%/dcc_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
-dcc_constants.o: CXXFLAGS := $(filter-out -flto,$(CXXFLAGS))
+dcc_constants.o: LTOFLAG =
 
 
 

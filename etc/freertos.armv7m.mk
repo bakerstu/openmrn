@@ -50,7 +50,9 @@ endif
 
 COMPILEOPT = -c
 
-ASFLAGS = $(COMPILEOPT) -flto $(ARCHFLAGS)
+LTOFLAG = -flto
+
+ASFLAGS = $(COMPILEOPT) $(LTOFLAG) $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
@@ -64,7 +66,7 @@ CFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
 
 CXXFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
-            -fno-exceptions -fno-rtti -fno-use-cxa-atexit -flto \
+            -fno-exceptions -fno-rtti -fno-use-cxa-atexit $(LTOFLAG) \
             -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
 
@@ -137,6 +139,10 @@ endif
 
 EXTENTION = .elf
 
-LDFLAGSEXTRA += -Wl,--whole-archive -lconsole -lopenlcb -lwithrottle -ldcc -lexecutor -lutils -los -lble -ltraction_modem -Wl,--no-whole-archive
+# Disable LTO for constant definitions so their assembly symbols are indexed in archives
+constants.o: LTOFLAG =
+nmranet_constants.o: LTOFLAG =
+dcc_constants.o: LTOFLAG =
+
 
 
