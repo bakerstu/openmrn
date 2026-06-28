@@ -1,5 +1,7 @@
 
 
+RANLIB ?= $(PREFIX)ranlib
+
 arpreproc: delete.sym
 	while read a ; do echo -W $${a} ; done < $< > $@
 
@@ -17,6 +19,7 @@ define TGTLIBSTRIP_template
 
 lib/$(notdir $(1)): $(LIBDIR)/$(notdir $(1)) arpreproc $(LIBDIR)/timestamp
 	$(OBJCOPY) @arpreproc $$< $$@
+	$(RANLIB) $$@
 
 $(EXECUTABLE)$(EXTENTION): lib/$(notdir $(1))
 
@@ -26,8 +29,9 @@ endef
 define LIBSTRIP_template
 
 lib/lib$(1).stripped: $(1)/lib$(1).a arpreproc
-	rm lib/lib$(1).a
+	rm -f lib/lib$(1).a
 	$(OBJCOPY) @arpreproc $(1)/lib$(1).a lib/lib$(1).a
+	$(RANLIB) lib/lib$(1).a
 	touch $$@
 
 $(1)/lib$(1).a: build-$(1)
