@@ -52,7 +52,7 @@ namespace traction_modem
 class ModemTrainHwInterface;
 
 /// ModemTrain definition.
-class ModemTrain : public openlcb::TrainImpl
+class ModemTrain : public openlcb::TrainImpl, public LinkStatusInterface
 {
 public:
     /// Constructor.
@@ -75,6 +75,7 @@ public:
         , memorySpaceServer_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
     {
+        link_.register_link_status(this);
     }
 
     /// Destructor.
@@ -203,6 +204,17 @@ public:
     }
 
 private:
+    /// Called when link transitions to "up" state.
+    void on_link_up() override
+    {
+        hwIf_->on_link_up();
+        velocityStatus_.query();
+        for (unsigned i = 0; i <=68; ++i)
+        {
+            functionStatus_.query(i);
+        }
+    }
+
     /// True if the wireless is up and running.
     bool isRunning_ = false;
     /// UART fd to send traffic to the device.

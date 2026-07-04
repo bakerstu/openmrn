@@ -77,6 +77,11 @@ public:
         OUT_OF_BOUNDS     = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS,
     };
 
+    /// Called when link transitions to "up" state.
+    virtual void on_link_up()
+    {
+    }
+
     /// Report the current velocity in response to a query.
     /// @param target commanded (target) velocity
     /// @param current current velocity
