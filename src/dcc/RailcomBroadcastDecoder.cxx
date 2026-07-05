@@ -55,8 +55,7 @@ bool RailcomBroadcastDecoder::process_packet(const dcc::Feedback &packet)
     }
     if (packet.ch1Size)
     {
-        return process_data(packet.ch1Data, packet.ch1Size) &&
-            (packet.ch2Size == 0);
+        return process_data(packet.ch1Data, packet.ch1Size);
     }
     else
     {
