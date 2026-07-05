@@ -12,6 +12,15 @@ creating standards that, once approved by the NMRA, become LCC standards. The
 [OpenLCB & LCC Standards](http://openlcb.org/openlcb-and-lcc-documents/layout-command-control-lcc/)
 page will give you a good idea of status of the specifications.
 
+## Table of Contents
+
+- [Why OpenMRN](#why-openmrn)
+- [Getting Started](#getting-started)
+  - [Create a Linux Virtual Machine](#create-a-linux-virtual-machine)
+  - [Code Style and Guidelines](#code-style-and-guidelines)
+  - [Installing Required Software (Linux or Mac)](#installing-required-software-linux-or-mac)
+  - [Building and Viewing the Documentation](#building-and-viewing-the-documentation)
+
 ## Why OpenMRN
 
 OpenMRN is a set of C++ code that is designed to make it easier to implement
@@ -54,6 +63,10 @@ free.
 
 Once you've done this, you'll need to do a few more things before you can get
 the source code and build the documentation.
+
+## Code Style and Guidelines
+
+OpenMRN follows strict coding standards and style guidelines. See the [Coding Guidelines](doc/StyleGuide.md) for details on naming conventions, formatting, documentation requirements, and coding standards.
 
 ## Installing Required Software (Linux or Mac)
 
