@@ -11,7 +11,7 @@ ldpreproc: delete.sym
 destructors: cg.svg Makefile $(OPENMRNPATH)/etc/stripsym.mk
 	grep '~' cg.dot | sed s/^[/][/]// | sort | sed 's/\\n/ /' | while read a b c ; do echo $$a $$c ; done | sed 's/label="//'  | sed 's/"];//' | sed 's/^/0 \0/' > destructors 
 
-LDFLAGSEXTRA += -Wl,@ldpreproc
+LDFLAGSEXTRA += -Wl,@ldpreproc -Wl,--defsym=destructor=ignore_fn
 
 $(EXECUTABLE)$(EXTENTION): ldpreproc
 
@@ -71,9 +71,9 @@ $(foreach lib,$(SUBDIRS),$(eval $(call LIBSTRIP_template,$(lib))))
 $(foreach obj,$(OBJS),$(eval $(call OBJSTRIP_template,$(obj))))
 
 # Calls the object template for every .o file we have included from remotely.
-$(foreach obj,$(OBJEXTRA),$(eval $(call TGTOBJSTRIP_template,$(obj) $(notdir $(obj)))))
+$(foreach obj,$(OBJEXTRA),$(eval $(call TGTOBJSTRIP_template,$(obj),$(notdir $(obj)))))
 
-OBJEXTRA:=$(foreach obj,$(OBJEXTRA), $(notdir $(obj)))
+OBJEXTRA:=$(foreach obj,$(OBJEXTRA), lib/$(notdir $(obj)))
 
 
 clean: clean-stripped
