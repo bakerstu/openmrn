@@ -88,6 +88,16 @@ protected:
             event_id); // Source 22A (node_)
         return std::string(buf);
     }
+
+    uint64_t entry_event(uint16_t address, bool is_long = false)
+    {
+        return base_ | 0xC000 | (is_long ? 0 : 0x3800) | address;
+    }
+
+    uint64_t exit_event(uint16_t address, bool is_long = false)
+    {
+        return base_ | (is_long ? 0 : 0x3800) | address;
+    }
 };
 
 TEST_F(RailcomBroadcastClientTest, CreateDestroy)
@@ -97,7 +107,7 @@ TEST_F(RailcomBroadcastClientTest, CreateDestroy)
 
 TEST_F(RailcomBroadcastClientTest, AddLoco)
 {
-    uint64_t event = base_ | 0x3800 | 3;
+    uint64_t event = entry_event(3);
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     expect_seq_increment();
@@ -109,7 +119,7 @@ TEST_F(RailcomBroadcastClientTest, AddLoco)
 
 TEST_F(RailcomBroadcastClientTest, AddLocoLong)
 {
-    uint64_t event = base_ | 3;
+    uint64_t event = entry_event(3, true);
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     expect_seq_increment();
@@ -121,7 +131,7 @@ TEST_F(RailcomBroadcastClientTest, AddLocoLong)
 
 TEST_F(RailcomBroadcastClientTest, AddDuplicateLoco)
 {
-    uint64_t event = base_ | 0x3800 | 3;
+    uint64_t event = entry_event(3);
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_EQ(1u, client_->current_locos().size());
@@ -136,9 +146,9 @@ TEST_F(RailcomBroadcastClientTest, AddDuplicateLoco)
 TEST_F(RailcomBroadcastClientTest, AddLocoFromQuery)
 {
     send_packet(make_incoming_event_packet(
-        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 0x3800 | 3));
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, entry_event(3)));
     send_packet(make_incoming_event_packet(
-        Defs::MTI_PRODUCER_IDENTIFIED_VALID, base_ | 5));
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, entry_event(5, true)));
     wait();
     expect_seq_increment(2);
     ASSERT_EQ(2u, client_->current_locos().size());
@@ -152,7 +162,7 @@ TEST_F(RailcomBroadcastClientTest, AddLocoFromQuery)
 
 TEST_F(RailcomBroadcastClientTest, RemoveLoco)
 {
-    uint64_t event = base_ | 0x3800 | 3;
+    uint64_t event = entry_event(3);
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_EQ(1u, client_->current_locos().size());
@@ -166,9 +176,24 @@ TEST_F(RailcomBroadcastClientTest, RemoveLoco)
     expect_seq_increment();
 }
 
+TEST_F(RailcomBroadcastClientTest, RemoveLocoFromEventReport)
+{
+    uint64_t event_entry = entry_event(3);
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event_entry));
+    wait();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    expect_seq_increment();
+
+    uint64_t event_exit = exit_event(3);
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event_exit));
+    wait();
+    ASSERT_TRUE(client_->current_locos().empty());
+    expect_seq_increment();
+}
+
 TEST_F(RailcomBroadcastClientTest, RemoveNonExistentLoco)
 {
-    uint64_t event = base_ | 3;
+    uint64_t event = entry_event(3, true);
     send_packet(make_incoming_event_packet(
         Defs::MTI_PRODUCER_IDENTIFIED_INVALID, event));
     wait();
@@ -176,9 +201,18 @@ TEST_F(RailcomBroadcastClientTest, RemoveNonExistentLoco)
     expect_no_seq_increment();
 }
 
+TEST_F(RailcomBroadcastClientTest, RemoveNonExistentLocoFromEventReport)
+{
+    uint64_t event = exit_event(3, true);
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
+    wait();
+    ASSERT_TRUE(client_->current_locos().empty());
+    expect_no_seq_increment();
+}
+
 TEST_F(RailcomBroadcastClientTest, IgnoreOutOfRange)
 {
-    uint64_t event = (base_ + 0x10000) | 3; // Outside 16-bit range
+    uint64_t event = (base_ + 0x10000) | 0xC000 | 3; // Outside 16-bit range
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_TRUE(client_->current_locos().empty());

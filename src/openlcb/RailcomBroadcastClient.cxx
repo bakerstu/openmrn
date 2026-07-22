@@ -131,7 +131,14 @@ void RailcomBroadcastClient::handle_event_report(
     }
 
     auto loco = parse_event(event->event);
-    add_loco(loco);
+    if ((event->event & 0xC000) == 0)
+    {
+        del_loco(loco);
+    }
+    else
+    {
+        add_loco(loco);
+    }
 }
 
 void RailcomBroadcastClient::add_loco(LocoInfo id)
