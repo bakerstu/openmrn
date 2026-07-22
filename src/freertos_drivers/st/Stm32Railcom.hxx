@@ -326,7 +326,17 @@ private:
         Debug::RailcomDriverCutout::set(true);
     }
 
-    void middle_cutout() override
+#ifdef STM32G0    
+    // The original version of this function uses an atomic lock which we
+    // really don't need here in this P0 interrupt.
+    static void LL_USART_SetTransferDirection(
+        USART_TypeDef *USARTx, uint32_t TransferDirection)
+    {
+        MODIFY_REG(USARTx->CR1, USART_CR1_RE | USART_CR1_TE, TransferDirection);
+    }
+#endif    
+    
+    void __attribute__((optimize("O3"))) middle_cutout() override
     {
         Debug::RailcomDriverCutout::set(false);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
@@ -369,13 +379,14 @@ private:
             else if (returnedPackets_[i]->ch1Size)
             {
                 // Checks the direction.
-                returnedPackets_[i]->haveCh1Dir = 1;
+                /// @todo this direction capture does not work.
+                returnedPackets_[i]->haveCh1Dir = 0; // = 1;
                 // Direction is "west" if the current came in with a positive
                 // sense. That means that the DIR pin has never seen a low
                 // edge.
-                returnedPackets_[i]->ch1Dir =
-                    (LL_EXTI_IsActiveFallingFlag_0_31(
-                        HW::RAILCOM_DIR_EXTI[i])) == 0;
+                // returnedPackets_[i]->ch1Dir =
+                //    (LL_EXTI_IsActiveFallingFlag_0_31(
+                //        HW::RAILCOM_DIR_EXTI[i])) == 0;
             }
 
             // Set up channel 2 reception with DMA.
@@ -387,9 +398,11 @@ private:
             LL_USART_ClearFlag_FE(uart(i));
             LL_USART_Enable(uart(i));
 
+            /// @todo: this does not actually work
+            
             // Set up direction capture.
-            LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
-            LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            //LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            //LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
         }
         HW::middle_cutout_hook();
         Debug::RailcomDriverCutout::set(true);
@@ -428,13 +441,14 @@ private:
             else if (returnedPackets_[i]->ch2Size)
             {
                 // Checks the direction.
-                returnedPackets_[i]->haveCh2Dir = 1;
+                /// @todo this direction capture does not work.
+                returnedPackets_[i]->haveCh2Dir = 0; // = 1;
                 // Direction is "west" if the current came in with a positive
                 // sense. That means that the DIR pin has never seen a low
                 // edge.
-                returnedPackets_[i]->ch2Dir =
-                    (LL_EXTI_IsActiveFallingFlag_0_31(
-                        HW::RAILCOM_DIR_EXTI[i])) == 0;
+                // returnedPackets_[i]->ch2Dir =
+                //    (LL_EXTI_IsActiveFallingFlag_0_31(
+                //        HW::RAILCOM_DIR_EXTI[i])) == 0;
             }
 
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
