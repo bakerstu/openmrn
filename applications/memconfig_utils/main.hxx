@@ -162,13 +162,13 @@ void parse_args(int argc, char *argv[])
                 destination_alias = strtoul(optarg, nullptr, 16);
                 break;
             case 's':
-                memory_space_id = strtol(optarg, nullptr, 16);
+                memory_space_id = strtol(optarg, nullptr, 0);
                 break;
             case 'o':
-                offset = strtol(optarg, nullptr, 10);
+                offset = strtoul(optarg, nullptr, 0);
                 break;
             case 'l':
-                len = strtol(optarg, nullptr, 10);
+                len = strtol(optarg, nullptr, 0);
                 break;
             case 'r':
                 do_read = true;
@@ -231,8 +231,9 @@ public:
 
         if (do_read && partial_read)
         {
-            printf("Loading from space 0x%02x offset %u length %d\n",
-                   (unsigned)memory_space_id, (unsigned)offset, (int)len);
+            printf("Loading from space 0x%02x offset %u (0x%08x) length %d\n",
+                (unsigned)memory_space_id, (unsigned)offset, (unsigned)offset,
+                (int)len);
             return invoke_subflow_and_wait(&g_memcfg_cli, STATE(part_read_done),
                 openlcb::MemoryConfigClientRequest::READ_PART, dst,
                 memory_space_id, offset, len);
@@ -272,7 +273,16 @@ public:
     Action part_read_done() {
         auto b = get_buffer_deleter(full_allocation_result(&g_memcfg_cli));
         printf("Result: %04x\n", b->data()->resultCode);
-        printf("Data: %s\n", string_to_hex(b->data()->payload).c_str());
+        if ((len <= 1024) || !filename)
+        {
+            printf("Data: %s\n", string_to_hex(b->data()->payload).c_str());
+        }
+        if (filename)
+        {
+            write_string_to_file(filename, b->data()->payload);
+            fprintf(stderr, "Written %" PRIdPTR " bytes to file %s.\n",
+                b->data()->payload.size(), filename);
+        }
         hasError_ = b->data()->resultCode != 0;
         return call_immediately(STATE(flow_done));
     }
