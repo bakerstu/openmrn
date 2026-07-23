@@ -163,6 +163,15 @@ public:
         *position.link_ = entry;
     }
 
+    /** Inserts the element new_member after the position.
+     * @param position which entry to insert after
+     * @param new_member what to insert after position.
+     */
+    void insert_after(QMember* position, QMember* new_member) {
+        iterator it(&position->next);
+        insert(it, new_member);
+    }
+
     /** Removes the entry pointed to by the iterator. The iterator will
      * afterwards point to the next member after the removed one (or end() if
      * this was the last member). Invalidates any other iterator pointing just
@@ -205,6 +214,11 @@ public:
     /// peeks. @return the entry at the front of the queue.
     T* front() const {
         return static_cast<T*>(SimpleQueue::front());
+    }
+
+    /// Inserts the element new_member after the position.
+    void insert_after(T* position, T* new_member) {
+        SimpleQueue::insert_after(position, new_member);
     }
 
     /// Typed iterator type.
