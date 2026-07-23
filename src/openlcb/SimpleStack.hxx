@@ -302,8 +302,53 @@ protected:
     /// The datagram service bound to the interface object. Owned by
     /// ifaceHolder_;
     DatagramService *datagramService_ {ifaceHolder_->datagram_service()};
+    /// Config update listener responsible for executing factory reset on all events.
+    struct FactoryResetEventsHelper : public ConfigUpdateListener
+    {
+        /// Constructor.
+        /// @param parent pointer to parent stack base.
+        FactoryResetEventsHelper(SimpleStackBase *parent)
+            : parent_(parent)
+            , cfg_(0)
+            , hasCfg_(false)
+        {
+        }
+
+        /// Sets the internal configuration data.
+        /// @param cfg internal configuration data.
+        void set_cfg(InternalConfigData cfg)
+        {
+            cfg_ = cfg;
+            hasCfg_ = true;
+        }
+
+        /// {@inheritdoc}
+        UpdateAction apply_configuration(int fd, bool initial_load,
+                                         BarrierNotifiable *done) override
+        {
+            done->notify();
+            return UPDATED;
+        }
+
+        /// {@inheritdoc}
+        void factory_reset(int fd) override
+        {
+            if (hasCfg_)
+            {
+                parent_->factory_reset_all_events(cfg_, parent_->node()->node_id(), fd);
+            }
+        }
+
+        /// Pointer to the parent stack base.
+        SimpleStackBase *parent_;
+        /// Internal configuration data.
+        InternalConfigData cfg_;
+        /// True if configuration data has been set.
+        bool hasCfg_;
+    } factoryResetEventsHelper_{this};
+
     /// Calls the config listeners with the configuration FD.
-    ConfigUpdateFlow configUpdateFlow_ {iface()};
+    ConfigUpdateFlow configUpdateFlow_ {iface(), {&factoryResetEventsHelper_}};
     /// The initialization flow takes care for node startup duties.
     InitializeFlow initFlow_ {&service_};
     /// Dispatches event protocol requests to the event handlers.

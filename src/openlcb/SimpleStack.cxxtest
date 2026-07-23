@@ -4,13 +4,19 @@
 #include "openlcb/SimpleStack.hxx"
 #include "utils/async_if_test_helper.hxx"
 
-openlcb::MockSNIPUserFile snip_user_file(
-    "Default user name", "Default user description");
-const char *const openlcb::SNIP_DYNAMIC_FILENAME =
-    openlcb::MockSNIPUserFile::snip_user_file_path;
-
 namespace openlcb
 {
+MockSNIPUserFile snip_user_file(
+    "Default user name", "Default user description");
+const char *const SNIP_DYNAMIC_FILENAME =
+    MockSNIPUserFile::snip_user_file_path;
+
+const char *const CONFIG_FILENAME = SNIP_DYNAMIC_FILENAME;
+const size_t CONFIG_FILE_SIZE = 256;
+extern const uint16_t CDI_EVENT_OFFSETS[] = {
+    16, 24, 0
+};
+
 
 /// This class ensures that the g_init_flow object is not live while the tests
 /// are running. That's necessary because InitializeFlow is a singleton and the
@@ -95,5 +101,85 @@ TEST_F(SimpleTcpStackTest, create)
 {
 }
 
+class SimpleStackFactoryResetTest : public AsyncCanTest
+{
+protected:
+    SimpleStackFactoryResetTest()
+    {
+        unlink(openlcb::CONFIG_FILENAME);
+        int fd = ::open(openlcb::CONFIG_FILENAME, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+        HASSERT(fd >= 0);
+        uint8_t buf[256];
+        memset(buf, 0xFF, sizeof(buf));
+        HASSERT(write(fd, buf, sizeof(buf)) == sizeof(buf));
+        ::close(fd);
+    }
+
+    ~SimpleStackFactoryResetTest()
+    {
+        unlink(openlcb::CONFIG_FILENAME);
+    }
+
+    SimpleCanStack stack_ {TEST_NODE_ID};
+};
+
+class OrderVerifyingListener : public ConfigUpdateListener
+{
+public:
+    OrderVerifyingListener(int fd) : fd_(fd), called_(false) {}
+
+    UpdateAction apply_configuration(int fd, bool initial_load, BarrierNotifiable *done) override
+    {
+        done->notify();
+        return UPDATED;
+    }
+
+    void factory_reset(int fd) override
+    {
+        called_ = true;
+        uint64_t event1 = 0;
+        uint64_t event2 = 0;
+        
+        lseek(fd, 16, SEEK_SET);
+        HASSERT(read(fd, &event1, 8) == 8);
+        
+        lseek(fd, 24, SEEK_SET);
+        HASSERT(read(fd, &event2, 8) == 8);
+
+        event1 = __builtin_bswap64(event1);
+        event2 = __builtin_bswap64(event2);
+
+        EXPECT_NE(0xffffffffffffffffULL, event1);
+        EXPECT_NE(0xffffffffffffffffULL, event2);
+        
+        EXPECT_EQ(TEST_NODE_ID, event1 >> 16);
+        EXPECT_EQ(TEST_NODE_ID, event2 >> 16);
+
+        EXPECT_EQ(2U, event1 & 0xFFFF);
+        EXPECT_EQ(3U, event2 & 0xFFFF);
+    }
+
+    int fd_;
+    bool called_;
+};
+
+TEST_F(SimpleStackFactoryResetTest, FactoryResetOrderAndEventReset)
+{
+    InternalConfigData cfg(0);
+
+    int fd = stack_.check_version_and_factory_reset(cfg, 12, true);
+    ASSERT_GT(fd, 0);
+
+    EXPECT_EQ(2U, cfg.next_event().read(fd));
+
+    OrderVerifyingListener listener(fd);
+    stack_.config_service()->register_update_listener(&listener);
+
+    static_cast<ConfigUpdateFlow *>(stack_.config_service())->factory_reset();
+
+    EXPECT_TRUE(listener.called_);
+
+    EXPECT_EQ(4U, cfg.next_event().read(fd));
+}
 
 } // namespace openlcb

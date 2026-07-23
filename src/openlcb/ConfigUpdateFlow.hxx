@@ -42,6 +42,7 @@
 #include "utils/ConfigUpdateService.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
 #include "executor/StateFlow.hxx"
+#include <initializer_list>
 
 #if OPENMRN_FEATURE_REBOOT
 extern "C" {
@@ -62,13 +63,23 @@ class ConfigUpdateFlow : public StateFlowBase,
                          private Atomic
 {
 public:
-    ConfigUpdateFlow(If *iface)
+    /// Constructor.
+    /// @param iface OpenLCB interface this flow belongs to.
+    /// @param initial_listeners listeners to register at initialization time.
+    ConfigUpdateFlow(If *iface, std::initializer_list<ConfigUpdateListener*> initial_listeners = {})
         : StateFlowBase(iface)
         , nextRefresh_(listeners_.begin())
+        , last_(listeners_.begin())
+        , pendingLast_(pendingListeners_.begin())
         , needsReboot_(0)
         , needsReInit_(0)
         , fd_(-1)
     {
+        for (auto *l : initial_listeners)
+        {
+            pendingListeners_.insert(pendingLast_, l);
+            ++pendingLast_;
+        }
     }
 
     /// Must be called once (only) before calling anything else. Returns the
@@ -172,7 +183,11 @@ private:
             if (!pendingListeners_.empty())
             {
                 l = pendingListeners_.pop_front();
-                listeners_.push_front(l);
+                push_back(l);
+                if (pendingListeners_.empty())
+                {
+                    pendingLast_ = pendingListeners_.begin();
+                }
             }
         }
         if (!l)
@@ -200,6 +215,15 @@ private:
     }
 
     typedef TypedQueue<ConfigUpdateListener> queue_type;
+
+    /// Appends a listener to the back of the active listeners list.
+    /// @param l listener to append.
+    void push_back(ConfigUpdateListener *l)
+    {
+        listeners_.insert(last_, l);
+        ++last_;
+    }
+
     /// All registered update listeners. Protected by Atomic *this.
     queue_type listeners_;
     /// All listeners that have not yet been added to listeners_ and their
@@ -207,6 +231,10 @@ private:
     queue_type pendingListeners_;
     /// Where are we in the refresh cycle.
     typename queue_type::iterator nextRefresh_;
+    /// Iterator pointing to the next pointer of the last element in listeners_.
+    typename queue_type::iterator last_;
+    /// Iterator pointing to the next pointer of the last element in pendingListeners_.
+    typename queue_type::iterator pendingLast_;
     /// did anybody request a reboot to happen?
     unsigned needsReboot_ : 1;
     /// did anybody request a node reinit to happen?
