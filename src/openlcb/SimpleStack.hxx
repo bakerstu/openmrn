@@ -302,7 +302,8 @@ protected:
     /// The datagram service bound to the interface object. Owned by
     /// ifaceHolder_;
     DatagramService *datagramService_ {ifaceHolder_->datagram_service()};
-    /// Config update listener responsible for executing factory reset on all events.
+    /// Config update listener responsible for executing factory reset on all
+    /// events.
     struct FactoryResetEventsHelper : public ConfigUpdateListener
     {
         /// Constructor.
@@ -323,8 +324,8 @@ protected:
         }
 
         /// {@inheritdoc}
-        UpdateAction apply_configuration(int fd, bool initial_load,
-                                         BarrierNotifiable *done) override
+        UpdateAction apply_configuration(
+            int fd, bool initial_load, BarrierNotifiable *done) override
         {
             done->notify();
             return UPDATED;
@@ -335,7 +336,8 @@ protected:
         {
             if (hasCfg_)
             {
-                parent_->factory_reset_all_events(cfg_, parent_->node()->node_id(), fd);
+                parent_->factory_reset_all_events(
+                    cfg_, parent_->node()->node_id(), fd);
             }
         }
 
@@ -345,7 +347,7 @@ protected:
         InternalConfigData cfg_;
         /// True if configuration data has been set.
         bool hasCfg_;
-    } factoryResetEventsHelper_{this};
+    } factoryResetEventsHelper_ {this};
 
     /// Calls the config listeners with the configuration FD.
     ConfigUpdateFlow configUpdateFlow_ {iface(), {&factoryResetEventsHelper_}};

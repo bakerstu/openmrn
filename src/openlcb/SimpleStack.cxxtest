@@ -8,15 +8,11 @@ namespace openlcb
 {
 MockSNIPUserFile snip_user_file(
     "Default user name", "Default user description");
-const char *const SNIP_DYNAMIC_FILENAME =
-    MockSNIPUserFile::snip_user_file_path;
+const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
 
 const char *const CONFIG_FILENAME = SNIP_DYNAMIC_FILENAME;
 const size_t CONFIG_FILE_SIZE = 256;
-extern const uint16_t CDI_EVENT_OFFSETS[] = {
-    16, 24, 0
-};
-
+extern const uint16_t CDI_EVENT_OFFSETS[] = {16, 24, 0};
 
 /// This class ensures that the g_init_flow object is not live while the tests
 /// are running. That's necessary because InitializeFlow is a singleton and the
@@ -107,7 +103,8 @@ protected:
     SimpleStackFactoryResetTest()
     {
         unlink(openlcb::CONFIG_FILENAME);
-        int fd = ::open(openlcb::CONFIG_FILENAME, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+        int fd = ::open(openlcb::CONFIG_FILENAME, O_CREAT | O_TRUNC | O_RDWR,
+            S_IRUSR | S_IWUSR);
         HASSERT(fd >= 0);
         uint8_t buf[256];
         memset(buf, 0xFF, sizeof(buf));
@@ -126,9 +123,14 @@ protected:
 class OrderVerifyingListener : public ConfigUpdateListener
 {
 public:
-    OrderVerifyingListener(int fd) : fd_(fd), called_(false) {}
+    OrderVerifyingListener(int fd)
+        : fd_(fd)
+        , called_(false)
+    {
+    }
 
-    UpdateAction apply_configuration(int fd, bool initial_load, BarrierNotifiable *done) override
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override
     {
         done->notify();
         return UPDATED;
@@ -139,10 +141,10 @@ public:
         called_ = true;
         uint64_t event1 = 0;
         uint64_t event2 = 0;
-        
+
         lseek(fd, 16, SEEK_SET);
         HASSERT(read(fd, &event1, 8) == 8);
-        
+
         lseek(fd, 24, SEEK_SET);
         HASSERT(read(fd, &event2, 8) == 8);
 
@@ -151,7 +153,7 @@ public:
 
         EXPECT_NE(0xffffffffffffffffULL, event1);
         EXPECT_NE(0xffffffffffffffffULL, event2);
-        
+
         EXPECT_EQ(TEST_NODE_ID, event1 >> 16);
         EXPECT_EQ(TEST_NODE_ID, event2 >> 16);
 

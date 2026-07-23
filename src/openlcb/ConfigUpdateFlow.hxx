@@ -37,11 +37,11 @@
 #ifndef _OPENLCB_CONFIGUPDATEFLOW_HXX_
 #define _OPENLCB_CONFIGUPDATEFLOW_HXX_
 
+#include "executor/StateFlow.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 #include "openmrn_features.h"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
-#include "openlcb/NodeInitializeFlow.hxx"
-#include "executor/StateFlow.hxx"
 #include <initializer_list>
 
 #if OPENMRN_FEATURE_REBOOT
@@ -66,7 +66,8 @@ public:
     /// Constructor.
     /// @param iface OpenLCB interface this flow belongs to.
     /// @param initial_listeners listeners to register at initialization time.
-    ConfigUpdateFlow(If *iface, std::initializer_list<ConfigUpdateListener*> initial_listeners = {})
+    ConfigUpdateFlow(If *iface,
+        std::initializer_list<ConfigUpdateListener *> initial_listeners = {})
         : StateFlowBase(iface)
         , nextRefresh_(listeners_.begin())
         , last_(listeners_.begin())
@@ -233,7 +234,8 @@ private:
     typename queue_type::iterator nextRefresh_;
     /// Iterator pointing to the next pointer of the last element in listeners_.
     typename queue_type::iterator last_;
-    /// Iterator pointing to the next pointer of the last element in pendingListeners_.
+    /// Iterator pointing to the next pointer of the last element in
+    /// pendingListeners_.
     typename queue_type::iterator pendingLast_;
     /// did anybody request a reboot to happen?
     unsigned needsReboot_ : 1;
