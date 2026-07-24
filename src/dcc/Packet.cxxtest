@@ -201,6 +201,13 @@ TEST_F(PacketTest, DccIdle)
     EXPECT_THAT(get_packet(), ElementsAre(0xff, 0, 0xff));
 }
 
+TEST_F(PacketTest, DccNoop)
+{
+    pkt_.set_dcc_noop();
+    EXPECT_THAT(get_packet(), ElementsAre(0xe7, 0xff, 0, 0x18));
+    EXPECT_TRUE(check_checksum());
+}
+
 TEST_F(PacketTest, DccReset)
 {
     pkt_.set_dcc_reset_all_decoders();
