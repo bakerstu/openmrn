@@ -346,6 +346,9 @@ struct Packet : public DCCPacket
     /** Creates a DCC idle packet. (Includes the checksum.) */
     void set_dcc_idle();
 
+    /** Creates a DCC address-10239 NOOP packet. (Includes the checksum.) */
+    void set_dcc_noop();
+
     /** Creates a DCC reset-all-decoders packet. (Includes the checksum.) */
     void set_dcc_reset_all_decoders();
 
