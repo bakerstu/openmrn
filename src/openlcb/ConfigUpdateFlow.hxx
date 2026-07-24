@@ -58,6 +58,12 @@ namespace openlcb
 /// to the registered ConfigUpdateListener descendants. This flow also handles
 /// any necessary action such as reboot or factory reset. This flow keeps the
 /// file descriptor for the config file that's currently open.
+///
+/// NOTE: This implementation guarantees that the registered listeners are
+/// invoked in the same order in which they were registered. Specifically, the
+/// initial_listeners coming in the constructor are always going to be at the
+/// beginning of the list of listeners to invoke. SimpleStack depends on this
+/// property.
 class ConfigUpdateFlow : public StateFlowBase,
                          public ConfigUpdateService,
                          private Atomic
@@ -232,10 +238,13 @@ private:
     queue_type pendingListeners_;
     /// Where are we in the refresh cycle.
     typename queue_type::iterator nextRefresh_;
-    /// Iterator pointing to the next pointer of the last element in listeners_.
+    /// Iterator pointing to the next pointer of the last element in
+    /// listeners_. This is used for FIFO semantics on the listeners_
+    /// structure.
     typename queue_type::iterator last_;
     /// Iterator pointing to the next pointer of the last element in
-    /// pendingListeners_.
+    /// pendingListeners_.  This is used for FIFO semantics on the
+    /// pendingListeners_ structure.
     typename queue_type::iterator pendingLast_;
     /// did anybody request a reboot to happen?
     unsigned needsReboot_ : 1;

@@ -303,7 +303,11 @@ protected:
     /// ifaceHolder_;
     DatagramService *datagramService_ {ifaceHolder_->datagram_service()};
     /// Config update listener responsible for executing factory reset on all
-    /// events.
+    /// events. It is important that this gets added to the config update
+    /// service at the first position so that any other configuration handler
+    /// would already see the updated event IDs. Some event listeners depend on
+    /// this to be able to override the automatically generated sequential
+    /// event IDs with well-known event IDs.
     struct FactoryResetEventsHelper : public ConfigUpdateListener
     {
         /// Constructor.
@@ -349,7 +353,11 @@ protected:
         bool hasCfg_;
     } factoryResetEventsHelper_ {this};
 
-    /// Calls the config listeners with the configuration FD.
+    /// Iplementation of the ConfigUpdateService, which is a singleton. Calls
+    /// the config listeners with the configuration FD to load the config,
+    /// perform update complete, and perform factory reset. The event factory
+    /// reset implementation is added here to guarantee it is the first entry
+    /// in the registered listeners list.
     ConfigUpdateFlow configUpdateFlow_ {iface(), {&factoryResetEventsHelper_}};
     /// The initialization flow takes care for node startup duties.
     InitializeFlow initFlow_ {&service_};
