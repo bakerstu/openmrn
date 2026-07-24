@@ -343,6 +343,10 @@ struct Packet : public DCCPacket
      * for DCC. */
     void add_dcc_checksum();
 
+    /** Adds a DCC NOP command to the packet. This should be called after
+     * add_dcc_address. (Includes the checksum.) */
+    void add_dcc_noop();
+
     /** Creates a DCC idle packet. (Includes the checksum.) */
     void set_dcc_idle();
 

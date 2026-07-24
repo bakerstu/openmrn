@@ -201,6 +201,14 @@ TEST_F(PacketTest, DccIdle)
     EXPECT_THAT(get_packet(), ElementsAre(0xff, 0, 0xff));
 }
 
+TEST_F(PacketTest, AddDccNoop)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_noop();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0, 55));
+    EXPECT_TRUE(check_checksum());
+}
+
 TEST_F(PacketTest, DccNoop)
 {
     pkt_.set_dcc_noop();

@@ -78,6 +78,12 @@ void Packet::add_dcc_checksum()
     packet_header.skip_ec = 1;
 }
 
+void Packet::add_dcc_noop()
+{
+    payload[dlc++] = 0;
+    add_dcc_checksum();
+}
+
 void Packet::set_dcc_idle()
 {
     start_dcc_packet();
@@ -90,8 +96,7 @@ void Packet::set_dcc_idle()
 void Packet::set_dcc_noop()
 {
     add_dcc_address(DccLongAddress(10239));
-    payload[dlc++] = 0;
-    add_dcc_checksum();
+    add_dcc_noop();
 }
 
 void Packet::set_dcc_reset_all_decoders()
