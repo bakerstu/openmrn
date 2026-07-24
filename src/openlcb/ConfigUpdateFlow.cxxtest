@@ -170,5 +170,66 @@ TEST_F(ConfigUpdateFlowTest, InitialLoad)
     wait_for_main_executor();
 }
 
+TEST_F(ConfigUpdateFlowTest, InitializerListAndFIFOTest)
+{
+    updateFlow_.~ConfigUpdateFlow();
+    BlockExecutor block(nullptr);
+    new (&updateFlow_) ConfigUpdateFlow(ifCan_.get(), {&l1});
+    updateFlow_.open_file("/dev/zero");
+
+    StrictMock<MockConfigListener> l3;
+    updateFlow_.register_update_listener(&l2);
+    updateFlow_.register_update_listener(&l3);
+
+    testing::InSequence seq;
+    EXPECT_CALL(l1, apply_configuration(::testing::Gt(0), true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+            Return(ConfigUpdateListener::UPDATED)));
+    EXPECT_CALL(l2, apply_configuration(::testing::Gt(0), true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+            Return(ConfigUpdateListener::UPDATED)));
+    EXPECT_CALL(l3, apply_configuration(::testing::Gt(0), true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+            Return(ConfigUpdateListener::UPDATED)));
+
+    updateFlow_.init_flow();
+    block.release_block();
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l1);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&l3);
+
+    EXPECT_CALL(l1, factory_reset(::testing::Gt(0)));
+    EXPECT_CALL(l2, factory_reset(::testing::Gt(0)));
+    EXPECT_CALL(l3, factory_reset(::testing::Gt(0)));
+
+    updateFlow_.factory_reset();
+}
+
+TEST_F(ConfigUpdateFlowTest, RegisterLaterFIFOTest)
+{
+    updateFlow_.TEST_set_fd(23);
+
+    EXPECT_CALL(l1, apply_configuration(23, true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+            Return(ConfigUpdateListener::UPDATED)));
+    updateFlow_.register_update_listener(&l1);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l1);
+
+    EXPECT_CALL(l2, apply_configuration(23, true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+            Return(ConfigUpdateListener::UPDATED)));
+    updateFlow_.register_update_listener(&l2);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l2);
+
+    testing::InSequence seq;
+    EXPECT_CALL(l1, factory_reset(23));
+    EXPECT_CALL(l2, factory_reset(23));
+
+    updateFlow_.factory_reset();
+}
+
 } // namespace
 } // namespace openlcb
