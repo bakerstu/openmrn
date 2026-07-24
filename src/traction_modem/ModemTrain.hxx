@@ -40,6 +40,7 @@
 #include "traction_modem/MemorySpace.hxx"
 #include "traction_modem/MemorySpaceServer.hxx"
 #include "traction_modem/Output.hxx"
+#include "traction_modem/ProgramTrack.hxx"
 #include "traction_modem/Link.hxx"
 
 namespace traction_modem
@@ -67,6 +68,7 @@ public:
         , fuSpace_(service, &link_)
         , output_(tx_flow, rx_flow, hw_interface)
         , memorySpaceServer_(tx_flow, rx_flow, hw_interface)
+        , programTrack_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
     {
     }
@@ -221,8 +223,10 @@ private:
     CvSpace fuSpace_;
     /// Output handler.
     Output output_;
-    // Memory space handler for the modem.
+    /// Memory space handler for the modem.
     MemorySpaceServer memorySpaceServer_;
+    /// Program track mode handler.
+    ProgramTrack programTrack_;
     /// True if the last set was estop, false if it was a speed.
     bool inEStop_ = false;
     /// Is the wireless active.

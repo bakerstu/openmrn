@@ -81,6 +81,7 @@ struct Defs
         CMD_SPEED_SET          = 0x0100, ///< set velocity
         CMD_FN_SET             = 0x0101, ///< set function
         CMD_ESTOP_SET          = 0x0102, ///< emergency stop request
+        CMD_PROGRAM_TRACK      = 0x0103, ///< program track mode
         CMD_SPEED_QUERY        = 0x0110, ///< query current speed
         CMD_FN_QUERY           = 0x0111, ///< query function status
         CMD_DC_DCC_PRESENT     = 0x0200, ///< DC/DCC present
@@ -104,6 +105,8 @@ struct Defs
         RESP_FN_SET             = RESPONSE | CMD_FN_SET,
         /// emergency stop response
         RESP_ESTOP_SET          = RESPONSE | CMD_ESTOP_SET,
+        /// program track mode response
+        RESP_PROGRAM_TRACK      = RESPONSE | CMD_PROGRAM_TRACK,
         /// query current speed response
         RESP_SPEED_QUERY        = RESPONSE | CMD_SPEED_QUERY,
         /// query function status response
@@ -162,6 +165,10 @@ struct Defs
     static constexpr unsigned LEN_SPEED_SET = 1;
     /// Length of the data payload of a set estop packet.
     static constexpr unsigned LEN_ESTOP_SET = 0;
+    /// Length of the data payload of a program track packet.
+    static constexpr unsigned LEN_PROGRAM_TRACK = 1;
+    /// Length of the data payload of a program track response packet.
+    static constexpr unsigned LEN_PROGRAM_TRACK_RESP = 0;
     /// Length of the data payload of a wireless present packet.
     static constexpr unsigned LEN_WIRELESS_PRESENT = 1;
     /// Length of the data payload of an output state packet.
@@ -291,6 +298,19 @@ struct Defs
     static_assert(offsetof(OutputRestart, end) == (LEN_HEADER + LEN_OUTPUT_RESTART),
         "OutputRestart struct length or alignment mismatch.");
     static_assert(std::is_standard_layout<OutputRestart>::value == true);
+
+    /// Structure of a program track command.
+    struct ProgramTrackCmd
+    {
+        Header header_; ///< packet header
+        uint8_t mode_;  ///< 0 = exit program track mode, 1 = enter program
+                        ///<   track mode
+        uint8_t end;    ///< used for alignment and length validation only
+    };
+    static_assert(
+        offsetof(ProgramTrackCmd, end) == (LEN_HEADER + LEN_PROGRAM_TRACK),
+        "ProgramTrackCmd struct length or alignment mismatch.");
+    static_assert(std::is_standard_layout<ProgramTrackCmd>::value == true);
 
     /// Structure of a write packet.
     struct Write
@@ -424,6 +444,28 @@ struct Defs
         Payload p;
         prepare(&p, CMD_ESTOP_SET, LEN_ESTOP_SET);
         // no data in the payload
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes payload for a program track mode command.
+    /// @param mode 0 = exit program track mode, 1 = enter program track mode
+    /// @return wire formatted payload
+    static Payload get_program_track_payload(uint8_t mode)
+    {
+        Payload p;
+        prepare(&p, CMD_PROGRAM_TRACK, LEN_PROGRAM_TRACK);
+        append_uint8(&p, mode);
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes payload for a program track mode response.
+    /// @return wire formatted payload
+    static Payload get_program_track_resp_payload()
+    {
+        Payload p;
+        prepare(&p, RESP_PROGRAM_TRACK, LEN_PROGRAM_TRACK_RESP);
         append_crc(&p);
         return p;
     }

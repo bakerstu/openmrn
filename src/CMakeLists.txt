@@ -267,8 +267,10 @@ set(TESTS ${TESTS}
     ${OPENMRNPATH}/src/traction_modem/Defs.cxxtest
     ${OPENMRNPATH}/src/traction_modem/Link.cxxtest
     ${OPENMRNPATH}/src/traction_modem/MemorySpace.cxxtest
+    ${OPENMRNPATH}/src/traction_modem/MemorySpaceServer.cxxtest
     ${OPENMRNPATH}/src/traction_modem/ModemTrain.cxxtest
     ${OPENMRNPATH}/src/traction_modem/Output.cxxtest
+    ${OPENMRNPATH}/src/traction_modem/ProgramTrack.cxxtest
     ${OPENMRNPATH}/src/traction_modem/RxTxFlow.cxxtest
 
     ${OPENMRNPATH}/src/utils/async_if_test_helper.cxxtest

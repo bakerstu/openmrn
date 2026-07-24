@@ -1,0 +1,124 @@
+#include "utils/test_main.hxx"
+
+#include "traction_modem/modem_test_helper.hxx"
+
+#include "traction_modem/ProgramTrack.hxx"
+
+using namespace std::string_literals;
+
+namespace traction_modem
+{
+
+/// Test object for ProgramTrack.
+class ProgramTrackTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    ProgramTrackTest()
+    {
+        using ::testing::_;
+        EXPECT_CALL(
+            mRxFlow_, register_handler(_, Defs::CMD_PROGRAM_TRACK, _))
+            .Times(1);
+        programTrack_ = new ProgramTrack(&mTxFlow_, &mRxFlow_, &mHwIf_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    }
+
+    /// Destructor.
+    ~ProgramTrackTest()
+    {
+    }
+
+    ::testing::StrictMock<MyMockRxFlow> mRxFlow_; ///< mock receive flow
+    ::testing::StrictMock<MockTxFlow> mTxFlow_; ///< mock transmit flow
+    ::testing::StrictMock<MockTrainHwInterface> mHwIf_; ///< mock train hardware
+    ProgramTrack *programTrack_; ///< program track instance
+};
+
+/// Append the expected CRC value.
+/// @param payload packet payload
+/// @param all crc of all bytes
+/// @param even crc of even index bytes
+/// @param odd crc of odd index bytes
+static void append_expected_crc(
+    Defs::Payload *payload, uint16_t all, uint16_t even, uint16_t odd)
+{
+    payload->push_back(all >> 8);
+    payload->push_back(all & 0xFF);
+    payload->push_back(even >> 8);
+    payload->push_back(even & 0xFF);
+    payload->push_back(odd >> 8);
+    payload->push_back(odd & 0xFF);
+}
+
+/// Append the expected CRC value.
+/// @param payload packet payload, including a prepended preamble
+static void append_expected_crc(Defs::Payload *payload)
+{
+    Defs::CRC crc;
+    crc3_crc16_ccitt(payload->data() + sizeof(uint32_t),
+         payload->size() - sizeof(uint32_t), crc.crc);
+    append_expected_crc(payload, crc.all_, crc.even_, crc.odd_);
+}
+
+TEST_F(ProgramTrackTest, Create)
+{
+}
+
+TEST_F(ProgramTrackTest, Exit)
+{
+    using ::testing::Sequence;
+    using ::testing::Eq;
+
+    Sequence s1;
+    std::string tx_data;
+
+    EXPECT_CALL(mHwIf_, program_track(
+        ModemTrainHwInterface::ProgramTrackMode::EXIT))
+        .Times(1)
+        .InSequence(s1);
+    tx_data = "\x41\xd2\xc3\x7a"s "\x81\x03"s "\x00\x00"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_PROGRAM_TRACK,
+            Defs::LEN_PROGRAM_TRACK);
+        Defs::append_uint8(&b->data()->payload, 0);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+}
+
+TEST_F(ProgramTrackTest, Entry)
+{
+    using ::testing::Sequence;
+    using ::testing::Eq;
+
+    Sequence s1;
+    std::string tx_data;
+
+    EXPECT_CALL(mHwIf_, program_track(
+        ModemTrainHwInterface::ProgramTrackMode::ENTRY))
+        .Times(1)
+        .InSequence(s1);
+    tx_data = "\x41\xd2\xc3\x7a"s "\x81\x03"s "\x00\x00"s;
+    append_expected_crc(&tx_data);
+    EXPECT_CALL(mTxFlow_, send_packet(Eq(tx_data))).InSequence(s1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_PROGRAM_TRACK,
+            Defs::LEN_PROGRAM_TRACK);
+        Defs::append_uint8(&b->data()->payload, 1);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+}
+
+} // namespace traction_modem
