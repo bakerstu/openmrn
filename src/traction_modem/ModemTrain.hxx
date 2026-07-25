@@ -136,6 +136,13 @@ public:
         return &fuSpace_;
     }
 
+    /// Get a reference to the function status handler.
+    /// @return function status handler reference
+    FunctionStatus *get_function_status()
+    {
+        return &functionStatus_;
+    }
+
     // ====== Train interface =======
 
     /// Set train speed.
@@ -209,10 +216,6 @@ private:
     {
         hwIf_->on_link_up();
         velocityStatus_.query();
-        for (unsigned i = 0; i <=68; ++i)
-        {
-            functionStatus_.query(i);
-        }
     }
 
     /// True if the wireless is up and running.
