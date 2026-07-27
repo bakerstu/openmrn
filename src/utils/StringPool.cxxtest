@@ -231,3 +231,67 @@ TEST_F(StringPoolTest, fuzz_test) {
         ASSERT_STREQ(pair.second.c_str(), pool_.lookup(pair.first));
     }
 }
+
+TEST_F(StringPoolTest, free_edge_cases) {
+    // Freeing invalid or empty keys should not crash
+    pool_.free(StringPool::INVALID_KEY);
+    pool_.free(StringPool::EMPTY_KEY);
+
+    // Freeing an out-of-bounds key
+    StringPool::key_t oob_key = (50 << 10) | 0;
+    pool_.free(oob_key);
+
+    // Double free test
+    auto k = pool_.alloc("Test");
+    EXPECT_STREQ("Test", pool_.lookup(k));
+    pool_.free(k);
+    pool_.free(k); // Second free should be safely ignored
+}
+
+TEST_F(StringPoolTest, lookup_out_of_bounds) {
+    StringPool::key_t oob_key = (50 << 10) | 0;
+    EXPECT_EQ(nullptr, pool_.lookup(oob_key));
+}
+
+TEST_F(StringPoolTest, coalesce_adjacent_holes) {
+    auto ka = pool_.alloc("AAAA"); // 5 bytes (0..4)
+    auto kb = pool_.alloc("BBBB"); // 5 bytes (5..9)
+    auto kc = pool_.alloc("CCCC"); // 5 bytes (10..14)
+    auto kd = pool_.alloc("DDDD"); // 5 bytes (15..19)
+
+    // Free B and C
+    pool_.free(kb);
+    pool_.free(kc);
+
+    // Alloc E of 10 bytes ("123456789", 10 bytes with null)
+    // Should fit into coalesced spot of B + C (indices 5..14)
+    auto ke = pool_.alloc("123456789");
+    EXPECT_EQ(kb, ke);
+
+    EXPECT_STREQ("AAAA", pool_.lookup(ka));
+    EXPECT_STREQ("123456789", pool_.lookup(ke));
+    EXPECT_STREQ("DDDD", pool_.lookup(kd));
+}
+
+TEST_F(StringPoolTest, max_blocks_exhaustion) {
+    // Fill up all MAX_BLOCKS (63) blocks completely
+    std::string s126(126, 'x');
+    std::string s7(7, 'y');
+
+    std::vector<StringPool::key_t> keys;
+    for (size_t b = 0; b < StringPool::MAX_BLOCKS; ++b) {
+        for (int i = 0; i < 8; ++i) {
+            auto k = pool_.alloc(s126.c_str());
+            ASSERT_NE(StringPool::INVALID_KEY, k);
+            keys.push_back(k);
+        }
+        auto k_tail = pool_.alloc(s7.c_str());
+        ASSERT_NE(StringPool::INVALID_KEY, k_tail);
+        keys.push_back(k_tail);
+    }
+
+    // Now all 63 blocks are 100% full (63 * 1024 bytes).
+    // Allocating one more string should return INVALID_KEY
+    auto k_overflow = pool_.alloc("overflow");
+    EXPECT_EQ(StringPool::INVALID_KEY, k_overflow);
+}

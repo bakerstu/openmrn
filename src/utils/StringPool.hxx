@@ -39,16 +39,18 @@
 #include <cstdint>
 #include <cstddef>
 
+#include "utils/macros.h"
+
 /// A dynamically adjusting data structure for holding C strings.
 /// The StringPool allocates storage in chunks of 1 kb or memory. It supports up
-/// to 64 kb of contents. Each participating string can be at most 127 bytes
+/// to 63 kb of contents. Each participating string can be at most 127 bytes
 /// long.
 class StringPool {
 public:
   typedef uint16_t key_t;
 
   static constexpr size_t BLOCK_SIZE = 1024;
-  static constexpr size_t MAX_BLOCKS = 64;
+  static constexpr size_t MAX_BLOCKS = 63;
   static constexpr key_t INVALID_KEY = 0xFFFF;
   static constexpr key_t EMPTY_KEY = 0xFFFE;
   static constexpr size_t MAX_STRING_LEN = 127;
@@ -71,6 +73,23 @@ public:
   const char* lookup(key_t key) const;
 
 private:
+  DISALLOW_COPY_AND_ASSIGN(StringPool);
+
+  /// Computes a key handle from a block index and offset within the block.
+  static inline key_t compute_key(uint16_t block_idx, uint16_t offset) {
+    return (static_cast<key_t>(block_idx) << 10) | (offset & 0x03FF);
+  }
+
+  /// Extracts the block index from a key handle.
+  static inline uint16_t block_idx_from_key(key_t key) {
+    return key >> 10;
+  }
+
+  /// Extracts the byte offset within a block from a key handle.
+  static inline uint16_t block_offset_from_key(key_t key) {
+    return key & 0x03FF;
+  }
+
   /// Tries to find a hole of at least size `size` in the existing blocks.
   /// @param size the size in bytes to allocate (including null terminator).
   /// @return a key if a hole was found, or INVALID_KEY.

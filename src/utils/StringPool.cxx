@@ -66,32 +66,30 @@ StringPool::key_t StringPool::alloc(const char* value) {
         return INVALID_KEY;
     }
 
+    // Try to find a hole in existing blocks.
+    key_t hole_key = find_hole(len);
+    if (hole_key != INVALID_KEY) {
+        // Found a hole. Use it.
+        uint16_t block_idx = block_idx_from_key(hole_key);
+        uint16_t offset = block_offset_from_key(hole_key);
+        char* ptr = blocks_[block_idx] + offset;
+        memcpy(ptr, value, len);
+        return hole_key;
+    }
+
     // Try to append to the current block if we have blocks and space
     if (!blocks_.empty()) {
         if (currentBlockOffset_ + len <= BLOCK_SIZE) {
             // Fits in current block at current offset
             char* ptr = blocks_[currentBlockIdx_] + currentBlockOffset_;
             memcpy(ptr, value, len);
-            
-            key_t key = (static_cast<key_t>(currentBlockIdx_) << 10) | currentBlockOffset_;
+            key_t key = compute_key(currentBlockIdx_, currentBlockOffset_);
             currentBlockOffset_ += len;
             return key;
         }
     }
 
-    // Did not fit at the end of the current block (or no blocks yet).
-    // Try to find a hole in existing blocks.
-    key_t hole_key = find_hole(len);
-    if (hole_key != INVALID_KEY) {
-        // Found a hole. Use it.
-        uint16_t block_idx = hole_key >> 10;
-        uint16_t offset = hole_key & 0x03FF;
-        char* ptr = blocks_[block_idx] + offset;
-        memcpy(ptr, value, len);
-        return hole_key;
-    }
-
-    // No hole found. Need a new block.
+    // No hole found and didn't fit in current block. Need a new block.
     if (blocks_.size() >= MAX_BLOCKS) {
         return INVALID_KEY;
     }
@@ -106,8 +104,7 @@ StringPool::key_t StringPool::alloc(const char* value) {
 
     // We know it fits because len <= MAX_STRING_LEN (127) and BLOCK_SIZE is 1024.
     memcpy(new_block, value, len);
-    
-    key_t key = (static_cast<key_t>(currentBlockIdx_) << 10) | currentBlockOffset_;
+    key_t key = compute_key(currentBlockIdx_, currentBlockOffset_);
     currentBlockOffset_ += len;
     
     return key;
@@ -118,8 +115,8 @@ void StringPool::free(key_t key) {
         return;
     }
 
-    uint16_t block_idx = key >> 10;
-    uint16_t offset = key & 0x03FF;
+    uint16_t block_idx = block_idx_from_key(key);
+    uint16_t offset = block_offset_from_key(key);
 
     if (block_idx >= blocks_.size()) {
         return; // Out of bounds
@@ -146,8 +143,8 @@ const char* StringPool::lookup(key_t key) const {
         return nullptr;
     }
 
-    uint16_t block_idx = key >> 10;
-    uint16_t offset = key & 0x03FF;
+    uint16_t block_idx = block_idx_from_key(key);
+    uint16_t offset = block_offset_from_key(key);
 
     if (block_idx >= blocks_.size()) {
         return nullptr;
@@ -179,7 +176,7 @@ StringPool::key_t StringPool::find_hole(size_t size) {
                     i++;
                     
                     if (free_len >= size) {
-                        return (static_cast<key_t>(b) << 10) | start;
+                        return compute_key(b, start);
                     }
                 }
             } else {
@@ -187,8 +184,10 @@ StringPool::key_t StringPool::find_hole(size_t size) {
                 while (i < search_limit && block[i] != '\0') {
                     i++;
                 }
-                // Skip the null terminator too
-                i++; 
+                // Skip the null terminator too if we haven't reached search_limit
+                if (i < search_limit && block[i] == '\0') {
+                    i++; 
+                }
             }
         }
     }
