@@ -34,8 +34,8 @@
 
 #include "utils/StringPool.hxx"
 
-#include <cstring>
 #include <algorithm>
+#include <cstring>
 
 constexpr size_t StringPool::BLOCK_SIZE;
 constexpr size_t StringPool::MAX_BLOCKS;
@@ -50,38 +50,46 @@ StringPool::StringPool()
     blocks_.reserve(MAX_BLOCKS);
 }
 
-StringPool::~StringPool() {
-    for (char* block : blocks_) {
+StringPool::~StringPool()
+{
+    for (char *block : blocks_)
+    {
         delete[] block;
     }
 }
 
-StringPool::key_t StringPool::alloc(const char* value) {
-    if (!value || value[0] == '\0') {
+StringPool::key_t StringPool::alloc(const char *value)
+{
+    if (!value || value[0] == '\0')
+    {
         return EMPTY_KEY;
     }
 
     size_t len = strlen(value) + 1; // Include null terminator
-    if (len > MAX_STRING_LEN) {
+    if (len > MAX_STRING_LEN)
+    {
         return INVALID_KEY;
     }
 
     // Try to find a hole in existing blocks.
     key_t hole_key = find_hole(len);
-    if (hole_key != INVALID_KEY) {
+    if (hole_key != INVALID_KEY)
+    {
         // Found a hole. Use it.
         uint16_t block_idx = block_idx_from_key(hole_key);
         uint16_t offset = block_offset_from_key(hole_key);
-        char* ptr = blocks_[block_idx] + offset;
+        char *ptr = blocks_[block_idx] + offset;
         memcpy(ptr, value, len);
         return hole_key;
     }
 
     // Try to append to the current block if we have blocks and space
-    if (!blocks_.empty()) {
-        if (currentBlockOffset_ + len <= BLOCK_SIZE) {
+    if (!blocks_.empty())
+    {
+        if (currentBlockOffset_ + len <= BLOCK_SIZE)
+        {
             // Fits in current block at current offset
-            char* ptr = blocks_[currentBlockIdx_] + currentBlockOffset_;
+            char *ptr = blocks_[currentBlockIdx_] + currentBlockOffset_;
             memcpy(ptr, value, len);
             key_t key = compute_key(currentBlockIdx_, currentBlockOffset_);
             currentBlockOffset_ += len;
@@ -90,103 +98,125 @@ StringPool::key_t StringPool::alloc(const char* value) {
     }
 
     // No hole found and didn't fit in current block. Need a new block.
-    if (blocks_.size() >= MAX_BLOCKS) {
+    if (blocks_.size() >= MAX_BLOCKS)
+    {
         return INVALID_KEY;
     }
 
     // Allocate new block
-    char* new_block = new char[BLOCK_SIZE];
+    char *new_block = new char[BLOCK_SIZE];
     memset(new_block, 0, BLOCK_SIZE); // Zero initialize for invariant
     blocks_.push_back(new_block);
-    
+
     currentBlockIdx_ = blocks_.size() - 1;
     currentBlockOffset_ = 0;
 
-    // We know it fits because len <= MAX_STRING_LEN (127) and BLOCK_SIZE is 1024.
+    // We know it fits because len <= MAX_STRING_LEN (127) and BLOCK_SIZE is
+    // 1024.
     memcpy(new_block, value, len);
     key_t key = compute_key(currentBlockIdx_, currentBlockOffset_);
     currentBlockOffset_ += len;
-    
+
     return key;
 }
 
-void StringPool::free(key_t key) {
-    if (key == INVALID_KEY || key == EMPTY_KEY) {
+void StringPool::free(key_t key)
+{
+    if (key == INVALID_KEY || key == EMPTY_KEY)
+    {
         return;
     }
 
     uint16_t block_idx = block_idx_from_key(key);
     uint16_t offset = block_offset_from_key(key);
 
-    if (block_idx >= blocks_.size()) {
+    if (block_idx >= blocks_.size())
+    {
         return; // Out of bounds
     }
 
-    char* ptr = blocks_[block_idx] + offset;
+    char *ptr = blocks_[block_idx] + offset;
     // Determine length from storage
     size_t len = strlen(ptr);
-    if (len == 0) {
+    if (len == 0)
+    {
         // Already free or empty?
         return;
     }
-    
+
     // Zero out the string (invariant: consecutive zeros are free space)
     // We must zero out len + 1 bytes (the string + null terminator)
     memset(ptr, 0, len + 1);
 }
 
-const char* StringPool::lookup(key_t key) const {
-    if (key == EMPTY_KEY) {
+const char *StringPool::lookup(key_t key) const
+{
+    if (key == EMPTY_KEY)
+    {
         return "";
     }
-    if (key == INVALID_KEY) {
+    if (key == INVALID_KEY)
+    {
         return nullptr;
     }
 
     uint16_t block_idx = block_idx_from_key(key);
     uint16_t offset = block_offset_from_key(key);
 
-    if (block_idx >= blocks_.size()) {
+    if (block_idx >= blocks_.size())
+    {
         return nullptr;
     }
-    
+
     return blocks_[block_idx] + offset;
 }
 
-StringPool::key_t StringPool::find_hole(size_t size) {
+StringPool::key_t StringPool::find_hole(size_t size)
+{
     // Iterate through all blocks
-    for (size_t b = 0; b < blocks_.size(); ++b) {
-        char* block = blocks_[b];
+    for (size_t b = 0; b < blocks_.size(); ++b)
+    {
+        char *block = blocks_[b];
         size_t search_limit = BLOCK_SIZE;
-        
-        if (b == currentBlockIdx_) {
+
+        if (b == currentBlockIdx_)
+        {
             search_limit = currentBlockOffset_;
         }
-        
+
         size_t i = 0;
-        while (i < search_limit) {
-            if (block[i] == '\0') {
+        while (i < search_limit)
+        {
+            if (block[i] == '\0')
+            {
                 // Potential hole
                 size_t free_len = 0;
                 size_t start = i;
-                
+
                 // Count consecutive zeros
-                while (i < search_limit && block[i] == '\0') {
+                while (i < search_limit && block[i] == '\0')
+                {
                     free_len++;
                     i++;
-                    
-                    if (free_len >= size) {
+
+                    if (free_len >= size)
+                    {
                         return compute_key(b, start);
                     }
                 }
-            } else {
+            }
+            else
+            {
                 // Found a non-zero byte (part of a string)
-                while (i < search_limit && block[i] != '\0') {
+                while (i < search_limit && block[i] != '\0')
+                {
                     i++;
                 }
-                // Skip the null terminator too if we haven't reached search_limit
-                if (i < search_limit && block[i] == '\0') {
-                    i++; 
+                // Skip the null terminator too if we haven't reached
+                // search_limit
+                if (i < search_limit && block[i] == '\0')
+                {
+                    i++;
                 }
             }
         }

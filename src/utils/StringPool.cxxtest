@@ -35,204 +35,227 @@
 #include "utils/StringPool.hxx"
 #include "utils/test_main.hxx"
 
-#include <string>
 #include <map>
-#include <vector>
 #include <random>
+#include <string>
+#include <vector>
 
-class StringPoolTest : public ::testing::Test {
+class StringPoolTest : public ::testing::Test
+{
 protected:
     StringPool pool_;
 };
 
-TEST_F(StringPoolTest, alloc_lookup_basic) {
+TEST_F(StringPoolTest, alloc_lookup_basic)
+{
     auto k1 = pool_.alloc("Hello");
     auto k2 = pool_.alloc("World");
-    
+
     EXPECT_NE(k1, StringPool::INVALID_KEY);
     EXPECT_NE(k2, StringPool::INVALID_KEY);
     EXPECT_NE(k1, k2);
-    
+
     EXPECT_STREQ("Hello", pool_.lookup(k1));
     EXPECT_STREQ("World", pool_.lookup(k2));
 }
 
-TEST_F(StringPoolTest, alloc_empty) {
+TEST_F(StringPoolTest, alloc_empty)
+{
     auto k = pool_.alloc("");
     EXPECT_EQ(StringPool::EMPTY_KEY, k);
     EXPECT_STREQ("", pool_.lookup(k));
-    
+
     auto k2 = pool_.alloc(nullptr);
     EXPECT_EQ(StringPool::EMPTY_KEY, k2);
     EXPECT_STREQ("", pool_.lookup(k2));
 }
 
-TEST_F(StringPoolTest, invalid_key) {
+TEST_F(StringPoolTest, invalid_key)
+{
     EXPECT_EQ(nullptr, pool_.lookup(StringPool::INVALID_KEY));
 }
 
-TEST_F(StringPoolTest, max_len) {
+TEST_F(StringPoolTest, max_len)
+{
     std::string s126(126, 'a');
     auto k1 = pool_.alloc(s126.c_str());
     EXPECT_NE(StringPool::INVALID_KEY, k1);
     EXPECT_STREQ(s126.c_str(), pool_.lookup(k1));
-    
+
     std::string s127(127, 'a'); // 128 bytes with null
     auto k2 = pool_.alloc(s127.c_str());
     EXPECT_EQ(StringPool::INVALID_KEY, k2);
 }
 
-TEST_F(StringPoolTest, boundary_crossing) {
+TEST_F(StringPoolTest, boundary_crossing)
+{
     // Fill first block almost to the end
     // Block size 1024.
     // 1022 bytes. 2 bytes left.
     // Alloc 1022 bytes is too large (max 127).
-    
+
     // We need to fill it using multiple strings.
     // 1024 / 127 = ~8.
-    
+
     // Fill up to 1022.
     // Let's use 10-byte strings (11 with null).
     // 1024 % 11 = 1. So 93 strings. 93 * 11 = 1023.
     // Wait, 1024 % 11: 1024 = 93 * 11 + 1.
     // So if we alloc 93 strings of len 10, we occupy 1023 bytes. 1 byte left.
-    
+
     // Let's target exactly 1022 bytes used.
     // 1022 / 2 = 511. String "A" is 2 bytes.
     // Alloc 511 "A"s.
-    for (int i = 0; i < 511; ++i) {
+    for (int i = 0; i < 511; ++i)
+    {
         pool_.alloc("A");
     }
     // Used: 511 * 2 = 1022.
     // Remaining in block 0: 2 bytes (offsets 1022, 1023).
-    
+
     // Alloc "B" (2 bytes). Should fit.
     auto k1 = pool_.alloc("B");
-    EXPECT_EQ(0, k1 >> 10); // Still block 0
+    EXPECT_EQ(0, k1 >> 10);       // Still block 0
     EXPECT_EQ(1022, k1 & 0x03FF); // Offset 1022
-    
+
     // Now block 0 is full (1024 bytes).
     // Alloc "C" (2 bytes). Should go to block 1.
     auto k2 = pool_.alloc("C");
-    EXPECT_EQ(1, k2 >> 10); // Block 1
+    EXPECT_EQ(1, k2 >> 10);    // Block 1
     EXPECT_EQ(0, k2 & 0x03FF); // Offset 0
-    
+
     // Verify content
     EXPECT_STREQ("B", pool_.lookup(k1));
     EXPECT_STREQ("C", pool_.lookup(k2));
 }
 
-TEST_F(StringPoolTest, reuse_hole) {
+TEST_F(StringPoolTest, reuse_hole)
+{
     // Alloc A, B, C.
     auto ka = pool_.alloc("AAAA"); // 5 bytes
     auto kb = pool_.alloc("BBBB"); // 5 bytes
     auto kc = pool_.alloc("CCCC"); // 5 bytes
-    
+
     // Offsets: 0, 5, 10.
     EXPECT_EQ(5, kb & 0x03FF);
-    
+
     // Free B.
     pool_.free(kb);
-    
+
     // Alloc D (fits in B's spot).
     auto kd = pool_.alloc("DDDD"); // 5 bytes
-    EXPECT_EQ(kb, kd); // Should reuse the same spot
-    
+    EXPECT_EQ(kb, kd);             // Should reuse the same spot
+
     EXPECT_STREQ("AAAA", pool_.lookup(ka));
     EXPECT_STREQ("DDDD", pool_.lookup(kd));
     EXPECT_STREQ("CCCC", pool_.lookup(kc));
 }
 
-TEST_F(StringPoolTest, reuse_hole_too_small) {
+TEST_F(StringPoolTest, reuse_hole_too_small)
+{
     // Alloc A, B, C.
     auto ka = pool_.alloc("AAAA"); // 5 bytes
     auto kb = pool_.alloc("BBBB"); // 5 bytes
     auto kc = pool_.alloc("CCCC"); // 5 bytes
-    
+
     pool_.free(kb);
-    
+
     // Alloc E (6 bytes with null). Too big for B's spot (5 bytes).
     auto ke = pool_.alloc("EEEEE");
     EXPECT_NE(kb, ke);
     EXPECT_GT(ke, kc); // Should be after C
-    
+
     EXPECT_STREQ("AAAA", pool_.lookup(ka));
     EXPECT_STREQ("EEEEE", pool_.lookup(ke));
     EXPECT_STREQ("CCCC", pool_.lookup(kc));
 }
 
-TEST_F(StringPoolTest, fuzz_test) {
+TEST_F(StringPoolTest, fuzz_test)
+{
     // Keep allocating and freeing strings of 3-15 bytes.
     // Total live strings ~ 8 KB.
     // 8 KB = 8192 bytes.
-    // Average size = (3+15)/2 = 9 bytes + null? 
+    // Average size = (3+15)/2 = 9 bytes + null?
     // Say avg 10 bytes. ~800 strings.
-    
+
     std::map<StringPool::key_t, std::string> active_strings;
     size_t current_bytes = 0;
     const size_t TARGET_BYTES = 8192;
-    
+
     std::mt19937 rng(12345);
     std::uniform_int_distribution<int> len_dist(3, 15);
     std::uniform_int_distribution<int> char_dist('a', 'z');
-    
+
     int operations = 20000;
-    
-    for (int i = 0; i < operations; ++i) {
+
+    for (int i = 0; i < operations; ++i)
+    {
         bool do_alloc = true;
-        
-        if (active_strings.empty()) {
+
+        if (active_strings.empty())
+        {
             do_alloc = true;
-        } else if (current_bytes > TARGET_BYTES) {
+        }
+        else if (current_bytes > TARGET_BYTES)
+        {
             do_alloc = false;
-        } else {
+        }
+        else
+        {
             // Random choice, bias towards balance
             do_alloc = (rng() % 2) == 0;
         }
-        
-        if (do_alloc) {
+
+        if (do_alloc)
+        {
             int len = len_dist(rng);
             std::string s;
             s.reserve(len);
-            for (int j = 0; j < len; ++j) {
+            for (int j = 0; j < len; ++j)
+            {
                 s.push_back(static_cast<char>(char_dist(rng)));
             }
-            
+
             auto key = pool_.alloc(s.c_str());
-            ASSERT_NE(StringPool::INVALID_KEY, key) << "Allocation failed at iter " << i << " bytes " << current_bytes;
-            
+            ASSERT_NE(StringPool::INVALID_KEY, key)
+                << "Allocation failed at iter " << i << " bytes "
+                << current_bytes;
+
             active_strings[key] = s;
             current_bytes += (len + 1);
-            
+
             // Verify
-            const char* stored = pool_.lookup(key);
+            const char *stored = pool_.lookup(key);
             ASSERT_STREQ(s.c_str(), stored);
-            
-        } else {
+        }
+        else
+        {
             // Free random
             auto it = active_strings.begin();
             std::advance(it, rng() % active_strings.size());
-            
+
             StringPool::key_t key = it->first;
             size_t len = it->second.length();
-            
+
             // Verify before free
-            const char* stored = pool_.lookup(key);
+            const char *stored = pool_.lookup(key);
             ASSERT_STREQ(it->second.c_str(), stored);
-            
+
             pool_.free(key);
             active_strings.erase(it);
             current_bytes -= (len + 1);
         }
     }
-    
+
     // Final verification
-    for (const auto& pair : active_strings) {
+    for (const auto &pair : active_strings)
+    {
         ASSERT_STREQ(pair.second.c_str(), pool_.lookup(pair.first));
     }
 }
 
-TEST_F(StringPoolTest, free_edge_cases) {
+TEST_F(StringPoolTest, free_edge_cases)
+{
     // Freeing invalid or empty keys should not crash
     pool_.free(StringPool::INVALID_KEY);
     pool_.free(StringPool::EMPTY_KEY);
@@ -248,12 +271,14 @@ TEST_F(StringPoolTest, free_edge_cases) {
     pool_.free(k); // Second free should be safely ignored
 }
 
-TEST_F(StringPoolTest, lookup_out_of_bounds) {
+TEST_F(StringPoolTest, lookup_out_of_bounds)
+{
     StringPool::key_t oob_key = (50 << 10) | 0;
     EXPECT_EQ(nullptr, pool_.lookup(oob_key));
 }
 
-TEST_F(StringPoolTest, coalesce_adjacent_holes) {
+TEST_F(StringPoolTest, coalesce_adjacent_holes)
+{
     auto ka = pool_.alloc("AAAA"); // 5 bytes (0..4)
     auto kb = pool_.alloc("BBBB"); // 5 bytes (5..9)
     auto kc = pool_.alloc("CCCC"); // 5 bytes (10..14)
@@ -273,14 +298,17 @@ TEST_F(StringPoolTest, coalesce_adjacent_holes) {
     EXPECT_STREQ("DDDD", pool_.lookup(kd));
 }
 
-TEST_F(StringPoolTest, max_blocks_exhaustion) {
+TEST_F(StringPoolTest, max_blocks_exhaustion)
+{
     // Fill up all MAX_BLOCKS (63) blocks completely
     std::string s126(126, 'x');
     std::string s7(7, 'y');
 
     std::vector<StringPool::key_t> keys;
-    for (size_t b = 0; b < StringPool::MAX_BLOCKS; ++b) {
-        for (int i = 0; i < 8; ++i) {
+    for (size_t b = 0; b < StringPool::MAX_BLOCKS; ++b)
+    {
+        for (int i = 0; i < 8; ++i)
+        {
             auto k = pool_.alloc(s126.c_str());
             ASSERT_NE(StringPool::INVALID_KEY, k);
             keys.push_back(k);

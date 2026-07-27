@@ -35,9 +35,9 @@
 #ifndef _UTILS_STRINGPOOL_HXX_
 #define _UTILS_STRINGPOOL_HXX_
 
-#include <vector>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <vector>
 
 #include "utils/macros.h"
 
@@ -45,64 +45,68 @@
 /// The StringPool allocates storage in chunks of 1 kb or memory. It supports up
 /// to 63 kb of contents. Each participating string can be at most 127 bytes
 /// long.
-class StringPool {
+class StringPool
+{
 public:
-  typedef uint16_t key_t;
+    typedef uint16_t key_t;
 
-  static constexpr size_t BLOCK_SIZE = 1024;
-  static constexpr size_t MAX_BLOCKS = 63;
-  static constexpr key_t INVALID_KEY = 0xFFFF;
-  static constexpr key_t EMPTY_KEY = 0xFFFE;
-  static constexpr size_t MAX_STRING_LEN = 127;
+    static constexpr size_t BLOCK_SIZE = 1024;
+    static constexpr size_t MAX_BLOCKS = 63;
+    static constexpr key_t INVALID_KEY = 0xFFFF;
+    static constexpr key_t EMPTY_KEY = 0xFFFE;
+    static constexpr size_t MAX_STRING_LEN = 127;
 
-  StringPool();
-  ~StringPool();
+    StringPool();
+    ~StringPool();
 
-  /// Allocates storage for a string and copies the string into storage.
-  /// @param value the string to store. Must be null-terminated.
-  /// @return a key handle to the stored string, or INVALID_KEY if allocation
-  /// failed, or EMPTY_KEY if the string is empty.
-  key_t alloc(const char* value);
+    /// Allocates storage for a string and copies the string into storage.
+    /// @param value the string to store. Must be null-terminated.
+    /// @return a key handle to the stored string, or INVALID_KEY if allocation
+    /// failed, or EMPTY_KEY if the string is empty.
+    key_t alloc(const char *value);
 
-  /// Frees the storage of a previously allocated string.
-  /// @param key the key of the string to free.
-  void free(key_t key);
+    /// Frees the storage of a previously allocated string.
+    /// @param key the key of the string to free.
+    void free(key_t key);
 
-  /// @return the string stored under a given key. The returned pointer remains
-  /// valid so long as the respective key is not free'd.
-  const char* lookup(key_t key) const;
+    /// @return the string stored under a given key. The returned pointer
+    /// remains valid so long as the respective key is not free'd.
+    const char *lookup(key_t key) const;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(StringPool);
+    DISALLOW_COPY_AND_ASSIGN(StringPool);
 
-  /// Computes a key handle from a block index and offset within the block.
-  static inline key_t compute_key(uint16_t block_idx, uint16_t offset) {
-    return (static_cast<key_t>(block_idx) << 10) | (offset & 0x03FF);
-  }
+    /// Computes a key handle from a block index and offset within the block.
+    static inline key_t compute_key(uint16_t block_idx, uint16_t offset)
+    {
+        return (static_cast<key_t>(block_idx) << 10) | (offset & 0x03FF);
+    }
 
-  /// Extracts the block index from a key handle.
-  static inline uint16_t block_idx_from_key(key_t key) {
-    return key >> 10;
-  }
+    /// Extracts the block index from a key handle.
+    static inline uint16_t block_idx_from_key(key_t key)
+    {
+        return key >> 10;
+    }
 
-  /// Extracts the byte offset within a block from a key handle.
-  static inline uint16_t block_offset_from_key(key_t key) {
-    return key & 0x03FF;
-  }
+    /// Extracts the byte offset within a block from a key handle.
+    static inline uint16_t block_offset_from_key(key_t key)
+    {
+        return key & 0x03FF;
+    }
 
-  /// Tries to find a hole of at least size `size` in the existing blocks.
-  /// @param size the size in bytes to allocate (including null terminator).
-  /// @return a key if a hole was found, or INVALID_KEY.
-  key_t find_hole(size_t size);
+    /// Tries to find a hole of at least size `size` in the existing blocks.
+    /// @param size the size in bytes to allocate (including null terminator).
+    /// @return a key if a hole was found, or INVALID_KEY.
+    key_t find_hole(size_t size);
 
-  /// Storage blocks.
-  std::vector<char*> blocks_;
+    /// Storage blocks.
+    std::vector<char *> blocks_;
 
-  /// Current block index we are appending to.
-  uint8_t currentBlockIdx_;
+    /// Current block index we are appending to.
+    uint8_t currentBlockIdx_;
 
-  /// Current offset in the current block where free space starts.
-  uint16_t currentBlockOffset_;
+    /// Current offset in the current block where free space starts.
+    uint16_t currentBlockOffset_;
 };
 
 #endif // _UTILS_STRINGPOOL_HXX_
