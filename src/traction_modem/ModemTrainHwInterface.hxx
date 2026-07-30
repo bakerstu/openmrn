@@ -82,17 +82,22 @@ public:
     {
     }
 
-    /// Report the current velocity in response to a query.
-    /// @param target commanded (target) velocity
-    /// @param current current velocity
+    /// Report the current velocity in response to a query. May also come
+    /// unsolicited.
+    /// @param target commanded (target) velocity (as understood by the decoder,
+    ///        not the modem)
+    /// @param current current velocity (as understood by the decoder, not the
+    ///        modem)
     virtual void velocity_status(
         Defs::DCCVelocity target, Defs::DCCVelocity current)
     {
     }
 
-    /// Report the status of a function in response to a query.
+    /// Report the status of a function in response to a query. May also come
+    /// unsolicited.
     /// @param fn function number
-    /// @param value function value; for binary functions, 0 is off, 1 is on
+    /// @param value function value (as understood by the decoder, not the
+    ///        modem); for binary functions, 0 is off, 1 is on
     virtual void function_status(uint32_t fn, uint16_t value)
     {
     }

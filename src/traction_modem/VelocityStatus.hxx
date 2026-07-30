@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2025, Stuart Baker
+ * Copyright (c) 2026, Stuart Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * Logic for querying velocity status.
  *
  * @author Stuart Baker
- * @date 27 June 2025
+ * @date 27 June 2026
  */
 
 #ifndef _TRACTION_MODEM_VELOCITYSTATUS_HXX_
