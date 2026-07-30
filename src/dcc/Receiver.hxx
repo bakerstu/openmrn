@@ -64,8 +64,8 @@ public:
     /// usec. The default value assumes the timer does not have a prescaler.
     DccDecoder(unsigned tick_per_usec)
     {
-        timings_[DCC_ONE].set(tick_per_usec, 51, 65);
-        timings_[DCC_ZERO].set(tick_per_usec, 89, 10100);
+        timings_[DCC_ONE].set(tick_per_usec, 46, 70);
+        timings_[DCC_ZERO].set(tick_per_usec, 84, 10100);
         timings_[MM_PREAMBLE].set(tick_per_usec, 1000, -1);
         timings_[MM_SHORT].set(tick_per_usec, 20, 32);
         timings_[MM_LONG].set(tick_per_usec, 200, 216);
