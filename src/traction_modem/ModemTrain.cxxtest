@@ -23,6 +23,10 @@ protected:
             register_handler(_, Defs::RESP_OUTPUT_STATE_QUERY, _)).Times(1);
         EXPECT_CALL(mRxFlow_, register_handler(_, Defs::CMD_MEM_W, _)).Times(1);
         EXPECT_CALL(mRxFlow_, register_handler(_, Defs::CMD_MEM_R, _)).Times(1);
+        EXPECT_CALL(mRxFlow_, register_handler(_, Defs::RESP_SPEED_QUERY, _))
+            .Times(1);
+        EXPECT_CALL(mRxFlow_, register_handler(_, Defs::RESP_FN_QUERY, _))
+            .Times(1);
         train_ = new ModemTrain(&g_service, &mTxFlow_, &mRxFlow_, &mHwIf_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
     }
@@ -32,7 +36,7 @@ protected:
     {
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
         using ::testing::_;
-        EXPECT_CALL(mRxFlow_, unregister_handler_all(_)).Times(2);
+        EXPECT_CALL(mRxFlow_, unregister_handler_all(_)).Times(4);
         delete train_;
     }
 
@@ -161,7 +165,7 @@ TEST_F(ModemTrainTest, Legacy_Address)
 
     // Get address value.
     address = train_->legacy_address();
-    EXPECT_EQ(883U ,address);
+    EXPECT_EQ(0U ,address);
 
     // Get address type.
     type = train_->legacy_address_type();

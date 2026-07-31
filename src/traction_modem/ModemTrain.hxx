@@ -39,6 +39,9 @@
 #include "traction_modem/Defs.hxx"
 #include "traction_modem/MemorySpace.hxx"
 #include "traction_modem/MemorySpaceServer.hxx"
+#include "traction_modem/FunctionStatus.hxx"
+#include "traction_modem/VelocityStatus.hxx"
+#include "traction_modem/ModemTrainHwInterface.hxx"
 #include "traction_modem/Output.hxx"
 #include "traction_modem/Link.hxx"
 
@@ -49,7 +52,7 @@ namespace traction_modem
 class ModemTrainHwInterface;
 
 /// ModemTrain definition.
-class ModemTrain : public openlcb::TrainImpl
+class ModemTrain : public openlcb::TrainImpl, public LinkStatusInterface
 {
 public:
     /// Constructor.
@@ -61,14 +64,18 @@ public:
         ModemTrainHwInterface *hw_interface)
         : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
+        , hwIf_(hw_interface)
         , link_(tx_flow, rx_flow)
         , linkManager_(service, &link_)
         , cvSpace_(service, &link_)
         , fuSpace_(service, &link_)
+        , velocityStatus_(tx_flow, rx_flow, hw_interface)
+        , functionStatus_(tx_flow, rx_flow, hw_interface)
         , output_(tx_flow, rx_flow, hw_interface)
         , memorySpaceServer_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
     {
+        link_.register_link_status(this);
     }
 
     /// Destructor.
@@ -129,6 +136,13 @@ public:
         return &fuSpace_;
     }
 
+    /// Get a reference to the function status handler.
+    /// @return function status handler reference
+    FunctionStatus *get_function_status()
+    {
+        return &functionStatus_;
+    }
+
     // ====== Train interface =======
 
     /// Set train speed.
@@ -179,28 +193,31 @@ public:
     /// @return the current value of the function
     uint16_t get_fn(uint32_t address) override
     {
-        /// @todo Need to implement this.
-        return 0;
+        return hwIf_->get_fn(address);
     }
 
     /// @Get the legacy address.
     /// @return legacy address (typically DCC)
     uint32_t legacy_address() override
     {
-        /// @todo What should this be? Should we do a CV1/17/18/29 read to get
-        ///       this?
-        return 883;
+        return hwIf_->legacy_address();
     }
 
     /// Get the type of legacy protocol in use.
     /// @return the legacy address type
     dcc::TrainAddressType legacy_address_type() override
     {
-        /// @todo What should this be. Should we do a CV29 read to get this?
-        return dcc::TrainAddressType::DCC_LONG_ADDRESS;
+        return hwIf_->legacy_address_type();
     }
 
 private:
+    /// Called when link transitions to "up" state.
+    void on_link_up() override
+    {
+        hwIf_->on_link_up();
+        velocityStatus_.query();
+    }
+
     /// True if the wireless is up and running.
     bool isRunning_ = false;
     /// UART fd to send traffic to the device.
@@ -211,6 +228,8 @@ private:
     TxInterface *txFlow_;
     /// Handles receiving message frames.
     RxInterface *rxFlow_;
+    /// Hardware specific interface.
+    ModemTrainHwInterface *hwIf_;
     /// Link status object.
     Link link_;
     /// Link Management object.
@@ -219,6 +238,10 @@ private:
     CvSpace cvSpace_;
     /// Space for firmware updates.
     CvSpace fuSpace_;
+    /// Velocity status handler.
+    VelocityStatus velocityStatus_;
+    /// Function status handler.
+    FunctionStatus functionStatus_;
     /// Output handler.
     Output output_;
     // Memory space handler for the modem.

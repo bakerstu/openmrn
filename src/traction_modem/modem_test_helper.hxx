@@ -50,6 +50,7 @@ public:
 class MockTrainHwInterface : public ModemTrainHwInterface
 {
 public:
+    MOCK_METHOD2(function_status, void(uint32_t, uint16_t));
     MOCK_METHOD2(output_state, void(uint16_t, uint16_t));
     MOCK_METHOD1(output_restart, void(uint16_t));
     MOCK_METHOD4(memory_write, MemoryWriteError(
