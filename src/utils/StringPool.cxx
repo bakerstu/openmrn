@@ -71,18 +71,6 @@ StringPool::key_t StringPool::alloc(const char *value)
         return INVALID_KEY;
     }
 
-    // Try to find a hole in existing blocks.
-    key_t hole_key = find_hole(len);
-    if (hole_key != INVALID_KEY)
-    {
-        // Found a hole. Use it.
-        uint16_t block_idx = block_idx_from_key(hole_key);
-        uint16_t offset = block_offset_from_key(hole_key);
-        char *ptr = blocks_[block_idx] + offset;
-        memcpy(ptr, value, len);
-        return hole_key;
-    }
-
     // Try to append to the current block if we have blocks and space
     if (!blocks_.empty())
     {
@@ -95,6 +83,19 @@ StringPool::key_t StringPool::alloc(const char *value)
             currentBlockOffset_ += len;
             return key;
         }
+    }
+
+    // Did not fit at the end of the current block (or no blocks yet).
+    // Try to find a hole in existing blocks.
+    key_t hole_key = find_hole(len);
+    if (hole_key != INVALID_KEY)
+    {
+        // Found a hole. Use it.
+        uint16_t block_idx = block_idx_from_key(hole_key);
+        uint16_t offset = block_offset_from_key(hole_key);
+        char *ptr = blocks_[block_idx] + offset;
+        memcpy(ptr, value, len);
+        return hole_key;
     }
 
     // No hole found and didn't fit in current block. Need a new block.

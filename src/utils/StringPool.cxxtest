@@ -142,7 +142,15 @@ TEST_F(StringPoolTest, reuse_hole)
     // Free B.
     pool_.free(kb);
 
-    // Alloc D (fits in B's spot).
+    // Fill block 0 so that remaining space at end is smaller than 5 bytes.
+    // Used: 15. Remaining: 1009. 504 * 2 = 1008 bytes. Offset becomes 1023.
+    for (int i = 0; i < 504; ++i)
+    {
+        pool_.alloc("A");
+    }
+
+    // Alloc D (5 bytes). Does not fit at currentBlockOffset_ (1023 + 5 > 1024),
+    // so find_hole is called and finds B's spot at offset 5.
     auto kd = pool_.alloc("DDDD"); // 5 bytes
     EXPECT_EQ(kb, kd);             // Should reuse the same spot
 
@@ -288,8 +296,16 @@ TEST_F(StringPoolTest, coalesce_adjacent_holes)
     pool_.free(kb);
     pool_.free(kc);
 
-    // Alloc E of 10 bytes ("123456789", 10 bytes with null)
-    // Should fit into coalesced spot of B + C (indices 5..14)
+    // Fill block 0 so that remaining space at end is smaller than 10 bytes.
+    // Used: 20. Remaining: 1004. 502 * 2 = 1004 bytes. Offset becomes 1024.
+    for (int i = 0; i < 502; ++i)
+    {
+        pool_.alloc("A");
+    }
+
+    // Alloc E of 10 bytes ("123456789", 10 bytes with null).
+    // Does not fit at currentBlockOffset_ (1024 + 10 > 1024), so find_hole is called.
+    // Should fit into coalesced spot of B + C (indices 5..14).
     auto ke = pool_.alloc("123456789");
     EXPECT_EQ(kb, ke);
 
