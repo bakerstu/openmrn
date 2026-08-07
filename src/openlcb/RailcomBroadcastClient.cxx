@@ -65,6 +65,12 @@ bool RailcomBroadcastClient::is_our_event(uint64_t event_id) const
     return (event_id & ~0xFFFFULL) == railcomEventBase_;
 }
 
+void RailcomBroadcastClient::query()
+{
+    openlcb::send_message(node_, openlcb::Defs::MTI_PRODUCER_IDENTIFY,
+        openlcb::eventid_to_buffer(railcomEventBase_));
+}
+
 RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::parse_event(
     uint64_t event)
 {

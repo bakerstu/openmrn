@@ -132,6 +132,10 @@ public:
         return railcomEventBase_;
     }
 
+    /// Sends out a query to the bus. This does synchronous allocation of the
+    /// message, but does not wait for the query to get any replies.
+    void query();
+    
     void handle_event_report(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) override;
 
