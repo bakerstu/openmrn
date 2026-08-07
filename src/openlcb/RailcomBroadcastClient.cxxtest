@@ -105,6 +105,15 @@ TEST_F(RailcomBroadcastClientTest, CreateDestroy)
     EXPECT_TRUE(client_->current_locos().empty());
 }
 
+TEST_F(RailcomBroadcastClientTest, Query)
+{
+    EXPECT_TRUE(client_->current_locos().empty());
+    clear_expect(true);
+    expect_packet(make_outgoing_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFY, base_ | 0x0000ULL));
+    client_->query();
+}
+
 TEST_F(RailcomBroadcastClientTest, AddLoco)
 {
     uint64_t event = entry_event(3);
