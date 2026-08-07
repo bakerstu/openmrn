@@ -30,6 +30,7 @@ CXXSRCS += \
         Stats.cxx \
         SocketCan.cxx \
         SocketClient.cxx \
+        StringPool.cxx \
         StringPrintf.cxx \
         constants.cxx \
         format_utils.cxx \
