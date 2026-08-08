@@ -75,11 +75,22 @@ namespace openmrn_arduino
 /// glitch on the affected output only -- acceptable for LED dimming and
 /// similar uses.
 ///
-/// The number of RMT channels available is limited and varies by ESP32
-/// variant (as few as two usable TX channels on the ESP32-C3), and is
-/// considerably smaller than the number of LEDC channels available on the
-/// same hardware. The constructor will HASSERT if more pins are requested
-/// than SOC_RMT_TX_CANDIDATES_PER_GROUP allows for the target SoC.
+/// The number of usable RMT TX channels is limited and varies by ESP32
+/// variant -- e.g. as few as two on the ESP32-C3, four on the ESP32-S3, up
+/// to eight on the original ESP32 -- and on every variant is considerably
+/// smaller than the number of LEDC channels available on the same
+/// hardware. The constructor will HASSERT if more pins are requested than
+/// SOC_RMT_TX_CANDIDATES_PER_GROUP allows for the target SoC.
+///
+/// RMT hardware memory block symbols are likewise a shared, limited
+/// per-SoC resource: all of a chip's RMT channels draw from a common pool
+/// of SOC_RMT_CHANNELS_PER_GROUP * SOC_RMT_MEM_WORDS_PER_CHANNEL words, so
+/// requesting more than one block's worth per channel (via the
+/// mem_block_symbols constructor parameter) borrows blocks away from --
+/// and so reduces the number of -- other channels. This driver only ever
+/// needs a single symbol per channel, so mem_block_symbols defaults to
+/// exactly one hardware memory block (SOC_RMT_MEM_WORDS_PER_CHANNEL) and
+/// should not normally be increased.
 ///
 /// Example of usage:
 ///```
@@ -116,7 +127,8 @@ public:
     /// symbols to reserve per channel, default is
     /// SOC_RMT_MEM_WORDS_PER_CHANNEL (exactly one hardware memory block per
     /// channel; only a single symbol is ever needed by this driver, so the
-    /// default is already conservative).
+    /// default is already conservative -- increasing it borrows memory
+    /// blocks away from, and so reduces the number of, other channels).
     /// @param trans_queue_depth is the RMT transmit queue depth, default is
     /// 1, since only one (looped) transmission is ever in flight per
     /// channel.
@@ -150,7 +162,8 @@ public:
     /// symbols to reserve per channel, default is
     /// SOC_RMT_MEM_WORDS_PER_CHANNEL (exactly one hardware memory block per
     /// channel; only a single symbol is ever needed by this driver, so the
-    /// default is already conservative).
+    /// default is already conservative -- increasing it borrows memory
+    /// blocks away from, and so reduces the number of, other channels).
     /// @param trans_queue_depth is the RMT transmit queue depth, default is
     /// 1, since only one (looped) transmission is ever in flight per
     /// channel.
