@@ -232,9 +232,35 @@ private:
         channels_.resize(pins_.size());
     }
 
+    /// PWM output backed by a single, independent RMT TX channel. Instances
+    /// are created and owned by the enclosing @ref Esp32RmtPwm's @ref
+    /// hw_init, one per configured pin.
     class Channel : public PWM
     {
     public:
+        /// Constructor. Takes ownership of an already-created and already-
+        /// enabled RMT TX channel and encoder, and immediately begins
+        /// transmitting a 0% duty cycle (off) so the hardware starts in a
+        /// known state.
+        ///
+        /// @param channel is the already-enabled RMT TX channel handle for
+        /// this output.
+        /// @param encoder is the RMT copy encoder handle used to transmit
+        /// raw symbols on channel.
+        /// @param pin is the GPIO pin driven by channel.
+        /// @param resolution_bits is the PWM duty cycle resolution in bits;
+        /// determines periodTicks_ = 1 << resolution_bits.
+        /// @param freq_hz is the initial PWM frequency in Hz that channel
+        /// was configured for.
+        /// @param clk_src is the RMT peripheral clock source that channel
+        /// was configured with; retained in order to recreate the channel
+        /// on a future call to set_period.
+        /// @param mem_block_symbols is the RMT hardware memory block symbol
+        /// count that channel was configured with; retained for the same
+        /// reason as clk_src.
+        /// @param trans_queue_depth is the RMT transmit queue depth that
+        /// channel was configured with; retained for the same reason as
+        /// clk_src.
         Channel(rmt_channel_handle_t channel, rmt_encoder_handle_t encoder,
                 gpio_num_t pin, uint8_t resolution_bits, uint32_t freq_hz,
                 rmt_clock_source_t clk_src, size_t mem_block_symbols,
@@ -253,6 +279,17 @@ private:
             apply_duty();
         }
 
+        /// Sets the PWM frequency for this channel only. Like @ref
+        /// Esp32Ledc, this repurposes PWM::set_period() to mean the
+        /// channel's frequency in Hz rather than a literal duty-cycle-unit
+        /// period (see the @ref Esp32RmtPwm class comment) -- unlike
+        /// Esp32Ledc, changing this only affects this one channel, since
+        /// RMT channels do not share a timer. Internally this deletes and
+        /// recreates the underlying RMT channel (the RMT driver has no way
+        /// to retune an existing channel's tick rate), so it is a
+        /// comparatively heavyweight call and should not be used as a hot
+        /// path.
+        /// @param counts is the new PWM frequency, in Hz. Must be nonzero.
         void set_period(uint32_t counts) override
         {
             HASSERT(counts > 0);
@@ -281,11 +318,20 @@ private:
             apply_duty();
         }
 
+        /// @return the current PWM frequency for this channel, in Hz. See
+        /// the note on set_period regarding this method's Hz-based
+        /// semantics.
         uint32_t get_period() override
         {
             return freqHz_;
         }
 
+        /// Sets the duty cycle and immediately begins transmitting it as an
+        /// infinite loop, replacing whatever was previously being
+        /// transmitted (with a brief glitch, see the @ref Esp32RmtPwm class
+        /// comment).
+        /// @param counts is the new duty cycle, in ticks, range 0 (fully
+        /// off) to get_period_max() (fully on) inclusive.
         void set_duty(uint32_t counts) override
         {
             HASSERT(counts <= periodTicks_);
@@ -293,16 +339,22 @@ private:
             apply_duty();
         }
 
+        /// @return the current duty cycle, in ticks, range 0 to
+        /// get_period_max() inclusive.
         uint32_t get_duty() override
         {
             return dutyTicks_;
         }
 
+        /// @return the maximum valid duty cycle, in ticks, i.e. the number
+        /// of RMT ticks in one PWM period at the current frequency
+        /// (1 << resolution_bits, as given at construction time).
         uint32_t get_period_max() override
         {
             return periodTicks_;
         }
 
+        /// @return the minimum valid duty cycle, in ticks. Always 0.
         uint32_t get_period_min() override
         {
             return 0;
