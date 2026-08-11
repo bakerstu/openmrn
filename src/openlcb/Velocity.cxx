@@ -99,17 +99,18 @@ void Velocity::set_dcc_128(uint8_t value)
  *  bit 7..6:  fixed at b'01'
  *  bit 5:  direction
  *  bits 4:  speed step least significant bit
- *  bits 3..0:  speed step significatn bits 4..1
+ *  bits 3..0:  speed step significant bits 4..1
  *  @return DCC encoded speed steps
  */
 uint8_t Velocity::get_dcc_28()
 {
     uint8_t result;
-    uint32_t tmp = ((speed() * MPH_FACTOR * 28) / 128) + 0.5;
+    uint32_t tmp = ((speed() * 28) / (128 * MPH_FACTOR)) + 0.5;
     
     if (tmp == 0)
     {
-        result = 0;
+        // If input speed is not zero, make actual speed step at least 1.
+        result = speed() == 0 ? 0 : 4;
     }
     else if (tmp > 28)
     {
@@ -134,7 +135,7 @@ uint8_t Velocity::get_dcc_28()
  *  @param value bit 7..6:  fixed at b'01'
  *               bit 5:  direction
  *               bits 4:  speed step least significant bit
- *               bits 3..0:  speed step significatn bits 4..1
+ *               bits 3..0:  speed step significant bits 4..1
  */
 void Velocity::set_dcc_28(uint8_t value)
 {
@@ -149,8 +150,8 @@ void Velocity::set_dcc_28(uint8_t value)
     else
     {
         velocity = (value & 0x01F) - 3;
-        velocity *= 128;
-        velocity /= (28 * MPH_FACTOR);
+        velocity *= 128 * MPH_FACTOR;
+        velocity /= 28;
     }
     
     if ((value & 0x40) == 0)
@@ -171,11 +172,12 @@ void Velocity::set_dcc_28(uint8_t value)
 uint8_t Velocity::get_dcc_14()
 {
     uint8_t result;
-    uint32_t tmp = ((speed() * MPH_FACTOR * 14) / 128) + 0.5;
+    uint32_t tmp = ((speed() * 14) / (128 * MPH_FACTOR)) + 0.5;
     
     if (tmp == 0)
     {
-        result = 0;
+        // If input speed is not zero, make actual speed step at least 1.
+        result = speed() == 0 ? 0 : 2;
     }
     else if (tmp > 14)
     {
@@ -209,8 +211,8 @@ void Velocity::set_dcc_14(uint8_t value)
     else
     {
         velocity = (value & 0x0F) - 1;
-        velocity *= 128;
-        velocity /= (14 * MPH_FACTOR);
+        velocity *= 128 * MPH_FACTOR;
+        velocity /= 14;
     }
     
     if ((value & 0x20) == 0)
