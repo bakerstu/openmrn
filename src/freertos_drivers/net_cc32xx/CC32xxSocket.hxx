@@ -31,7 +31,7 @@
  * @date 18 March 2016
  */
 
-#include "Socket.hxx"
+#include "freertos_drivers/common/Socket.hxx"
 
 #include <sys/socket.h>
 

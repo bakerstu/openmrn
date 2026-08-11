@@ -33,7 +33,7 @@
 
 #if (!defined(ARDUINO)) || defined(ARDUINO_ARCH_STM32)
 
-#include "Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
 
 #include <stdint.h>
 

@@ -50,15 +50,15 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "TivaDev.hxx"
-#include "TivaDCC.hxx"
-#include "TivaGPIO.hxx"
-#include "TivaFlash.hxx"
-#include "TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDCC.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/ti/TivaFlash.hxx"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
 
 #include "commandstation/dcc_control.hxx"
 #include "DccHardware.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 
 struct Debug {
@@ -75,7 +75,7 @@ struct Debug {
     typedef DummyPin RailcomPackets;
     typedef DummyPin RailcomRxActivate;
 };
-#include "TivaRailcom.hxx"
+#include "freertos_drivers/ti/TivaRailcom.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

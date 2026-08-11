@@ -33,8 +33,8 @@
 
 #include <cstdint>
 #include <fcntl.h>
-#include "Devtab.hxx"
-#include "I2C.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
+#include "freertos_drivers/common/I2C.hxx"
 
 /** Read from a file or device.
  * @param file file reference for this device

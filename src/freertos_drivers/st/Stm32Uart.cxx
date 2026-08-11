@@ -33,7 +33,7 @@
  * @date August 27, 2023
  */
 
-#include "Stm32Uart.hxx"
+#include "freertos_drivers/st/Stm32Uart.hxx"
 
 #include "freertos/tc_ioctl.h"
 #include "stm32f_hal_conf.hxx"

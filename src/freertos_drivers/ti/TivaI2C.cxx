@@ -45,7 +45,7 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
 
-#include "TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
 
 /** Constructor.
  * @param name name of this device instance in the file system

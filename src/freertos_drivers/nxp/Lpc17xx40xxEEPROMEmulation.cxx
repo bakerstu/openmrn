@@ -31,7 +31,7 @@
  * @date 15 June 2015
  */
 
-#include "Lpc17xx40xxEEPROMEmulation.hxx"
+#include "freertos_drivers/nxp/Lpc17xx40xxEEPROMEmulation.hxx"
 
 #include <cstring>
 

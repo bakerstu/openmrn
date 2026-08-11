@@ -33,8 +33,8 @@
 
 #define SUPPORT_SL_R1_API
 
-#include "CC32xxDeviceFile.hxx"
-#include "CC32xxHelper.hxx"
+#include "freertos_drivers/ti/CC32xxDeviceFile.hxx"
+#include "freertos_drivers/ti/CC32xxHelper.hxx"
 
 #include <fcntl.h>
 

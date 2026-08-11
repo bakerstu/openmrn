@@ -40,7 +40,7 @@
 
 #include <cstdint>
 
-#include "SPI.hxx"
+#include "freertos_drivers/common/SPI.hxx"
 
 #include "inc/hw_mcspi.h"
 #include "inc/hw_types.h"

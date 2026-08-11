@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_EEPROMEMULATION_HXX_
 #define _FREERTOS_DRIVERS_COMMON_EEPROMEMULATION_HXX_
 
-#include "EEPROM.hxx"
+#include "freertos_drivers/common/EEPROM.hxx"
 
 /// Linker-defined symbol where in the memory space (flash) the eeprom
 /// emulation data starts.

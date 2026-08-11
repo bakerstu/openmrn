@@ -1,7 +1,7 @@
 #ifndef _HARDWARE_HXX_
 #define _HARDWARE_HXX_
 
-#include "CC3200GPIO.hxx"
+#include "freertos_drivers/ti/CC3200GPIO.hxx"
 #include "driverlib/rom_map.h"
 #include "utils/GpioInitializer.hxx"
 

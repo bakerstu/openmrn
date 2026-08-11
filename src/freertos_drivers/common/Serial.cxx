@@ -33,8 +33,8 @@
 
 #include <cstdint>
 #include <fcntl.h>
-#include "Devtab.hxx"
-#include "Serial.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
+#include "freertos_drivers/common/Serial.hxx"
 #include "can_ioctl.h"
 
 /** Flush the receive and transmit buffers for this device.

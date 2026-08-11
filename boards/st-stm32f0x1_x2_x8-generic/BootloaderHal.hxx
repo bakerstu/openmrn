@@ -41,13 +41,13 @@
 
 #include <string.h>
 
-#include "bootloader_hal.h"
-#include "stm32f0xx_hal_conf.h"
+#include "openlcb/bootloader_hal.h"
+#include "freertos_drivers/st/stm32f0xx_hal_conf.h"
 
 #include "nmranet_config.h"
 #include "openlcb/Defs.hxx"
 #include "utils/Crc.hxx"
-#include "Stm32Gpio.hxx"
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 
 extern "C" {
 

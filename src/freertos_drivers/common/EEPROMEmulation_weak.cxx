@@ -31,7 +31,7 @@
  * @date 20 Mar 2016
  */
 
-#include "EEPROMEmulation.hxx"
+#include "freertos_drivers/common/EEPROMEmulation.hxx"
 
 // This weak definition was moved out of the compilation unit of eeprom
 // emulation implementation to prevent GCC from mistakenly optimizing away the

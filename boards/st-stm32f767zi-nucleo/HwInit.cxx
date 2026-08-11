@@ -36,11 +36,11 @@
 #include <new>
 #include <cstdint>
 
-#include "stm32f7xx_hal_conf.h"
+#include "freertos_drivers/st/stm32f7xx_hal_conf.h"
 
 #include "os/OS.hxx"
-#include "Stm32Uart.hxx"
-#include "Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32Uart.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
 #include "freertos_drivers/spiffs/stm32f7/Stm32SPIFFS.hxx"
 #include "hardware.hxx"
 

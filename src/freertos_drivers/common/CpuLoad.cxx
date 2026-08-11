@@ -32,7 +32,7 @@
  */
 
 
-#include "CpuLoad.hxx"
+#include "freertos_drivers/common/CpuLoad.hxx"
 
 #ifdef OPENMRN_FEATURE_THREAD_FREERTOS
 

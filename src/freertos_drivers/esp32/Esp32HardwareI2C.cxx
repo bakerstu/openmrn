@@ -35,7 +35,7 @@
 
 #if defined(ESP_PLATFORM)
 
-#include "Esp32HardwareI2C.hxx"
+#include "freertos_drivers/esp32/Esp32HardwareI2C.hxx"
 // stropts.h must be included before i2c.h
 #include "stropts.h"
 #include "i2c.h"

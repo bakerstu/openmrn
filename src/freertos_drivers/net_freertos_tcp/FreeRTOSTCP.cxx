@@ -44,8 +44,8 @@
 #include "FreeRTOS_IP.h"
 #include "FreeRTOS_Sockets.h"
 
-#include "FreeRTOSTCP.hxx"
-#include "FreeRTOSTCPSocket.hxx"
+#include "freertos_drivers/net_freertos_tcp/FreeRTOSTCP.hxx"
+#include "freertos_drivers/net_freertos_tcp/FreeRTOSTCPSocket.hxx"
 
 static SocketSet_t socket_set = NULL;
 

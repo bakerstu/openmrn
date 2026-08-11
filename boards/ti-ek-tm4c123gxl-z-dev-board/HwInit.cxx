@@ -51,11 +51,11 @@
 
 #define TIVADCC_TIVA
 
-#include "TivaDev.hxx"
-#include "TivaDCC.hxx"
-#include "TivaEEPROMEmulation.hxx"
-#include "DummyGPIO.hxx"
-#include "bootloader_hal.h"
+#include "freertos_drivers/ti/TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDCC.hxx"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "openlcb/bootloader_hal.h"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -75,7 +75,7 @@ struct Debug {
   typedef DummyPin RailcomCh2Data;
   typedef DummyPin RailcomRxActivate;
 };
-#include "TivaRailcom.hxx"
+#include "freertos_drivers/ti/TivaRailcom.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

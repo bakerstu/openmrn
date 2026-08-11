@@ -45,7 +45,7 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

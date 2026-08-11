@@ -45,7 +45,7 @@
 #include "inc/hw_types.h"
 #include "nmranet_config.h"
 
-#include "TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
 
 /** Instance pointers help us get context from the interrupt handler(s) */
 static TivaCan *instances[2] = {NULL};

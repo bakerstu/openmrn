@@ -46,16 +46,16 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin.h"
 #include "os/OS.hxx"
-#include "DummyGPIO.hxx"
-#include "CC32xxUart.hxx"
-#include "CC32xxWiFi.hxx"
-#include "MCP2515Can.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/ti/CC32xxUart.hxx"
+#include "freertos_drivers/net_cc32xx/CC32xxWiFi.hxx"
+#include "freertos_drivers/common/MCP2515Can.hxx"
 #include "hardware.hxx"
-#include "bootloader_hal.h"
+#include "openlcb/bootloader_hal.h"
 
 //#define USE_MCP2515
 #if defined(USE_MCP2515)
-#include "CC32xxSPI.hxx"
+#include "freertos_drivers/ti/CC32xxSPI.hxx"
 #endif
 
 /** override stdin */

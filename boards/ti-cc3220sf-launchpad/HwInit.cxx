@@ -46,14 +46,14 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin.h"
 #include "os/OS.hxx"
-#include "DummyGPIO.hxx"
-#include "CC32xxUart.hxx"
-#include "CC32xxSPI.hxx"
-#include "CC32xxWiFi.hxx"
-#include "MCP2515Can.hxx"
-#include "CC32xxEEPROMEmulation.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/ti/CC32xxUart.hxx"
+#include "freertos_drivers/ti/CC32xxSPI.hxx"
+#include "freertos_drivers/net_cc32xx/CC32xxWiFi.hxx"
+#include "freertos_drivers/common/MCP2515Can.hxx"
+#include "freertos_drivers/ti/CC32xxEEPROMEmulation.hxx"
 #include "hardware.hxx"
-#include "bootloader_hal.h"
+#include "openlcb/bootloader_hal.h"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

@@ -1,7 +1,7 @@
 #ifndef _HARDWARE_HXX_
 #define _HARDWARE_HXX_
 
-#include "TivaGPIO.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "driverlib/rom_map.h"
 #include "utils/GpioInitializer.hxx"
 

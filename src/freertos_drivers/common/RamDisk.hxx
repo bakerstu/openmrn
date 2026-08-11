@@ -35,7 +35,7 @@
 #define _FREERTOS_DRIVERS_COMMON_RAMDISK_HXX_
 
 #include <fcntl.h>
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 /// A simple device driver that reads/write data from a block of memory in RAM.
 ///

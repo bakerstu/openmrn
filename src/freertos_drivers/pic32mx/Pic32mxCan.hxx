@@ -35,7 +35,7 @@
 #ifndef _FREERTOS_DRIVERS_PIC32MX_PIC32MXCAN_HXX_
 #define _FREERTOS_DRIVERS_PIC32MX_PIC32MXCAN_HXX_
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 #include "GenericTypeDefs.h"
 #include <xc.h>

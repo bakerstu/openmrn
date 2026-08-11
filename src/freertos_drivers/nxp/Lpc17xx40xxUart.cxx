@@ -32,7 +32,7 @@
  * @date 9 April 2015
  */
 
-#include "Lpc17xx40xxUart.hxx"
+#include "freertos_drivers/nxp/Lpc17xx40xxUart.hxx"
 
 #include <algorithm>
 
