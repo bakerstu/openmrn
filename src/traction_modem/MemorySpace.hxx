@@ -374,10 +374,22 @@ private:
     }
 
     /// Get the largest supported address.
-    /// @return 1023 (max CV address)
+    /// @return 0x17FFFFFF (Need to cover the full "bit mapped" range)
     address_t max_address() override
     {
-        return (0x1 << 24) - 1;
+        // Since this is always over the modem interface, it doesn't matter
+        // by which wire protocol we got here, all byte oriented modes will
+        // be treated the same.
+        //
+        // 0x00XXXXXX: default programming mode, byte oriented.
+        // 0x01XXXXXX: direct mode programming, byte oriented.
+        // 0x02XXXXXX: program-on-the-main, byte oriented.
+        // 0x03XXXXXX: paged mode programming, byte oriented.
+        // 0x10XXXXXX..
+        // 0x17XXXXXX: default programming mode, bit oriented
+        //
+        // All other address ranges reserved for future use.
+        return 0x17FFFFFF;
     };
 
     /// Get the space ID that will be used over the modem interface.
