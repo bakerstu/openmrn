@@ -28,7 +28,7 @@
  *
  * Implementation of metrics collection for hub application.
  *
- * @author Paul
+ * @author Paul Bender
  * @date 12 Aug 2026
  */
 
@@ -44,12 +44,9 @@ std::string HubMetrics::to_json() const
     
     uint64_t uptime = get_uptime_seconds();
     uint64_t rx_total = get_packets_rx_total();
-    uint64_t tx_total = get_packets_tx_total();
-    uint64_t errors_total = get_errors_socket() + get_errors_parse() + get_errors_timeout();
     
-    // Calculate rates (packets per second)
+    // Calculate rate (packets per second)
     double rate_rx = uptime > 0 ? (double)rx_total / uptime : 0.0;
-    double rate_tx = uptime > 0 ? (double)tx_total / uptime : 0.0;
     
     json << "{\n";
     json << "  \"status\": \"healthy\",\n";
@@ -65,39 +62,18 @@ std::string HubMetrics::to_json() const
     // Connections
     json << "  \"connections\": {\n";
     json << "    \"active\": " << get_connections_active() << ",\n";
-    json << "    \"total\": " << get_connections_total() << ",\n";
-    json << "    \"failed\": " << get_connections_failed() << "\n";
+    json << "    \"total\": " << get_connections_total() << "\n";
     json << "  },\n";
     
-    // Packets
+    // Packets received by the hub (from all connected ports).
     json << "  \"packets\": {\n";
     json << "    \"received\": " << rx_total << ",\n";
-    json << "    \"sent\": " << tx_total << ",\n";
-    json << "    \"dropped\": " << get_packets_dropped() << ",\n";
-    json << "    \"malformed\": " << get_packets_malformed() << ",\n";
-    json << "    \"rate_rx_per_sec\": " << rate_rx << ",\n";
-    json << "    \"rate_tx_per_sec\": " << rate_tx << "\n";
+    json << "    \"rate_rx_per_sec\": " << rate_rx << "\n";
     json << "  },\n";
     
-    // Bytes
+    // Bytes received by the hub, estimated in GridConnect wire format.
     json << "  \"bytes\": {\n";
-    json << "    \"received\": " << get_bytes_rx_total() << ",\n";
-    json << "    \"sent\": " << get_bytes_tx_total() << "\n";
-    json << "  },\n";
-    
-    // Performance
-    // Note: Stats class doesn't expose count/max, so we just output what we can
-    // The values will be 0 if no samples have been added yet
-    json << "  \"performance\": {\n";
-    json << "    \"queue_depth\": " << get_queue_depth() << "\n";
-    json << "  },\n";
-    
-    // Errors
-    json << "  \"errors\": {\n";
-    json << "    \"socket\": " << get_errors_socket() << ",\n";
-    json << "    \"parse\": " << get_errors_parse() << ",\n";
-    json << "    \"timeout\": " << get_errors_timeout() << ",\n";
-    json << "    \"total\": " << errors_total << "\n";
+    json << "    \"received\": " << get_bytes_rx_total() << "\n";
     json << "  }\n";
     
     json << "}\n";
@@ -113,22 +89,17 @@ void HubMetrics::print_summary() const
     uint64_t uptime_seconds = uptime % 60;
     
     uint64_t rx_total = get_packets_rx_total();
-    uint64_t tx_total = get_packets_tx_total();
-    uint64_t errors_total = get_errors_socket() + get_errors_parse() + get_errors_timeout();
     
     double rate = uptime > 0 ? (double)rx_total / uptime : 0.0;
     
     fprintf(stderr, "[HUB STATS] Uptime: %luh %lum %lus | "
             "Connections: %lu active, %lu total | "
-            "Packets: %lu rx, %lu tx (%.1f/sec) | "
-            "Errors: %lu total\n",
+            "Packets: %lu rx (%.1f/sec)\n",
             (unsigned long)uptime_hours,
             (unsigned long)uptime_minutes,
             (unsigned long)uptime_seconds,
             (unsigned long)get_connections_active(),
             (unsigned long)get_connections_total(),
             (unsigned long)rx_total,
-            (unsigned long)tx_total,
-            rate,
-            (unsigned long)errors_total);
+            rate);
 }

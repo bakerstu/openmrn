@@ -37,126 +37,58 @@
 
 #include <atomic>
 #include <ctime>
+#include <functional>
 #include <string>
-#include "utils/Stats.hxx"
 
 /// @brief Centralized metrics collection for hub monitoring
 ///
 /// Thread-safe metrics collection using atomic operations.
 /// All counters are lock-free and can be updated from any thread.
+///
+/// @todo Track packets transmitted and their byte counts, dropped/malformed
+/// packet counts, socket/parse/timeout error counters, packet processing
+/// latency, and queue depth. These are not currently tracked anywhere in the
+/// hub application; add the necessary hooks in the relevant classes before
+/// exposing them here.
 class HubMetrics
 {
 public:
     /// Constructor
     HubMetrics()
-        : connections_active_(0)
-        , connections_total_(0)
-        , connections_failed_(0)
+        : connections_total_(0)
         , packets_rx_total_(0)
-        , packets_tx_total_(0)
-        , packets_dropped_(0)
-        , packets_malformed_(0)
         , bytes_rx_total_(0)
-        , bytes_tx_total_(0)
-        , errors_socket_(0)
-        , errors_parse_(0)
-        , errors_timeout_(0)
-        , queue_depth_(0)
         , start_time_(time(nullptr))
     {
     }
 
     // Connection metrics
 
-    /// @brief Increment active connection count
+    /// @brief Sets the callback used to query the number of currently active
+    /// connections.
+    /// @param provider Callback returning the current active connection
+    /// count. The referenced object (if any) must outlive this HubMetrics
+    /// instance.
+    void set_num_clients_provider(std::function<unsigned()> provider)
+    {
+        num_clients_provider_ = std::move(provider);
+    }
+
+    /// @brief Record a new incoming connection. Intended to be used as (or
+    /// from) a hub's "on connect" callback.
     void increment_connections()
     {
-        connections_active_.fetch_add(1, std::memory_order_relaxed);
         connections_total_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    /// @brief Decrement active connection count
-    void decrement_connections()
-    {
-        connections_active_.fetch_sub(1, std::memory_order_relaxed);
-    }
-
-    /// @brief Record a failed connection attempt
-    void record_connection_failed()
-    {
-        connections_failed_.fetch_add(1, std::memory_order_relaxed);
     }
 
     // Packet metrics
 
     /// @brief Record a received packet
     /// @param bytes Number of bytes in the packet
-    void record_packet_rx(size_t bytes = 0)
+    void record_packet_rx(size_t bytes)
     {
         packets_rx_total_.fetch_add(1, std::memory_order_relaxed);
-        if (bytes > 0)
-        {
-            bytes_rx_total_.fetch_add(bytes, std::memory_order_relaxed);
-        }
-    }
-
-    /// @brief Record a transmitted packet
-    /// @param bytes Number of bytes in the packet
-    void record_packet_tx(size_t bytes = 0)
-    {
-        packets_tx_total_.fetch_add(1, std::memory_order_relaxed);
-        if (bytes > 0)
-        {
-            bytes_tx_total_.fetch_add(bytes, std::memory_order_relaxed);
-        }
-    }
-
-    /// @brief Record a dropped packet
-    void record_packet_dropped()
-    {
-        packets_dropped_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    /// @brief Record a malformed packet
-    void record_packet_malformed()
-    {
-        packets_malformed_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    // Error metrics
-
-    /// @brief Record a socket error
-    void record_socket_error()
-    {
-        errors_socket_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    /// @brief Record a parse error
-    void record_parse_error()
-    {
-        errors_parse_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    /// @brief Record a timeout error
-    void record_timeout_error()
-    {
-        errors_timeout_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    // Performance metrics
-
-    /// @brief Record packet processing latency
-    /// @param latency_us Latency in microseconds
-    void record_latency(int32_t latency_us)
-    {
-        packet_latency_us_.add(latency_us);
-    }
-
-    /// @brief Set current queue depth
-    /// @param depth Current queue depth
-    void set_queue_depth(uint32_t depth)
-    {
-        queue_depth_.store(depth, std::memory_order_relaxed);
+        bytes_rx_total_.fetch_add(bytes, std::memory_order_relaxed);
     }
 
     // Accessors (for JSON/Prometheus export)
@@ -164,7 +96,7 @@ public:
     /// @return Current number of active connections
     uint64_t get_connections_active() const
     {
-        return connections_active_.load(std::memory_order_relaxed);
+        return num_clients_provider_ ? num_clients_provider_() : 0;
     }
 
     /// @return Total connections since start
@@ -173,70 +105,16 @@ public:
         return connections_total_.load(std::memory_order_relaxed);
     }
 
-    /// @return Number of failed connections
-    uint64_t get_connections_failed() const
-    {
-        return connections_failed_.load(std::memory_order_relaxed);
-    }
-
     /// @return Total packets received
     uint64_t get_packets_rx_total() const
     {
         return packets_rx_total_.load(std::memory_order_relaxed);
     }
 
-    /// @return Total packets transmitted
-    uint64_t get_packets_tx_total() const
-    {
-        return packets_tx_total_.load(std::memory_order_relaxed);
-    }
-
-    /// @return Total packets dropped
-    uint64_t get_packets_dropped() const
-    {
-        return packets_dropped_.load(std::memory_order_relaxed);
-    }
-
-    /// @return Total malformed packets
-    uint64_t get_packets_malformed() const
-    {
-        return packets_malformed_.load(std::memory_order_relaxed);
-    }
-
     /// @return Total bytes received
     uint64_t get_bytes_rx_total() const
     {
         return bytes_rx_total_.load(std::memory_order_relaxed);
-    }
-
-    /// @return Total bytes transmitted
-    uint64_t get_bytes_tx_total() const
-    {
-        return bytes_tx_total_.load(std::memory_order_relaxed);
-    }
-
-    /// @return Number of socket errors
-    uint64_t get_errors_socket() const
-    {
-        return errors_socket_.load(std::memory_order_relaxed);
-    }
-
-    /// @return Number of parse errors
-    uint64_t get_errors_parse() const
-    {
-        return errors_parse_.load(std::memory_order_relaxed);
-    }
-
-    /// @return Number of timeout errors
-    uint64_t get_errors_timeout() const
-    {
-        return errors_timeout_.load(std::memory_order_relaxed);
-    }
-
-    /// @return Current queue depth
-    uint32_t get_queue_depth() const
-    {
-        return queue_depth_.load(std::memory_order_relaxed);
     }
 
     /// @return Uptime in seconds
@@ -251,12 +129,6 @@ public:
         return start_time_;
     }
 
-    /// @return Reference to latency statistics
-    const Stats& get_latency_stats() const
-    {
-        return packet_latency_us_;
-    }
-
     /// @brief Generate JSON representation of metrics
     /// @return JSON string with all metrics
     std::string to_json() const;
@@ -266,26 +138,13 @@ public:
 
 private:
     // Connection metrics
-    std::atomic<uint64_t> connections_active_;
     std::atomic<uint64_t> connections_total_;
-    std::atomic<uint64_t> connections_failed_;
+    /// Callback used to query the number of currently active connections.
+    std::function<unsigned()> num_clients_provider_;
 
     // Packet metrics
     std::atomic<uint64_t> packets_rx_total_;
-    std::atomic<uint64_t> packets_tx_total_;
-    std::atomic<uint64_t> packets_dropped_;
-    std::atomic<uint64_t> packets_malformed_;
     std::atomic<uint64_t> bytes_rx_total_;
-    std::atomic<uint64_t> bytes_tx_total_;
-
-    // Error metrics
-    std::atomic<uint64_t> errors_socket_;
-    std::atomic<uint64_t> errors_parse_;
-    std::atomic<uint64_t> errors_timeout_;
-
-    // Performance metrics
-    Stats packet_latency_us_;
-    std::atomic<uint32_t> queue_depth_;
 
     // System metrics
     time_t start_time_;

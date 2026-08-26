@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <functional>
 #include <memory>
 
 #include "executor/Executor.hxx"
@@ -131,14 +132,39 @@ void usage(const char *e)
     exit(1);
 }
 
+/// Long option values for options that don't have a short-option equivalent.
+enum LongOptionValue
+{
+    OPT_NO_MONITORING = 1000,
+    OPT_STATS_DUMP = 1001,
+};
+
+/// Parses a numeric command line argument as a TCP port number.
+/// @param name human readable name of the argument, used in error messages.
+/// @param value the string to parse.
+/// @param argv0 argv[0] of the process, used for the usage message.
+/// @return the parsed port number, in the range [1, 65535].
+static int parse_port_arg(const char *name, const char *value, char *argv0)
+{
+    char *endptr;
+    errno = 0;
+    long val = strtol(value, &endptr, 10);
+    if (errno != 0 || *endptr != '\0' || val < 1 || val > 65535)
+    {
+        fprintf(stderr, "Invalid %s: %s\n", name, value);
+        usage(argv0);
+    }
+    return (int)val;
+}
+
 void parse_args(int argc, char *argv[])
 {
     int opt;
     int option_index = 0;
     
     static struct option long_options[] = {
-        {"no-monitoring", no_argument, 0, 1000},
-        {"stats-dump", required_argument, 0, 1001},
+        {"no-monitoring", no_argument, 0, OPT_NO_MONITORING},
+        {"stats-dump", required_argument, 0, OPT_STATS_DUMP},
         {0, 0, 0, 0}
     };
     
@@ -158,48 +184,20 @@ void parse_args(int argc, char *argv[])
                 break;
 #endif
             case 'p':
-            {
-                char *endptr;
-                errno = 0;
-                long val = strtol(optarg, &endptr, 10);
-                if (errno != 0 || *endptr != '\0' || val < 1 || val > 65535)
-                {
-                    fprintf(stderr, "Invalid port number: %s\n", optarg);
-                    usage(argv[0]);
-                }
-                port = (int)val;
+                port = parse_port_arg("port number", optarg, argv[0]);
                 break;
-            }
             case 'M':
-            {
-                char *endptr;
-                errno = 0;
-                long val = strtol(optarg, &endptr, 10);
-                if (errno != 0 || *endptr != '\0' || val < 1 || val > 65535)
-                {
-                    fprintf(stderr, "Invalid monitoring port number: %s\n", optarg);
-                    usage(argv[0]);
-                }
-                monitoring_port = (int)val;
+                monitoring_port =
+                    parse_port_arg("monitoring port number", optarg, argv[0]);
                 enable_monitoring = true;
                 break;
-            }
             case 'u':
                 upstream_host = optarg;
                 break;
             case 'q':
-            {
-                char *endptr;
-                errno = 0;
-                long val = strtol(optarg, &endptr, 10);
-                if (errno != 0 || *endptr != '\0' || val < 1 || val > 65535)
-                {
-                    fprintf(stderr, "Invalid upstream port number: %s\n", optarg);
-                    usage(argv[0]);
-                }
-                upstream_port = (int)val;
+                upstream_port =
+                    parse_port_arg("upstream port number", optarg, argv[0]);
                 break;
-            }
             case 't':
                 timestamped = true;
                 break;
@@ -213,10 +211,10 @@ void parse_args(int argc, char *argv[])
             case 'l':
                 printpackets = true;
                 break;
-            case 1000: // --no-monitoring
+            case OPT_NO_MONITORING:
                 enable_monitoring = false;
                 break;
-            case 1001: // --stats-dump
+            case OPT_STATS_DUMP:
             {
                 char *endptr;
                 errno = 0;
@@ -244,36 +242,46 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    
-    // Create metrics object
-    HubMetrics metrics;
-    
-    // Create metrics port to track packet statistics
-    MetricsPort metrics_port(can_hub0.service(), &metrics);
-    can_hub0.register_port(metrics_port.get_port());
-    can_hub0.set_port_promiscuous(metrics_port.get_port(), true);
-    
-    // Create packet printer if requested
+
+    // Metrics collection and the monitoring server are only needed when
+    // monitoring or periodic stats dumping was requested.
+    bool need_metrics = enable_monitoring || stats_dump_interval > 0;
+    std::unique_ptr<HubMetrics> metrics;
+    std::unique_ptr<MetricsPort> metrics_port;
+    if (need_metrics)
+    {
+        metrics.reset(new HubMetrics());
+        metrics_port.reset(new MetricsPort(can_hub0.service(), metrics.get()));
+        can_hub0.register_port(metrics_port->get_port());
+        can_hub0.set_port_promiscuous(metrics_port->get_port(), true);
+    }
+
     GcPacketPrinter *packet_printer = NULL;
     if (printpackets) {
         packet_printer = new GcPacketPrinter(&can_hub0, timestamped);
         can_hub0.set_port_promiscuous(packet_printer->get_port(), true);
     }
-    
-    // Create hub
-    GcTcpHub hub(&can_hub0, port);
+
+    GcTcpHub hub(&can_hub0, port,
+        need_metrics ? [&metrics]() { metrics->increment_connections(); }
+                     : std::function<void()>());
+    if (need_metrics)
+    {
+        metrics->set_num_clients_provider([&hub]() {
+            return hub.get_num_clients();
+        });
+    }
     vector<std::unique_ptr<ConnectionClient>> connections;
     
     // Start monitoring server if enabled
-    MonitoringServer *monitoring_server = nullptr;
+    std::unique_ptr<MonitoringServer> monitoring_server;
     if (enable_monitoring)
     {
-        monitoring_server = new MonitoringServer(&metrics, monitoring_port);
+        monitoring_server.reset(new MonitoringServer(metrics.get(), monitoring_port));
         if (!monitoring_server->start())
         {
             fprintf(stderr, "Failed to start monitoring server\n");
-            delete monitoring_server;
-            monitoring_server = nullptr;
+            monitoring_server.reset();
         }
     }
 
@@ -315,9 +323,6 @@ int appl_main(int argc, char *argv[])
             new DeviceConnectionClient("device", &can_hub0, device_path));
     }
 
-    // Track initial connection count
-    metrics.increment_connections(); // For main TCP hub listener
-    
     fprintf(stderr, "Hub started. TCP port: %d", port);
     if (enable_monitoring && monitoring_server && monitoring_server->is_ready())
     {
@@ -326,12 +331,9 @@ int appl_main(int argc, char *argv[])
     fprintf(stderr, "\n");
     
     // Main loop with stats dumping
-    time_t last_stats_dump = time(nullptr);
+    long long last_stats_dump = os_get_time_monotonic();
     while (1)
     {
-        // Note: GcTcpHub doesn't expose individual connection events,
-        // so full connection tracking would require modifying the hub class
-        
         // Ping connections to keep them alive
         for (const auto &p : connections)
         {
@@ -341,21 +343,15 @@ int appl_main(int argc, char *argv[])
         // Dump stats if enabled
         if (stats_dump_interval > 0)
         {
-            time_t now = time(nullptr);
-            if (now - last_stats_dump >= stats_dump_interval)
+            long long now = os_get_time_monotonic();
+            if (now - last_stats_dump >= SEC_TO_NSEC(stats_dump_interval))
             {
-                metrics.print_summary();
+                metrics->print_summary();
                 last_stats_dump = now;
             }
         }
         
         sleep(1);
-    }
-    
-    // Cleanup (never reached, but good practice)
-    if (monitoring_server)
-    {
-        delete monitoring_server;
     }
     
     return 0;
