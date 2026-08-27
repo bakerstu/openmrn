@@ -77,17 +77,25 @@ public:
      */
     void prepare_packet(CanHubData *frame)
     {
+        prepare_packet(frame->frame(), reinterpret_cast<uintptr_t>(frame->skipMember_));
+    }
+
+    /**
+     * Prepares the packet for routing.
+     *
+     * @param can_frame The CAN frame to route.
+     * @param src_port Identifier of the source port.
+     */
+    void prepare_packet(const struct can_frame &can_frame, uintptr_t src_port)
+    {
         // Apply pending removals
         if (hasPendingRemovals_)
         {
             apply_pending_removals();
         }
 
-        const struct can_frame &can_frame = frame->frame();
-
         // Update routing table with source info
         NodeAlias src = get_source_address(can_frame);
-        uintptr_t src_port = reinterpret_cast<uintptr_t>(frame->skipMember_);
 
         auto range = routingTable_.equal_range(src);
         bool found = false;

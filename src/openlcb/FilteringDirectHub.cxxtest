@@ -1,0 +1,300 @@
+/** \copyright
+ * Copyright (c) 2026, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file FilteringDirectHub.cxxtest
+ *
+ * Unit tests for FilteringDirectHub.
+ *
+ * @author Balazs Racz
+ * @date 28 Jul 2026
+ */
+
+#include "openlcb/FilteringDirectHub.hxx"
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "openlcb/CanDefs.hxx"
+#include "utils/Hub.hxx"
+#include "utils/async_if_test_helper.hxx"
+
+namespace openlcb
+{
+namespace
+{
+
+DataBufferPool pool_64(64);
+
+using ::testing::_;
+using ::testing::Mock;
+using ::testing::StrictMock;
+
+class MockDirectHubPort : public DirectHubPort<CanHubData>
+{
+public:
+    MOCK_METHOD1(send, void(MessageAccessor<CanHubData> *msg));
+};
+
+class SendFrameHelper : public Executable
+{
+public:
+    SendFrameHelper(DirectHubInterface<CanHubData> *hub, uint32_t can_id,
+        DirectHubPort<CanHubData> *source)
+        : hub_(hub)
+        , source_(source)
+    {
+        mainBufferPool->alloc(&buf_);
+        struct can_frame *f = buf_->data()->mutable_frame();
+        f->can_id = can_id;
+        f->can_dlc = 0;
+        SET_CAN_FRAME_EFF(*f);
+        CLR_CAN_FRAME_ERR(*f);
+        CLR_CAN_FRAME_RTR(*f);
+    }
+
+    void run() override
+    {
+        auto *msg = hub_->mutable_message();
+        msg->source_ = source_;
+        msg->payload_ = std::move(buf_);
+        hub_->do_send();
+    }
+
+private:
+    DirectHubInterface<CanHubData> *hub_;
+    DirectHubPort<CanHubData> *source_;
+    BufferPtr<CanHubData> buf_;
+};
+
+class FilteringDirectHubTest : public ::testing::Test
+{
+protected:
+    FilteringDirectHubTest()
+        : hub_(&g_executor)
+    {
+        hub_.set_filtering(true);
+    }
+
+    ~FilteringDirectHubTest()
+    {
+        wait_for_main_executor();
+    }
+
+    void register_port(MockDirectHubPort *p)
+    {
+        hub_.register_port(p);
+    }
+
+    void unregister_port(MockDirectHubPort *p)
+    {
+        hub_.unregister_port(p);
+    }
+
+    void send_frame(uint32_t id, MockDirectHubPort *source)
+    {
+        SendFrameHelper sender(&hub_, id, source);
+        hub_.enqueue_send(&sender);
+        wait_for_main_executor();
+    }
+
+    FilteringCanDirectHub hub_;
+    StrictMock<MockDirectHubPort> p1_;
+    StrictMock<MockDirectHubPort> p2_;
+    StrictMock<MockDirectHubPort> p3_;
+};
+
+TEST_F(FilteringDirectHubTest, Broadcast)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    EXPECT_CALL(p2_, send(_));
+    EXPECT_CALL(p3_, send(_));
+
+    // Send CID frame (broadcast) from p1
+    send_frame(0x17000123, &p1_);
+}
+
+TEST_F(FilteringDirectHubTest, UnicastWithFiltering)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // 1. Packet from P2 with source alias 0x222 (CID frame)
+    // DirectHub learns 0x222 -> P2
+    EXPECT_CALL(p1_, send(_));
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x17000222, &p2_);
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 2. Addressed Datagram frame from P1 to alias 0x222 (P2)
+    // Frame type 0x1A... (Datagram), Dst 0x222, Src 0x111
+    // ID: 0x1A222111
+    EXPECT_CALL(p2_, send(_)); // Should only go to P2!
+    send_frame(0x1A222111, &p1_);
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 3. Addressed frame from P1 to unknown alias 0x333 -> Floods to all except sender
+    EXPECT_CALL(p2_, send(_));
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x1A333111, &p1_);
+}
+
+TEST_F(FilteringDirectHubTest, PromiscuousMode)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // Learn 0x222 -> P2
+    EXPECT_CALL(p1_, send(_));
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x17000222, &p2_);
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // Set P3 to promiscuous
+    hub_.set_port_promiscuous(&p3_, true);
+
+    // Addressed packet to 0x222 (P2) from P1 should now reach both P2 and P3 (promiscuous)
+    EXPECT_CALL(p2_, send(_));
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x1A222111, &p1_);
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // Disable promiscuous mode on P3
+    hub_.set_port_promiscuous(&p3_, false);
+
+    // Addressed packet to 0x222 (P2) from P1 should reach only P2 again
+    EXPECT_CALL(p2_, send(_));
+    send_frame(0x1A222111, &p1_);
+}
+
+TEST_F(FilteringDirectHubTest, LegacyMode)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // Learn 0x222 -> P2
+    EXPECT_CALL(p1_, send(_));
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x17000222, &p2_);
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // Disable filtering
+    hub_.set_filtering(false);
+
+    // Addressed packet to 0x222 (P2) from P1 should flood to both P2 and P3
+    EXPECT_CALL(p2_, send(_));
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x1A222111, &p1_);
+}
+
+TEST_F(FilteringDirectHubTest, Unregister)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // Learn 0x222 -> P2
+    EXPECT_CALL(p1_, send(_));
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x17000222, &p2_);
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // Unregister P2
+    unregister_port(&p2_);
+
+    // Addressed frame to 0x222 from P1 -> Unknown destination now, floods to P3 (P2 is unregistered)
+    EXPECT_CALL(p3_, send(_));
+    send_frame(0x1A222111, &p1_);
+}
+
+class MockByteDirectHubPort : public DirectHubPort<uint8_t[]>
+{
+public:
+    MOCK_METHOD1(send, void(MessageAccessor<uint8_t[]> *msg));
+};
+
+TEST(FilteringByteDirectHubTest, FilteringGridConnect)
+{
+    FilteringByteDirectHub hub(&g_executor);
+    StrictMock<MockByteDirectHubPort> p1;
+    StrictMock<MockByteDirectHubPort> p2;
+    hub.register_port(&p1);
+    hub.register_port(&p2);
+
+    // Send CID frame from P1 (GridConnect ASCII string)
+    DataBuffer *b;
+    pool_64.alloc(&b);
+    memcpy(b->data(), ":X17000111N;\n", 13);
+    b->set_size(13);
+
+    struct Exec : public Executable
+    {
+        Exec(FilteringByteDirectHub *h, DirectHubPort<uint8_t[]> *src, DataBuffer *b)
+            : h_(h)
+            , src_(src)
+            , b_(b)
+        {
+        }
+        void run() override
+        {
+            auto *m = h_->mutable_message();
+            m->source_ = src_;
+            m->buf_.reset(b_, 0, b_->size());
+            h_->do_send();
+        }
+        FilteringByteDirectHub *h_;
+        DirectHubPort<uint8_t[]> *src_;
+        DataBuffer *b_;
+    } exec(&hub, &p1, b);
+
+    EXPECT_CALL(p2, send(_));
+    hub.enqueue_send(&exec);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1);
+    Mock::VerifyAndClear(&p2);
+
+    hub.unregister_port(&p1);
+    hub.unregister_port(&p2);
+}
+
+} // namespace
+} // namespace openlcb
