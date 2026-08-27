@@ -259,6 +259,12 @@ void CC32xxUart::send()
         /* no more data left to send */
         MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_EOT);
         MAP_UARTIntClear(base_, UART_INT_TX);
+        if (!MAP_UARTBusy(base_))
+        {
+            // We lost a race and might have removed the expected TX interrupt.
+            // This will ensure that we enter the irq handler again.
+            MAP_IntPendSet(interrupt_);
+        }
     }
 }
 
@@ -329,7 +335,7 @@ void CC32xxUart::interrupt_handler()
         }
     }
     /* transmit a character if we have pending tx data */
-    if (txPending_ && (status & UART_INT_TX))
+    if (txPending_ && ((status & UART_INT_TX) || (!MAP_UARTBusy(base_))))
     {
         if (txBuf->pending())
         {
