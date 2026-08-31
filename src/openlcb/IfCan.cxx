@@ -225,24 +225,20 @@ public:
 
         /// Filter for Node Initialization Complete messages (0x0100 & 0x0101).
         CAN_FILTER_INIT = CanMessageData::CAN_EXT_FRAME_FILTER |
-            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT) |
             (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
             (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
             (Defs::MTI_INITIALIZATION_COMPLETE << CanDefs::MTI_SHIFT),
         CAN_MASK_INIT = CanMessageData::CAN_EXT_FRAME_MASK |
-            CanDefs::PRIORITY_MASK | CanDefs::FRAME_TYPE_MASK |
-            CanDefs::CAN_FRAME_TYPE_MASK |
+            CanDefs::FRAME_TYPE_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
             (0x0FFE << CanDefs::MTI_SHIFT),
 
         /// Filter for Verified Node ID messages (0x0170 & 0x0171).
         CAN_FILTER_VERIFY = CanMessageData::CAN_EXT_FRAME_FILTER |
-            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT) |
             (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
             (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
             (Defs::MTI_VERIFIED_NODE_ID_NUMBER << CanDefs::MTI_SHIFT),
         CAN_MASK_VERIFY = CanMessageData::CAN_EXT_FRAME_MASK |
-            CanDefs::PRIORITY_MASK | CanDefs::FRAME_TYPE_MASK |
-            CanDefs::CAN_FRAME_TYPE_MASK |
+            CanDefs::FRAME_TYPE_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
             (0x0FFE << CanDefs::MTI_SHIFT),
     };
 

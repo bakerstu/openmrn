@@ -143,6 +143,16 @@ TEST_F(AsyncIfTest, RemoteAliasLearnedFromVerifiedNodeID)
         EXPECT_EQ(UINT64_C(0x010203040507),
             ifCan_->remote_aliases()->lookup(NodeAlias(0x783U)));
     });
+
+    // Priority bit 0 (0x09170...) frame must also be learned.
+    send_packet(":X09170786N01020304050A;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x786U, ifCan_->remote_aliases()->lookup(UINT64_C(0x01020304050A)));
+        EXPECT_EQ(UINT64_C(0x01020304050A),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x786U)));
+    });
 }
 
 TEST_F(AsyncIfTest, RemoteAliasLearnedFromInitializationComplete)
@@ -163,6 +173,16 @@ TEST_F(AsyncIfTest, RemoteAliasLearnedFromInitializationComplete)
             0x785U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040509)));
         EXPECT_EQ(UINT64_C(0x010203040509),
             ifCan_->remote_aliases()->lookup(NodeAlias(0x785U)));
+    });
+
+    // Priority bit 0 (0x09100...) frame must also be learned.
+    send_packet(":X09100787N01020304050B;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x787U, ifCan_->remote_aliases()->lookup(UINT64_C(0x01020304050B)));
+        EXPECT_EQ(UINT64_C(0x01020304050B),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x787U)));
     });
 }
 
