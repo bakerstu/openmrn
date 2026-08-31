@@ -1014,9 +1014,9 @@ void CC32xxWiFi::wlan_task()
         SlFdSet_t wfds_tmp = wfds;
         SlFdSet_t efds_tmp = efds;
         SlTimeval_t tv;
-        // Wake up every 20 msec in case we missed a select_wakeup.
+        // Wake up every 40 msec in case we missed a select_wakeup.
         tv.tv_sec = 0;
-        tv.tv_usec = 20000;
+        tv.tv_usec = 40000;
 
         result = sl_Select(fdHighest + 1, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
 
