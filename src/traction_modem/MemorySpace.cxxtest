@@ -62,7 +62,7 @@ TEST_F(MemorySpaceTest, Create)
     EXPECT_FALSE(static_cast<openlcb::MemorySpace*>(&cs)->read_only());
     EXPECT_FALSE(static_cast<openlcb::MemorySpace*>(&fs)->read_only());
 
-    EXPECT_EQ((0x1U << 24) - 1,
+    EXPECT_EQ(0x17FFFFFFU,
         static_cast<openlcb::MemorySpace*>(&cs)->max_address());
     EXPECT_EQ(
         UINT32_MAX, static_cast<openlcb::MemorySpace*>(&fs)->max_address());
@@ -82,7 +82,7 @@ TEST_F(MemorySpaceTest, CvRead)
     // Read fail out of bounds.
     //
     error = 0;
-    EXPECT_EQ(0U, cs.read((0x1 << 24), data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(0U, cs.read(0x18000000, data_, sizeof(data_), &error, &done));
     EXPECT_EQ(openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS, error);
 
 
@@ -301,7 +301,7 @@ TEST_F(MemorySpaceTest, CvWrite)
     // Write fail out of bounds.
     //
     error = 0;
-    EXPECT_EQ(0U, cs.write((0x1 << 24), data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(0U, cs.write(0x18000000, data_, sizeof(data_), &error, &done));
     EXPECT_EQ(openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS, error);
 
 
