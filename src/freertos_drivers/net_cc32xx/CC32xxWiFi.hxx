@@ -446,11 +446,7 @@ public:
     /** Get the receive signal strength indicator.
      * @return receive signal strength
      */
-    int wlan_rssi()
-    {
-        // the RSSI value is only reliable when associatedd
-        return wlan_startup_state() == WlanState::NOT_ASSOCIATED ? 0 : rssi;
-    }
+    int wlan_rssi();
 
     void set_ip_acquired_callback(std::function<void(bool)> callback)
     {
@@ -662,6 +658,7 @@ private:
     OSMutex lock_;
 
     int16_t rssi; /**< receive signal strength indicator */
+    long long nextRssiPoll_; /**< timestamp for rate limiting RSSI queries */
 
     WlanRole wlanRole; /**< the Wi-Fi role we are in */
     WlanPowerPolicy wlanPowerPolicy; /**< the desired power policy */

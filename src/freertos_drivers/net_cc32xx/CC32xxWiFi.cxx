@@ -182,6 +182,7 @@ CC32xxWiFi::CC32xxWiFi()
     : ipAddress(0)
     , ipAcquiredCallback_(nullptr)
     , rssi(0)
+    , nextRssiPoll_(0)
     , wlanRole(WlanRole::UNKNOWN)
     , started(false)
     , connected(0)
@@ -450,6 +451,31 @@ bool CC32xxWiFi::wlan_profile_test_none()
     }
 
     return true;
+}
+
+/*
+ * CC32xxWiFi::wlan_rssi()
+ */
+int CC32xxWiFi::wlan_rssi()
+{
+    if (wlan_startup_state() == WlanState::NOT_ASSOCIATED)
+    {
+        return 0;
+    }
+    long long now = os_get_time_monotonic();
+    if (now >= nextRssiPoll_)
+    {
+        nextRssiPoll_ = now + MSEC_TO_NSEC(800);
+        SlWlanGetRxStatResponse_t response;
+        if (sl_WlanRxStatGet(&response, 0) == 0)
+        {
+            if (response.AvarageMgMntRssi)
+            {
+                rssi = response.AvarageMgMntRssi;
+            }
+        }
+    }
+    return rssi;
 }
 
 /*
