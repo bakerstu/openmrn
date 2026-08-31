@@ -236,6 +236,8 @@ public:
             (0x0FFE << CanDefs::MTI_SHIFT),
     };
 
+    /// Constructor. Registers handlers for control, init, and verify CAN frames.
+    /// @param service CAN interface instance to register with.
     RemoteAliasCacheUpdater(IfCan *service)
         : CanFrameStateFlow(service)
     {
@@ -247,6 +249,7 @@ public:
             this, CAN_FILTER_VERIFY, CAN_MASK_VERIFY);
     }
 
+    /// Destructor. Unregisters all handlers from the frame dispatcher.
     ~RemoteAliasCacheUpdater()
     {
         if_can()->frame_dispatcher()->unregister_handler(
@@ -257,6 +260,8 @@ public:
             this, CAN_FILTER_VERIFY, CAN_MASK_VERIFY);
     }
 
+    /// StateFlow entry point for processing incoming CAN frames.
+    /// @return Action to release the message buffer and exit the state flow.
     Action entry() OVERRIDE
     {
         struct can_frame *f = message()->data();
@@ -324,6 +329,10 @@ public:
     }
 
 private:
+    /// Helper method to insert or update a NodeID to NodeAlias mapping in the cache.
+    /// Removes any previous alias associated with the given NodeID before adding the new mapping.
+    /// @param node_id Node ID to associate.
+    /// @param alias Alias to associate with the Node ID.
     void add_alias(NodeID node_id, NodeAlias alias)
     {
         if (!node_id || !alias)
