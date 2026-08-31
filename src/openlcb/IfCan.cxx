@@ -214,8 +214,8 @@ public:
         /// Filter for CAN Control Messages (AMD_FRAME, AMR_FRAME).
         CAN_FILTER_CONTROL = CanMessageData::CAN_EXT_FRAME_FILTER |
             (CanDefs::CONTROL_MSG << CanDefs::FRAME_TYPE_SHIFT),
-        CAN_MASK_CONTROL =
-            CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::FRAME_TYPE_MASK,
+        CAN_MASK_CONTROL = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::FRAME_TYPE_MASK,
 
         /// Filter for Node Initialization Complete messages (0x0100 & 0x0101).
         CAN_FILTER_INIT = CanMessageData::CAN_EXT_FRAME_FILTER |
@@ -236,7 +236,8 @@ public:
             (0x0FFE << CanDefs::MTI_SHIFT),
     };
 
-    /// Constructor. Registers handlers for control, init, and verify CAN frames.
+    /// Constructor. Registers handlers for control, init, and verify CAN
+    /// frames.
     /// @param service CAN interface instance to register with.
     RemoteAliasCacheUpdater(IfCan *service)
         : CanFrameStateFlow(service)
@@ -329,8 +330,9 @@ public:
     }
 
 private:
-    /// Helper method to insert or update a NodeID to NodeAlias mapping in the cache.
-    /// Removes any previous alias associated with the given NodeID before adding the new mapping.
+    /// Helper method to insert or update a NodeID to NodeAlias mapping in the
+    /// cache. Removes any previous alias associated with the given NodeID
+    /// before adding the new mapping.
     /// @param node_id Node ID to associate.
     /// @param alias Alias to associate with the Node ID.
     void add_alias(NodeID node_id, NodeAlias alias)
