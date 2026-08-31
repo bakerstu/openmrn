@@ -457,10 +457,6 @@ public:
         ipAcquiredCallback_ = callback;
     }
 
-    /** Executes the given function on the network thread. @param callback
-     * isthe function to execute.*/
-    void run_on_network_thread(std::function<void()> callback);
-
     /** Add an HTTP get token callback.  A get token is a simple macro
      * substitution that is applied to all files (e.g. HTML, JS) served by the
      * builtin webserver of the CC32xx. The token has a fixed form "__SL_G_*".
@@ -617,18 +613,9 @@ private:
      */
     void set_default_state();
 
-    /** Thread that will manage the WLAN connection.
-     * @param context context passed into the stack.
+    /** Process ready sockets and update select triggers.
      */
-    static void* wlan_task_entry(void *context)
-    {
-        instance()->wlan_task();
-        return nullptr;
-    }
-
-    /** Thread that will manage the WLAN connection inside object context.
-     */
-    void wlan_task();
+    void process_select();
 
     /** Asynchronously wakeup the select call.
      */
@@ -664,9 +651,6 @@ private:
     /// Callback for when IP is acquired
     std::function<void(bool)> ipAcquiredCallback_;
 
-    /// List of callbacks to execute on the network thread.
-    std::vector<std::function<void()> > callbacks_;
-
     /// List of callbacks for http get tokens
     std::vector<std::pair<const char *, std::function<std::string()>>>
         httpGetTokenCallbacks_;
@@ -676,8 +660,6 @@ private:
 
     /// Protects callbacks_ vector.
     OSMutex lock_;
-
-    int wakeup; /**< loopback socket to wakeup select() */
 
     int16_t rssi; /**< receive signal strength indicator */
 

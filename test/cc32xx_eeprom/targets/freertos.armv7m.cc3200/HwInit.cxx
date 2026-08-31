@@ -210,13 +210,6 @@ void hw_init(void)
 // This code needs to run after the scheduler has been started.
 void hw_postinit(void)
 {
-    /*SyncNotifiable n;
-    wifi.run_on_network_thread([&n]() {
-        eeprom = new CC32xxEEPROMEmulation("/usr/eeprom", 1000);
-        n.notify();
-    });
-    n.wait_for_notification();
-    */
 }
 
 } /* extern "C" */

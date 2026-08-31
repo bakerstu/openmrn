@@ -343,14 +343,9 @@ void hw_init(void)
 void hw_postinit(void)
 {
     can0.init("/dev/spidev0.0", 20000000, config_nmranet_can_bitrate());
-    SyncNotifiable n;
-    wifi.run_on_network_thread([&n]() {
-        eeprom.mount();
-        string service = "tcs_cs_090099dd0204._openlcb._tcp.local";
-        sl_NetAppMDNSUnRegisterService((const signed char*)service.c_str(), service.size(), 0);
-        n.notify();
-    });
-    n.wait_for_notification();
+    eeprom.mount();
+    string service = "tcs_cs_090099dd0204._openlcb._tcp.local";
+    sl_NetAppMDNSUnRegisterService((const signed char*)service.c_str(), service.size(), 0);
 }
 
 } /* extern "C" */

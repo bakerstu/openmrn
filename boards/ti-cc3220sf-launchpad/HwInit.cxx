@@ -232,12 +232,7 @@ void hw_init(void)
  */
 void hw_postinit(void)
 {
-    SyncNotifiable n;
-    wifi.run_on_network_thread([&n]() {
-        eeprom.mount();
-        n.notify();
-    });
-    n.wait_for_notification();
+    eeprom.mount();
 }
 
 } /* extern "C" */

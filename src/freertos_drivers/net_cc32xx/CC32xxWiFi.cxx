@@ -181,7 +181,6 @@ void del_socket(int16_t sd)
 CC32xxWiFi::CC32xxWiFi()
     : ipAddress(0)
     , ipAcquiredCallback_(nullptr)
-    , wakeup(-1)
     , rssi(0)
     , wlanRole(WlanRole::UNKNOWN)
     , started(false)
@@ -710,8 +709,7 @@ void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy, WlanConnecti
     os_thread_create(nullptr, "sl_Task", OSThread::get_priority_max(), 2048,
                      sl_Task, nullptr);
 
-    os_thread_create(nullptr, "Wlan Task", OSThread::get_priority_max() - 1,
-                     2048, wlan_task_entry, nullptr);
+    set_default_state();
 }
 
 /*
@@ -960,123 +958,74 @@ void CC32xxWiFi::wlan_set_role(WlanRole new_role)
 }
 
 /*
- * CC32xxWiFi::wlan_task()
+ * CC32xxWiFi::process_select()
  */
-void CC32xxWiFi::wlan_task()
+void CC32xxWiFi::process_select()
 {
-    int result;
-    set_default_state();
-
-    /* adjust to a lower priority task */
-    vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
-
-    SlSockAddrIn_t address;
-
-    wakeup = sl_Socket(SL_AF_INET, SL_SOCK_DGRAM, 0);
-    HASSERT(wakeup >= 0);
-
-    address.sin_family = SL_AF_INET;
-    address.sin_port = sl_Htons(8000);
-    address.sin_addr.s_addr = SL_INADDR_ANY;
-    result = sl_Bind(wakeup, (SlSockAddr_t*)&address, sizeof(address));
-    HASSERT(result >= 0);
+    SlFdSet_t rfds_tmp;
+    SlFdSet_t wfds_tmp;
+    SlFdSet_t efds_tmp;
+    int max_fd;
 
     portENTER_CRITICAL();
-    SL_SOCKET_FD_SET(wakeup, &rfds);
-    add_socket(wakeup);
+    rfds_tmp = rfds;
+    wfds_tmp = wfds;
+    efds_tmp = efds;
+    max_fd = fdHighest;
     portEXIT_CRITICAL();
 
-    unsigned next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
+    SlTimeval_t tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
 
-    for ( ; /* forever */ ; )
+    int result = sl_Select(max_fd + 1, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
+
+    if (result <= 0)
     {
+        return;
+    }
 
-        std::vector<std::function<void()> > callbacks_to_run;
-        {
-            OSMutexLock l(&lock_);
-            if (callbacks_.size()) {
-                callbacks_to_run.swap(callbacks_);
-            }
-        }
-        for (unsigned i = 0; i < callbacks_to_run.size(); ++i) {
-            callbacks_to_run[i]();
-        }
-
-        SlFdSet_t rfds_tmp = rfds;
-        SlFdSet_t wfds_tmp = wfds;
-        SlFdSet_t efds_tmp = efds;
-        SlTimeval_t tv;
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-
-        result = sl_Select(fdHighest + 1, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
-
-        if (result < 0)
+    for (int i = 0; i < SL_MAX_SOCKETS && result > 0; ++i)
+    {
+        if (slSockets[i] == -1)
         {
             continue;
         }
-
-        if ((os_get_time_monotonic() >> 20) > next_wrssi_poll)
+        if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds_tmp))
         {
-            next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
-            /* timeout, get the RSSI value */
-            SlWlanGetRxStatResponse_t response;
-            if (sl_WlanRxStatGet(&response, 0) == 0)
+            --result;
+            portENTER_CRITICAL();
+            SL_SOCKET_FD_CLR(slSockets[i], &wfds);
+            new_highest();
+            CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
+            if (s)
             {
-                if (response.AvarageMgMntRssi) {
-                    rssi = response.AvarageMgMntRssi;
-                }
-            }
-        }
-
-        for (int i = 0; i < SL_MAX_SOCKETS && result > 0; ++i)
-        {
-            if (slSockets[i] == -1)
-            {
-                /* socket slot not in use */
-                continue;
-            }
-            if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds_tmp))
-            {
-                --result;
-                portENTER_CRITICAL();
-                SL_SOCKET_FD_CLR(slSockets[i], &wfds);
-                new_highest();
-                CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
                 s->writeActive = true;
                 s->select_wakeup(&s->selInfoWr);
-                portEXIT_CRITICAL();
             }
-            if (SL_SOCKET_FD_ISSET(slSockets[i], &rfds_tmp))
+            portEXIT_CRITICAL();
+        }
+        if (SL_SOCKET_FD_ISSET(slSockets[i], &rfds_tmp))
+        {
+            --result;
+            portENTER_CRITICAL();
+            SL_SOCKET_FD_CLR(slSockets[i], &rfds);
+            new_highest();
+            CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
+            if (s)
             {
-                --result;
-                if (slSockets[i] == wakeup)
-                {
-                    /* this is the socket we use as a signal */
-                    char data;
-                    sl_Recv(wakeup, &data, 1, 0);
-                }
-                else
-                {
-                    /* standard application level socket */
-                    portENTER_CRITICAL();
-                    SL_SOCKET_FD_CLR(slSockets[i], &rfds);
-                    new_highest();
-                    CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
-                    s->readActive = true;
-                    s->select_wakeup(&s->selInfoRd);
-                    portEXIT_CRITICAL();
-                }
+                s->readActive = true;
+                s->select_wakeup(&s->selInfoRd);
             }
-            if (SL_SOCKET_FD_ISSET(slSockets[i], &efds_tmp))
-            {
-                --result;
-                portENTER_CRITICAL();
-                SL_SOCKET_FD_CLR(slSockets[i], &efds);
-                new_highest();
-                portEXIT_CRITICAL();
-                /* currently we don't handle any errors */
-            }
+            portEXIT_CRITICAL();
+        }
+        if (SL_SOCKET_FD_ISSET(slSockets[i], &efds_tmp))
+        {
+            --result;
+            portENTER_CRITICAL();
+            SL_SOCKET_FD_CLR(slSockets[i], &efds);
+            new_highest();
+            portEXIT_CRITICAL();
         }
     }
 }
@@ -1086,39 +1035,7 @@ void CC32xxWiFi::wlan_task()
  */
 void CC32xxWiFi::select_wakeup()
 {
-    if (wakeup >= 0)
-    {
-        SlSockAddrIn_t address;
-        SlSocklen_t length = sizeof(SlSockAddr_t);
-        address.sin_family = SL_AF_INET;
-        address.sin_port = sl_Htons(8000);
-        address.sin_addr.s_addr = sl_Htonl(SL_IPV4_VAL(127,0,0,1));
-
-        /* note that loopback messages only work as long as the we are
-         * connected to an AP, or acting as an AP ourselves.  If neither of
-         * these is the case, the wakeup of sl_Select() using this method is
-         * not necessary.  The sl_Select() API has a timeout to maintain state
-         * periodically.
-         */
-        char data = -1;
-        ssize_t result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
-                                   length);
-        while (result != 1 && connected)
-        {
-            usleep(MSEC_TO_USEC(50));
-            result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
-                               length);
-        }
-    }
-}
-
-void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
-{
-    {
-        OSMutexLock l(&lock_);
-        callbacks_.emplace_back(std::move(callback));
-    }
-    select_wakeup();
+    process_select();
 }
 
 /*
@@ -1395,6 +1312,7 @@ void CC32xxWiFi::trigger_event_handler(SockTriggerEvent *event)
 
     LOG(INFO, "Socket trigger event %u %d", (unsigned)event->Event,
         (unsigned)event->EventData);
+    process_select();
 }
 
 /*

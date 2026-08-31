@@ -1189,6 +1189,8 @@ typedef OsiLockObj_t                            _SlLockObj_t;
 
 #define sl_SockEvtHdlr         SimpleLinkSockEventHandler
 
+#define slcb_SocketTriggerEventHandler SimpleLinkSocketTriggerEventHandler
+
 
 /*!
 
