@@ -160,6 +160,18 @@ size_t hex_to_string(
 ///
 string mac_to_string(uint8_t mac[6], char colon = ':');
 
+/// Formats a 48-bit OpenLCB Node ID to string.
+/// @param id 48-bit node ID
+/// @param colon separator character (default '.')
+/// @return a string containing hexadecimal representation with separators.
+string node_id_to_string(uint64_t id, char colon = '.');
+
+/// Formats a 64-bit OpenLCB Event ID to string.
+/// @param evt 64-bit event ID
+/// @param colon separator character (default '.')
+/// @return a string containing hexadecimal representation with separators.
+string event_id_to_string(uint64_t evt, char colon = '.');
+
 /// Formats an IPv4 address to string.
 ///
 /// @param ip a 4-byte array storing the IPv4 address. ip[3] will be printed

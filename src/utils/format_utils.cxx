@@ -318,6 +318,48 @@ string mac_to_string(uint8_t mac[6], char colon)
     return ret;
 }
 
+string node_id_to_string(uint64_t id, char colon)
+{
+    uint8_t mac[6];
+    mac[0] = (id >> 40) & 0xFF;
+    mac[1] = (id >> 32) & 0xFF;
+    mac[2] = (id >> 24) & 0xFF;
+    mac[3] = (id >> 16) & 0xFF;
+    mac[4] = (id >> 8) & 0xFF;
+    mac[5] = id & 0xFF;
+    return mac_to_string(mac, colon);
+}
+
+string event_id_to_string(uint64_t evt, char colon)
+{
+    uint8_t bytes[8];
+    for (int i = 0; i < 8; ++i)
+    {
+        bytes[i] = (evt >> ((7 - i) * 8)) & 0xFF;
+    }
+    string ret;
+    ret.reserve(16 + 8);
+    char tmp[10];
+    for (int i = 0; i < 8; ++i)
+    {
+        unsigned_integer_to_buffer_hex(bytes[i], tmp);
+        if (!tmp[1])
+        {
+            ret.push_back('0');
+        }
+        ret += tmp;
+        if (colon)
+        {
+            ret.push_back(colon);
+        }
+    }
+    if (colon)
+    {
+        ret.pop_back();
+    }
+    return ret;
+}
+
 string ipv4_to_string(uint8_t ip[4])
 {
     string ret;
