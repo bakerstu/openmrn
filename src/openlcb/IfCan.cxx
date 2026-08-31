@@ -113,12 +113,6 @@ public:
     {
         uint32_t id = GET_CAN_FRAME_ID_EFF(*message()->data());
         release();
-        if (CanDefs::get_priority(id) != CanDefs::NORMAL_PRIORITY)
-        {
-            // Probably not an OpenLCB frame.
-            /// @TODO(balazs.racz) this is wrong. it IS an openlcb frame.
-            return exit();
-        }
         NodeAlias alias = CanDefs::get_src(id);
         // If the caller comes with alias 000, we ignore that.
         NodeID node = alias ? if_can()->local_aliases()->lookup(alias) : 0;
@@ -492,11 +486,9 @@ public:
     {
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
             (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
-            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
-            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
+            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT),
         CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
             CanDefs::CAN_FRAME_TYPE_MASK | CanDefs::FRAME_TYPE_MASK |
-            CanDefs::PRIORITY_MASK |
             (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
@@ -571,11 +563,9 @@ public:
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
             (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
             (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
-            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT) |
             (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT),
         CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
             CanDefs::CAN_FRAME_TYPE_MASK | CanDefs::FRAME_TYPE_MASK |
-            CanDefs::PRIORITY_MASK |
             (Defs::MTI_ADDRESS_MASK << CanDefs::MTI_SHIFT)
     };
 
