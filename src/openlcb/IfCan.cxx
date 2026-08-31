@@ -211,83 +211,147 @@ class RemoteAliasCacheUpdater : public CanFrameStateFlow
 public:
     enum
     {
-        CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
+        /// Filter for CAN Control Messages (AMD_FRAME, AMR_FRAME).
+        CAN_FILTER_CONTROL = CanMessageData::CAN_EXT_FRAME_FILTER |
             (CanDefs::CONTROL_MSG << CanDefs::FRAME_TYPE_SHIFT),
-        CAN_MASK =
-            CanMessageData::CAN_EXT_FRAME_MASK | CanDefs::FRAME_TYPE_MASK,
+        CAN_MASK_CONTROL = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::FRAME_TYPE_MASK,
+
+        /// Filter for Node Initialization Complete messages (0x0100 & 0x0101).
+        CAN_FILTER_INIT = CanMessageData::CAN_EXT_FRAME_FILTER |
+            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+            (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
+            (Defs::MTI_INITIALIZATION_COMPLETE << CanDefs::MTI_SHIFT),
+        CAN_MASK_INIT = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::FRAME_TYPE_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
+            (0x0FFE << CanDefs::MTI_SHIFT),
+
+        /// Filter for Verified Node ID messages (0x0170 & 0x0171).
+        CAN_FILTER_VERIFY = CanMessageData::CAN_EXT_FRAME_FILTER |
+            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+            (CanDefs::GLOBAL_ADDRESSED << CanDefs::CAN_FRAME_TYPE_SHIFT) |
+            (Defs::MTI_VERIFIED_NODE_ID_NUMBER << CanDefs::MTI_SHIFT),
+        CAN_MASK_VERIFY = CanMessageData::CAN_EXT_FRAME_MASK |
+            CanDefs::FRAME_TYPE_MASK | CanDefs::CAN_FRAME_TYPE_MASK |
+            (0x0FFE << CanDefs::MTI_SHIFT),
     };
 
+    /// Constructor. Registers handlers for control, init, and verify CAN
+    /// frames.
+    /// @param service CAN interface instance to register with.
     RemoteAliasCacheUpdater(IfCan *service)
         : CanFrameStateFlow(service)
     {
         if_can()->frame_dispatcher()->register_handler(
-            this, CAN_FILTER, CAN_MASK);
+            this, CAN_FILTER_CONTROL, CAN_MASK_CONTROL);
+        if_can()->frame_dispatcher()->register_handler(
+            this, CAN_FILTER_INIT, CAN_MASK_INIT);
+        if_can()->frame_dispatcher()->register_handler(
+            this, CAN_FILTER_VERIFY, CAN_MASK_VERIFY);
     }
 
+    /// Destructor. Unregisters all handlers from the frame dispatcher.
     ~RemoteAliasCacheUpdater()
     {
         if_can()->frame_dispatcher()->unregister_handler(
-            this, CAN_FILTER, CAN_MASK);
+            this, CAN_FILTER_CONTROL, CAN_MASK_CONTROL);
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, CAN_FILTER_INIT, CAN_MASK_INIT);
+        if_can()->frame_dispatcher()->unregister_handler(
+            this, CAN_FILTER_VERIFY, CAN_MASK_VERIFY);
     }
 
+    /// StateFlow entry point for processing incoming CAN frames.
+    /// @return Action to release the message buffer and exit the state flow.
     Action entry() OVERRIDE
     {
         struct can_frame *f = message()->data();
         uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
-        if (CanDefs::get_frame_type(id) != CanDefs::CONTROL_MSG)
-            return release_and_exit();
-        auto control_field = CanDefs::get_control_field(id);
         NodeAlias alias = CanDefs::get_src(id);
         if (!alias)
         {
             return release_and_exit();
         }
+
         NodeID node_id = 0;
         if (f->can_dlc == 6)
         {
             node_id = data_to_node_id(f->data);
         }
-        switch (control_field)
+
+        auto frame_type = CanDefs::get_frame_type(id);
+        if (frame_type == CanDefs::CONTROL_MSG)
         {
-            case CanDefs::AMD_FRAME:
+            auto control_field = CanDefs::get_control_field(id);
+            switch (control_field)
             {
-                if (!node_id)
+                case CanDefs::AMD_FRAME:
                 {
-                    return release_and_exit();
+                    add_alias(node_id, alias);
+                    break;
                 }
-                NodeAlias old_alias =
-                    if_can()->remote_aliases()->lookup(node_id);
-                if (old_alias == alias)
+                case CanDefs::AMR_FRAME:
                 {
-                    // No change.
-                    return release_and_exit();
-                }
-                if (old_alias)
-                {
-                    if_can()->remote_aliases()->remove(old_alias);
-                }
-                if_can()->remote_aliases()->add(node_id, alias);
-                return release_and_exit();
-            }
-            case CanDefs::AMR_FRAME:
-            {
-                if (node_id)
-                {
-                    NodeAlias old_alias =
-                        if_can()->remote_aliases()->lookup(node_id);
-                    if (old_alias && old_alias != alias)
+                    if (node_id)
                     {
-                        if_can()->remote_aliases()->remove(old_alias);
+                        NodeAlias old_alias =
+                            if_can()->remote_aliases()->lookup(node_id);
+                        if (old_alias && old_alias != alias)
+                        {
+                            if_can()->remote_aliases()->remove(old_alias);
+                        }
                     }
+                    if_can()->remote_aliases()->remove(alias);
+                    break;
                 }
-                if_can()->remote_aliases()->remove(alias);
-                return release_and_exit();
+                default:
+                    break;
             }
-            default: // ignore
-                ;
+        }
+        else if (frame_type == CanDefs::NMRANET_MSG)
+        {
+            Defs::MTI mti = static_cast<Defs::MTI>(CanDefs::get_mti(id));
+            switch (mti)
+            {
+                case Defs::MTI_INITIALIZATION_COMPLETE:
+                case Defs::MTI_INITIALIZATION_COMPLETE_SIMPLE:
+                case Defs::MTI_VERIFIED_NODE_ID_NUMBER:
+                case Defs::MTI_VERIFIED_NODE_ID_SIMPLE:
+                {
+                    add_alias(node_id, alias);
+                    break;
+                }
+                default:
+                    break;
+            }
         }
 
         return release_and_exit();
+    }
+
+private:
+    /// Helper method to insert or update a NodeID to NodeAlias mapping in the
+    /// cache. Removes any previous alias associated with the given NodeID
+    /// before adding the new mapping.
+    /// @param node_id Node ID to associate.
+    /// @param alias Alias to associate with the Node ID.
+    void add_alias(NodeID node_id, NodeAlias alias)
+    {
+        if (!node_id || !alias)
+        {
+            return;
+        }
+        NodeAlias old_alias = if_can()->remote_aliases()->lookup(node_id);
+        if (old_alias == alias)
+        {
+            // No change.
+            return;
+        }
+        if (old_alias)
+        {
+            if_can()->remote_aliases()->remove(old_alias);
+        }
+        if_can()->remote_aliases()->add(node_id, alias);
     }
 };
 

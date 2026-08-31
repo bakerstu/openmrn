@@ -152,6 +152,68 @@ TEST_F(AsyncIfTest, RemoteAliasLearnedPriorityBitZero)
     });
 }
 
+TEST_F(AsyncIfTest, RemoteAliasLearnedFromVerifiedNodeID)
+{
+    send_packet(":X19170782N010203040506;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x782U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
+        EXPECT_EQ(UINT64_C(0x010203040506),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+    });
+
+    send_packet(":X19171783N010203040507;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x783U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040507)));
+        EXPECT_EQ(UINT64_C(0x010203040507),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x783U)));
+    });
+
+    // Priority bit 0 (0x09170...) frame must also be learned.
+    send_packet(":X09170786N01020304050A;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x786U, ifCan_->remote_aliases()->lookup(UINT64_C(0x01020304050A)));
+        EXPECT_EQ(UINT64_C(0x01020304050A),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x786U)));
+    });
+}
+
+TEST_F(AsyncIfTest, RemoteAliasLearnedFromInitializationComplete)
+{
+    send_packet(":X19100784N010203040508;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x784U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040508)));
+        EXPECT_EQ(UINT64_C(0x010203040508),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x784U)));
+    });
+
+    send_packet(":X19101785N010203040509;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x785U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040509)));
+        EXPECT_EQ(UINT64_C(0x010203040509),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x785U)));
+    });
+
+    // Priority bit 0 (0x09100...) frame must also be learned.
+    send_packet(":X09100787N01020304050B;");
+    wait();
+    RX({
+        EXPECT_EQ(
+            0x787U, ifCan_->remote_aliases()->lookup(UINT64_C(0x01020304050B)));
+        EXPECT_EQ(UINT64_C(0x01020304050B),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x787U)));
+    });
+}
+
 TEST_F(AsyncIfTest, AMEReceiveSupport)
 {
     // Example virtual node.
