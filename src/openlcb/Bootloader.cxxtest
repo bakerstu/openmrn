@@ -606,6 +606,19 @@ TEST_F(BootloaderTest, VerifyGlobal)
     exit_bootloader();
 }
 
+TEST_F(BootloaderTest, PriorityBitZeroBootloader)
+{
+    proper_startup();
+
+    // Verify Addressed with priority 0 (X09...) instead of normal priority 1 (X19...)
+    expect_packet(":X191704AAN1A2A3A4A5A6A;");
+    send_packet(":X09488321N04AA;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
 TEST_F(BootloaderTest, StartWriteAtOffsetZero)
 {
     print_all_packets();
