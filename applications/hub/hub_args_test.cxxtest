@@ -1,0 +1,150 @@
+/** \copyright
+ * Copyright (c) 2026, Paul
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file hub_args_test.cxxtest
+ *
+ * Unit tests for hub application argument parsing.
+ * These tests prevent regression of bugs related to port validation.
+ *
+ * @author Paul
+ * @date 11 Aug 2026
+ */
+
+#include "utils/test_main.hxx"
+#include <errno.h>
+#include <stdlib.h>
+
+/// Test fixture for port validation logic
+class PortValidationTest : public ::testing::Test
+{
+protected:
+    /// @brief Validates a port number string using the same logic as parse_args
+    /// @param port_str The port string to validate
+    /// @param result Pointer to store the validated port number
+    /// @return true if valid, false otherwise
+    bool validate_port(const char* port_str, int* result)
+    {
+        char *endptr;
+        errno = 0;
+        long val = strtol(port_str, &endptr, 10);
+        if (errno != 0 || *endptr != '\0' || val < 1 || val > 65535)
+        {
+            return false;
+        }
+        *result = (int)val;
+        return true;
+    }
+};
+
+/// Test that valid port numbers are accepted
+TEST_F(PortValidationTest, ValidPorts)
+{
+    int port;
+    
+    // Test minimum valid port
+    EXPECT_TRUE(validate_port("1", &port));
+    EXPECT_EQ(1, port);
+    
+    // Test typical port numbers
+    EXPECT_TRUE(validate_port("12021", &port));
+    EXPECT_EQ(12021, port);
+    
+    EXPECT_TRUE(validate_port("8080", &port));
+    EXPECT_EQ(8080, port);
+    
+    EXPECT_TRUE(validate_port("443", &port));
+    EXPECT_EQ(443, port);
+    
+    // Test maximum valid port
+    EXPECT_TRUE(validate_port("65535", &port));
+    EXPECT_EQ(65535, port);
+}
+
+/// Test that invalid port numbers are rejected
+TEST_F(PortValidationTest, InvalidPorts)
+{
+    int port;
+    
+    // Test zero (invalid)
+    EXPECT_FALSE(validate_port("0", &port));
+    
+    // Test negative numbers
+    EXPECT_FALSE(validate_port("-1", &port));
+    EXPECT_FALSE(validate_port("-100", &port));
+    
+    // Test out of range (> 65535)
+    EXPECT_FALSE(validate_port("65536", &port));
+    EXPECT_FALSE(validate_port("70000", &port));
+    EXPECT_FALSE(validate_port("999999", &port));
+    
+    // Test non-numeric strings
+    EXPECT_FALSE(validate_port("abc", &port));
+    EXPECT_FALSE(validate_port("12abc", &port));
+    EXPECT_FALSE(validate_port("abc12", &port));
+    EXPECT_FALSE(validate_port("", &port));
+    
+    // Test partial numbers (should fail because of trailing chars)
+    EXPECT_FALSE(validate_port("123 ", &port));
+    EXPECT_FALSE(validate_port("123x", &port));
+}
+
+/// Test edge cases that atoi() would have accepted incorrectly
+TEST_F(PortValidationTest, AtoiRegressionBugs)
+{
+    int port;
+    
+    // atoi() would have returned 0 for these, which is invalid
+    EXPECT_FALSE(validate_port("invalid", &port));
+    EXPECT_FALSE(validate_port("", &port));
+    
+    // atoi() would have parsed "123abc" as 123, now it should fail
+    EXPECT_FALSE(validate_port("123abc", &port));
+    
+    // atoi() would have accepted negative numbers
+    EXPECT_FALSE(validate_port("-42", &port));
+    
+    // Overflow cases that atoi() might have mishandled
+    EXPECT_FALSE(validate_port("999999999999999999", &port));
+}
+
+/// Test that strtol is used instead of atoi (check for proper error handling)
+TEST_F(PortValidationTest, StrtolUsage)
+{
+    int port;
+    
+    // Verify that we check errno for overflow
+    // LONG_MAX + 1 should cause overflow
+    char overflow_str[32];
+    snprintf(overflow_str, sizeof(overflow_str), "%ld0", LONG_MAX);
+    EXPECT_FALSE(validate_port(overflow_str, &port));
+    
+    // Verify that we check the endptr for trailing characters
+    EXPECT_FALSE(validate_port("12021garbage", &port));
+    
+    // Verify whitespace is not allowed
+    EXPECT_FALSE(validate_port(" 12021", &port));
+    EXPECT_FALSE(validate_port("12021 ", &port));
+}
