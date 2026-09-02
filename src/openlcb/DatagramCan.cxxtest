@@ -1014,7 +1014,6 @@ TEST_F(TwoNodeDatagramTest, PingPongTestOne)
 {
     print_all_packets();
     setup_other_node(true);
-    expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1055,7 +1054,6 @@ TEST_F(TwoNodeDatagramTest, PingPongTestError)
 {
     print_all_packets();
     setup_other_node(true);
-    expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1088,7 +1086,6 @@ TEST_F(TwoNodeDatagramTest, PingPongTestLoopback)
 {
     print_all_packets();
     setup_other_node(false);
-    // expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1122,7 +1119,6 @@ TEST_F(TwoNodeDatagramTest, PingPongLoopbackError)
 {
     print_all_packets();
     setup_other_node(false);
-    // expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1151,7 +1147,6 @@ TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
 {
     print_all_packets();
     setup_other_node(true);
-    expect_other_node_lookup();
 
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{OTHER_NODE_ID, 0};
