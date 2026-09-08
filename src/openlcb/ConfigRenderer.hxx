@@ -291,7 +291,7 @@ public:
         if (opts.hidden())
         {
             EmptyGroupConfigRenderer(
-                size_ == SKIP_SIZE ? sizeof(uint64_t) : size_)
+                (size_ == SKIP_SIZE ? sizeof(uint64_t) : size_) + opts.offset())
                 .render_cdi(s);
             return;
         }
@@ -419,7 +419,7 @@ public:
         if (opts.hidden())
         {
             EmptyGroupConfigRenderer(
-                size_ == SKIP_SIZE ? sizeof(uint64_t) : size_)
+                (size_ == SKIP_SIZE ? sizeof(uint64_t) : size_) + opts.offset())
                 .render_cdi(s);
             return;
         }
@@ -468,7 +468,8 @@ public:
         {
             if (!opts.is_segment())
             {
-                EmptyGroupConfigRenderer(Body::size() * replication_)
+                EmptyGroupConfigRenderer(
+                    (Body::size() * replication_) + opts.offset())
                     .render_cdi(s);
             }
             return;
