@@ -416,7 +416,9 @@ public:
 
     template <typename... Args> void render_cdi(string *s, Args... args) const
     {
-        *s += StringPrintf("<group offset='%d'/>\n", size_);
+        GroupConfigOptions opts(args...);
+        int ofs = size_ + opts.offset();
+        *s += StringPrintf("<group offset='%d'/>\n", ofs);
     }
 
 private:
@@ -446,7 +448,7 @@ public:
             if (!opts.is_segment())
             {
                 EmptyGroupConfigRenderer(Body::size() * replication_)
-                    .render_cdi(s);
+                    .render_cdi(s, opts);
             }
             return;
         }
