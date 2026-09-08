@@ -115,6 +115,41 @@ TEST(ConfigRenderer, IntWithMax)
     EXPECT_EQ("<int size='1'>\n<name>fffoo</name>\n<max>21</max>\n</int>\n", s);
 }
 
+TEST(ConfigRenderer, HiddenAtomicEntriesDirect)
+{
+    using Hidden = AtomConfigOptions::Hidden;
+    {
+        auto rnd = Uint8ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='1'/>\n", s);
+    }
+    {
+        auto rnd = Uint16ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='2'/>\n", s);
+    }
+    {
+        auto rnd = Uint32ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='4'/>\n", s);
+    }
+    {
+        auto rnd = StringConfigEntry<16>(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, AtomConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='16'/>\n", s);
+    }
+    {
+        auto rnd = EventConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, AtomConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='8'/>\n", s);
+    }
+}
+
 CDI_GROUP(TestGroup, Name("testgroup"), Description("test group desc"),
           RepName("foorep"), FixedSize(6));
 CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
@@ -225,6 +260,37 @@ TEST(ComplexGroupRender, HiddenRepeatedGroupRender)
 )";
     string s;
     TestNodeConfigWithHiddenRepeatedGroup cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+}
+
+CDI_GROUP(TestNodeConfigWithHiddenAtomicEntries, Name("node_config"));
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry, Name("Version"));
+CDI_GROUP_ENTRY(hidden_u8, Uint8ConfigEntry, Hidden(true));
+CDI_GROUP_ENTRY(hidden_u16, Uint16ConfigEntry, Hidden(true));
+CDI_GROUP_ENTRY(hidden_event, EventConfigEntry, Hidden(true));
+CDI_GROUP_ENTRY(hidden_string, StringConfigEntry<20>, Hidden(true));
+CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
+CDI_GROUP_END();
+
+TEST(ComplexGroupRender, HiddenAtomicEntriesGroupRender)
+{
+    const char kExpectedTestNodeCdi[] =
+        R"(<group>
+<name>node_config</name>
+<int size='1'>
+<name>Version</name>
+</int>
+<group offset='1'/>
+<group offset='2'/>
+<group offset='8'/>
+<group offset='20'/>
+<int size='1'>
+</int>
+</group>
+)";
+    string s;
+    TestNodeConfigWithHiddenAtomicEntries cfg(0);
     cfg.config_renderer().render_cdi(&s);
     EXPECT_EQ(kExpectedTestNodeCdi, s);
 }
