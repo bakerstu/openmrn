@@ -470,8 +470,7 @@ public:
         {
             if (!opts.is_segment())
             {
-                EmptyGroupConfigRenderer(
-                    (Body::size() * replication_) + opts.offset())
+                EmptyGroupConfigRenderer((Body::size() * replication_))
                     .render_cdi(s, opts);
             }
             return;
