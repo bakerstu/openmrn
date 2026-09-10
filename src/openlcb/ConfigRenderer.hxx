@@ -55,8 +55,9 @@ struct AtomConfigDefs
     DECLARE_OPTIONALARG(Hints, hints, const char *, 3, nullptr);
     DECLARE_OPTIONALARG(SkipInit, skip_init, int, 15, 0);
     DECLARE_OPTIONALARG(Offset, offset, int, 10, 0);
+    DECLARE_OPTIONALARG(Hidden, hidden, int, 14, 0);
     using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues,
-                             Hints, SkipInit, Offset>;
+                             Hints, SkipInit, Offset, Hidden>;
 };
 
 /// Configuration implementation class for CDI Atom elements (strings, events
@@ -81,6 +82,9 @@ public:
     /// Represents the 'offset' attribute for groups and elements and the
     /// 'origin' attribute for segments.
     DEFINE_OPTIONALARG(Offset, offset, int);
+    /// If non-zero, the entry will not be rendered as an atom element in the CDI,
+    /// but as an EmptyGroupConfigRenderer with the entry's size.
+    DEFINE_OPTIONALARG(Hidden, hidden, int);
 
 
     void render_cdi(std::string *r) const
@@ -103,166 +107,6 @@ public:
             *r += StringPrintf("<hints>%s</hints>\n", hints());
         }
     }
-};
-
-/// Helper class for rendering an atom data element into the cdi.xml.
-class AtomConfigRenderer
-{
-public:
-    enum
-    {
-        SKIP_SIZE = 0xffffffff,
-    };
-
-    typedef AtomConfigOptions OptionsType;
-
-    constexpr AtomConfigRenderer(const char *tag, unsigned size)
-        : tag_(tag)
-        , size_(size)
-    {
-    }
-
-    template <typename... Args> void render_cdi(string *s, Args... args) const
-    {
-        *s += StringPrintf("<%s", tag_);
-        if (size_ != SKIP_SIZE)
-        {
-            *s += StringPrintf(" size=\'%u\'", size_);
-        }
-        int ofs = AtomConfigOptions(args...).offset();
-        if (ofs != 0)
-        {
-            *s += StringPrintf(" offset=\'%d\'", ofs);
-        }
-        *s += ">\n";
-        AtomConfigOptions(args...).render_cdi(s);
-        *s += StringPrintf("</%s>\n", tag_);
-    }
-
-private:
-    /// XML tag for this atom.
-    const char *tag_;
-    /// The size attribute of the configuration atom.
-    unsigned size_;
-};
-
-/// Declarations for the options for numeric CDI entries.
-struct NumericConfigDefs : public AtomConfigDefs
-{
-    // This is needed for inheriting declarations.
-    using AtomConfigDefs::check_arguments_are_valid;
-    DECLARE_OPTIONALARG(Min, minvalue, int, 6, INT_MAX);
-    DECLARE_OPTIONALARG(Max, maxvalue, int, 7, INT_MAX);
-    DECLARE_OPTIONALARG(Default, defaultvalue, int, 8, INT_MAX);
-    using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues,
-                             Hints, Min, Max, Default, SkipInit, Offset>;
-};
-
-/// Definitions for the options for numeric CDI entries.
-class NumericConfigOptions : public NumericConfigDefs::Base
-{
-public:
-    INHERIT_CONSTEXPR_CONSTRUCTOR(
-        NumericConfigOptions, NumericConfigDefs::Base);
-
-    /// Represent the value enclosed in the "<name>" tag of the data element.
-    DEFINE_OPTIONALARG(Name, name, const char *);
-    /// Represent the value enclosed in the <description> tag of the data
-    /// element.
-    DEFINE_OPTIONALARG(Description, description, const char *);
-    /// Represent the value enclosed in the <map> tag of the data element.
-    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
-    /// Represent the value enclosed in the <hints> tag of the data element.
-    DEFINE_OPTIONALARG(Hints, hints, const char *);
-    DEFINE_OPTIONALARG(Min, minvalue, int);
-    DEFINE_OPTIONALARG(Max, maxvalue, int);
-    DEFINE_OPTIONALARG(Default, defaultvalue, int);
-    DEFINE_OPTIONALARG(SkipInit, skip_init, int);
-    DEFINE_OPTIONALARG(Offset, offset, int);
-
-    void render_cdi(std::string *r) const
-    {
-        if (name())
-        {
-            *r += StringPrintf("<name>%s</name>\n", name());
-        }
-        if (description())
-        {
-            *r +=
-                StringPrintf("<description>%s</description>\n", description());
-        }
-        if (hints())
-        {
-            *r += StringPrintf("<hints>%s</hints>\n", hints());
-        }
-        if (minvalue() != INT_MAX)
-        {
-            *r += StringPrintf("<min>%d</min>\n", minvalue());
-        }
-        if (maxvalue() != INT_MAX)
-        {
-            *r += StringPrintf("<max>%d</max>\n", maxvalue());
-        }
-        if (defaultvalue() != INT_MAX)
-        {
-            *r += StringPrintf("<default>%d</default>\n", defaultvalue());
-        }
-        if (mapvalues())
-        {
-            *r += StringPrintf("<map>%s</map>\n", mapvalues());
-        }
-    }
-
-    int clip(int value) {
-        if (has_minvalue() && (value < minvalue())) {
-            value = minvalue();
-        }
-        if (has_maxvalue() && (value > maxvalue())) {
-            value = maxvalue();
-        }
-        return value;
-    }
-};
-
-/// Helper class for rendering a numeric data element into the cdi.xml.
-class NumericConfigRenderer
-{
-public:
-    enum
-    {
-        SKIP_SIZE = 0xffffffff,
-    };
-
-    typedef NumericConfigOptions OptionsType;
-
-    constexpr NumericConfigRenderer(const char *tag, unsigned size)
-        : tag_(tag)
-        , size_(size)
-    {
-    }
-
-    template <typename... Args> void render_cdi(string *s, Args... args) const
-    {
-        *s += StringPrintf("<%s", tag_);
-        if (size_ != SKIP_SIZE)
-        {
-            *s += StringPrintf(" size=\'%u\'", size_);
-        }
-        int ofs = NumericConfigOptions(args...).offset();
-        if (ofs != 0)
-        {
-            *s += StringPrintf(" offset=\'%d\'", ofs);
-        }
-        *s += ">\n";
-        NumericConfigOptions(args...).render_cdi(s);
-        *s += StringPrintf("</%s>\n", tag_);
-    }
-
-private:
-    /// XML tag for this atom.
-    const char *tag_;
-    /// The size attribute of the configuration atom.
-    unsigned size_;
 };
 
 /// Configuration options for the CDI group element, as well as representing
@@ -426,6 +270,185 @@ private:
     int size_;
 };
 
+/// Helper class for rendering an atom data element into the cdi.xml.
+class AtomConfigRenderer
+{
+public:
+    enum
+    {
+        SKIP_SIZE = 0xffffffff,
+    };
+
+    typedef AtomConfigOptions OptionsType;
+
+    constexpr AtomConfigRenderer(const char *tag, unsigned size)
+        : tag_(tag)
+        , size_(size)
+    {
+    }
+
+    template <typename... Args> void render_cdi(string *s, Args... args) const
+    {
+        AtomConfigOptions opts(args...);
+        if (opts.hidden())
+        {
+            EmptyGroupConfigRenderer(
+                (size_ == SKIP_SIZE ? sizeof(uint64_t) : size_) + opts.offset())
+                .render_cdi(s);
+            return;
+        }
+        *s += StringPrintf("<%s", tag_);
+        if (size_ != SKIP_SIZE)
+        {
+            *s += StringPrintf(" size=\'%u\'", size_);
+        }
+        int ofs = opts.offset();
+        if (ofs != 0)
+        {
+            *s += StringPrintf(" offset=\'%d\'", ofs);
+        }
+        *s += ">\n";
+        opts.render_cdi(s);
+        *s += StringPrintf("</%s>\n", tag_);
+    }
+
+private:
+    /// XML tag for this atom.
+    const char *tag_;
+    /// The size attribute of the configuration atom.
+    unsigned size_;
+};
+
+/// Declarations for the options for numeric CDI entries.
+struct NumericConfigDefs : public AtomConfigDefs
+{
+    // This is needed for inheriting declarations.
+    using AtomConfigDefs::check_arguments_are_valid;
+    DECLARE_OPTIONALARG(Min, minvalue, int, 6, INT_MAX);
+    DECLARE_OPTIONALARG(Max, maxvalue, int, 7, INT_MAX);
+    DECLARE_OPTIONALARG(Default, defaultvalue, int, 8, INT_MAX);
+    using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues,
+                             Hints, Min, Max, Default, SkipInit, Offset, Hidden>;
+};
+
+/// Definitions for the options for numeric CDI entries.
+class NumericConfigOptions : public NumericConfigDefs::Base
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(
+        NumericConfigOptions, NumericConfigDefs::Base);
+
+    /// Represent the value enclosed in the "<name>" tag of the data element.
+    DEFINE_OPTIONALARG(Name, name, const char *);
+    /// Represent the value enclosed in the <description> tag of the data
+    /// element.
+    DEFINE_OPTIONALARG(Description, description, const char *);
+    /// Represent the value enclosed in the <map> tag of the data element.
+    DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
+    /// Represent the value enclosed in the <hints> tag of the data element.
+    DEFINE_OPTIONALARG(Hints, hints, const char *);
+    DEFINE_OPTIONALARG(Min, minvalue, int);
+    DEFINE_OPTIONALARG(Max, maxvalue, int);
+    DEFINE_OPTIONALARG(Default, defaultvalue, int);
+    DEFINE_OPTIONALARG(SkipInit, skip_init, int);
+    DEFINE_OPTIONALARG(Offset, offset, int);
+    DEFINE_OPTIONALARG(Hidden, hidden, int);
+
+    void render_cdi(std::string *r) const
+    {
+        if (name())
+        {
+            *r += StringPrintf("<name>%s</name>\n", name());
+        }
+        if (description())
+        {
+            *r +=
+                StringPrintf("<description>%s</description>\n", description());
+        }
+        if (hints())
+        {
+            *r += StringPrintf("<hints>%s</hints>\n", hints());
+        }
+        if (minvalue() != INT_MAX)
+        {
+            *r += StringPrintf("<min>%d</min>\n", minvalue());
+        }
+        if (maxvalue() != INT_MAX)
+        {
+            *r += StringPrintf("<max>%d</max>\n", maxvalue());
+        }
+        if (defaultvalue() != INT_MAX)
+        {
+            *r += StringPrintf("<default>%d</default>\n", defaultvalue());
+        }
+        if (mapvalues())
+        {
+            *r += StringPrintf("<map>%s</map>\n", mapvalues());
+        }
+    }
+
+    int clip(int value) {
+        if (has_minvalue() && (value < minvalue())) {
+            value = minvalue();
+        }
+        if (has_maxvalue() && (value > maxvalue())) {
+            value = maxvalue();
+        }
+        return value;
+    }
+};
+
+/// Helper class for rendering a numeric data element into the cdi.xml.
+class NumericConfigRenderer
+{
+public:
+    enum
+    {
+        SKIP_SIZE = 0xffffffff,
+    };
+
+    typedef NumericConfigOptions OptionsType;
+
+    constexpr NumericConfigRenderer(const char *tag, unsigned size)
+        : tag_(tag)
+        , size_(size)
+    {
+    }
+
+    template <typename... Args> void render_cdi(string *s, Args... args) const
+    {
+        NumericConfigOptions opts(args...);
+        if (opts.hidden())
+        {
+            EmptyGroupConfigRenderer(
+                (size_ == SKIP_SIZE ? sizeof(uint64_t) : size_) + opts.offset())
+                .render_cdi(s);
+            return;
+        }
+        *s += StringPrintf("<%s", tag_);
+        if (size_ != SKIP_SIZE)
+        {
+            *s += StringPrintf(" size=\'%u\'", size_);
+        }
+        int ofs = opts.offset();
+        if (ofs != 0)
+        {
+            *s += StringPrintf(" offset=\'%d\'", ofs);
+        }
+        *s += ">\n";
+        opts.render_cdi(s);
+        *s += StringPrintf("</%s>\n", tag_);
+    }
+
+private:
+    /// XML tag for this atom.
+    const char *tag_;
+    /// The size attribute of the configuration atom.
+    unsigned size_;
+};
+
+
+
 /// Helper class for rendering the cdi.xml of groups, segments and the toplevel
 /// CDI node.
 template <class Body> class GroupConfigRenderer
@@ -447,7 +470,8 @@ public:
         {
             if (!opts.is_segment())
             {
-                EmptyGroupConfigRenderer(Body::size() * replication_)
+                EmptyGroupConfigRenderer(
+                    (Body::size() * replication_) + opts.offset())
                     .render_cdi(s, opts);
             }
             return;
