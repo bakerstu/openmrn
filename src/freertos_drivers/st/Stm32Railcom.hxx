@@ -243,10 +243,12 @@ private:
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
 
             // Configures the EXTI
+            /*
             LL_EXTI_DisableIT_0_31(HW::RAILCOM_DIR_EXTI[i]);
             LL_EXTI_DisableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
             LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
             LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            */
 
             // configure DMA
 
@@ -317,12 +319,14 @@ private:
                 dma_ch(i)->CCR |= DMA_CCR_EN; // enable DMA
 
                 // Sets up the direction flag.
+                /*
                 LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
                 LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
                 LL_EXTI_EnableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
+                */
             }
         }
-        LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
+        //LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
         Debug::RailcomDriverCutout::set(true);
     }
 
