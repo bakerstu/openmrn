@@ -53,14 +53,21 @@
 #define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
                              GPIO.enable.data & \
                              BIT(pin & SOC_GPIO_VALID_OUTPUT_GPIO_MASK))
-#else // NOT ESP32-C3
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+/// Helper macro to test if a pin has been configured for output.
+///
+/// This is necessary since ESP-IDF does not expose gpio_get_direction(pin).
+#define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
+                             GPIO.enable.val &                                 \
+                             BIT(pin & SOC_GPIO_VALID_OUTPUT_GPIO_MASK))
+#else // NOT ESP32-C3 / ESP32-C6
 /// Helper macro to test if a pin has been configured for output.
 ///
 /// This is necessary since ESP-IDF does not expose gpio_get_direction(pin).
 #define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
                              (pin < 32) ? GPIO.enable & BIT(pin & 31) :        \
                                           GPIO.enable1.data & BIT(pin & 31))
-#endif // CONFIG_IDF_TARGET_ESP32C3
+#endif // CONFIG_IDF_TARGET_ESP32C3 / CONFIG_IDF_TARGET_ESP32C6
 
 template <class Defs, bool SAFE_VALUE, bool INVERT> struct GpioOutputPin;
 template <class Defs, bool PUEN, bool PDEN> struct GpioInputPin;
@@ -97,6 +104,11 @@ public:
     // these pins are connected to the embedded flash and are not exposed on
     // the DevKitM-1 board.
     static_assert(!(PIN_NUM >= 11 && PIN_NUM <= 17)
+                , "Pin is reserved for flash usage.");
+#elif CONFIG_IDF_TARGET_ESP32C6
+    static_assert(PIN_NUM >= 0 && PIN_NUM <= 30, "Valid pin range is 0..30.");
+    // these pins are connected to the SPI flash on ESP32-C6 modules.
+    static_assert(!(PIN_NUM >= 24 && PIN_NUM <= 30)
                 , "Pin is reserved for flash usage.");
 #elif CONFIG_IDF_TARGET_ESP32
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 39, "Valid pin range is 0..39.");
@@ -321,7 +333,7 @@ public:
     static_assert(!PDEN || (PDEN && PIN_NUM != 0),
                   "GPIO 0 typically has a built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#elif CONFIG_IDF_TARGET_ESP32C3
+#elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C6
     // GPIO 9 typically has a pull-up resistor
     static_assert(!PDEN || (PDEN && PIN_NUM != 9),
                   "GPIO 9 typically has a built-in pull-up resistors, "

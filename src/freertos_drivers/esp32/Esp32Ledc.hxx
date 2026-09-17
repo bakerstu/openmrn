@@ -58,9 +58,9 @@ namespace openmrn_arduino
 /// (LED_CHANNEL_0 through LED_CHANNEL_5 or LED_CHANNEL_7 depending on ESP32
 /// variant).
 ///
-/// The ESP32-C3 only supports six channels, whereas other variants support
-/// eight. Creating more than one @ref Esp32Ledc instance will not increase the
-/// number of outputs.
+/// The ESP32-C3 and ESP32-C6 only support six channels, whereas other variants
+/// support eight. Creating more than one @ref Esp32Ledc instance will not
+/// increase the number of outputs.
 ///
 /// Example of usage:
 ///```
