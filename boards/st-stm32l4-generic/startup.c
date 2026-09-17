@@ -145,7 +145,7 @@ __attribute__((
     0,                                 /**< 10 reserved */
     SVC_Handler,                       /**< 11 SV call */
     debug_interrupt_handler,           /**< 12 reserved */
-    0,                                 /**< 13 reserved -- bootloader appentry */
+    reset_handler,                     /**< 13 reserved -- bootloader appentry */
     PendSV_Handler,                    /**< 14 pend SV */
     SysTick_Handler,                   /**< 15 system tick */
     wwdg_interrupt_handler,            /**< 0 Window WatchDog Interrupt */

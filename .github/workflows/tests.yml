@@ -1,0 +1,42 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
+      
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: openmrn
+
+      - name: Checkout googletest
+        uses: actions/checkout@v4
+        with:
+          repository: google/googletest
+          ref: v1.16.0
+          path: googletest
+
+      - name: Install dependent packages
+        run: sudo apt install -y libavahi-client-dev libssl-dev
+
+      - name: Look at proc
+        run: cat /proc/cpuinfo
+        
+      - name: Run tests
+        run: |
+          echo "concurrency: " ${{ github.workflow }}-${{ github.sha }}
+          cd openmrn
+          make -j5 tests-single TESTBLACKLIST="utils/SocketClient.cxxtest openlcb/IfTcp.cxxtest"

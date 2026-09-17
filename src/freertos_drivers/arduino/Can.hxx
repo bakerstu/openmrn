@@ -37,11 +37,13 @@
 #ifndef _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_
 #define _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_
 
-#include "DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 #include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 #include "utils/Atomic.hxx"
+
+namespace openmrn_arduino {
 
 /** Base class for a CAN device for the Arduino environment. */
 class Can : protected Atomic
@@ -51,14 +53,14 @@ public:
     static unsigned numTransmittedPackets_;
 
     /// @return number of CAN frames available for read (input frames).
-    int available()
+    virtual int available()
     {
         return rxBuf->pending();
     }
 
     /// @return number of CAN frames available for write (space in output
     /// buffer).
-    int availableForWrite()
+    virtual int availableForWrite()
     {
         return txBuf->space();
     }
@@ -66,7 +68,7 @@ public:
     /// Read a frame if there is one available.
     /// @param frame will be filled with the input CAN frame.
     /// @return 0 or 1 depending on whether a frame was read or not.
-    int read(struct can_frame *frame)
+    virtual int read(struct can_frame *frame)
     {
         AtomicHolder h(this);
         auto ret = rxBuf->get(frame, 1);
@@ -76,7 +78,7 @@ public:
     /// Send a frame if there is space available.
     /// @param frame the output CAN frame.
     /// @return 0 or 1 depending on whether the write happened or not.
-    int write(const struct can_frame *frame)
+    virtual int write(const struct can_frame *frame)
     {
         AtomicHolder h(this);
         auto ret = txBuf->put(frame, 1);
@@ -124,5 +126,7 @@ protected:
 private:
     DISALLOW_COPY_AND_ASSIGN(Can);
 };
+
+} // namespace openmrn_arduino
 
 #endif /* _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_ */

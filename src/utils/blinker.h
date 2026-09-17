@@ -42,20 +42,20 @@ extern "C" {
 #endif
 
 /// Unexpected IRQ.
-#define BLINK_DIE_UNEXPIRQ 0x800002CA // 3-1-1
+#define BLINK_DIE_UNEXPIRQ 0x8008CA // 3-1-1
 /// Hard fault.
-#define BLINK_DIE_HARDFAULT 0x80000ACA // 3-1-2
+#define BLINK_DIE_HARDFAULT 0x80028CA // 3-1-2
 /// Non-maskable interrupt arrived.
-#define BLINK_DIE_NMI 0x8002A0CA       /* 3-1-3 */
+#define BLINK_DIE_NMI 0x800A8CA       /* 3-1-3 */
 /// SVC interrupt arrived (unexpected).
-#define BLINK_DIE_SVC 0x800AA0CA       /* 3-1-4 */
+#define BLINK_DIE_SVC 0x8002A8CA       /* 3-1-4 */
 /// PendSV interrupt arrived (unexpected).
-#define BLINK_DIE_PENDSV 0x802AA0CA    /* 3-1-5 */
+#define BLINK_DIE_PENDSV 0x800AA8CA    /* 3-1-5 */
 /// Tick interrupt arrived (unexpected).
-#define BLINK_DIE_TICK 0x80AAA0CA      /* 3-1-6 */
+#define BLINK_DIE_TICK 0x802AA8CA      /* 3-1-6 */
 
 /// Out of memory. (sbrk failed to allocate memory).
-#define BLINK_DIE_OUTOFMEM 0x80008CCA // 3-2-1
+#define BLINK_DIE_OUTOFMEM 0x8008CCA // 3-2-1
 /// an ASSERT macro failed.
 #define BLINK_DIE_ASSERT 0x80028CCA  // 3-2-2
 /// Stack overflow.
@@ -70,9 +70,9 @@ extern "C" {
 /// exception).
 #define BLINK_DIE_ABORT 0x8000CCCA  // 3-3
 /// Watchdog timeout.
-#define BLINK_DIE_WATCHDOG 0x8002CCCA // 3-3-1
+#define BLINK_DIE_WATCHDOG 0x8008CCCA // 3-3-1
 /// Unused. (Error during startup).
-#define BLINK_DIE_STARTUP 0x800ACCCA // 3-3-2
+#define BLINK_DIE_STARTUP 0x8028CCCA // 3-3-2
 
 /** Initializes the blinker routine with a specific blinking pattern.
  *

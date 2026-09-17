@@ -48,6 +48,7 @@
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/EventService.hxx"
+#include "openlcb/FilteringCanHubFlow.hxx"
 #include "openlcb/IfCan.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
@@ -263,6 +264,17 @@ public:
         return 0;
     }
 
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    virtual void set_pip(uint64_t pip)
+    {
+    }
+
+    /// Updates the PIP response value to include the firmware update supported
+    /// flag. Call this at the beginning of appl_main() if there is a
+    /// bootloader.
+    void pip_add_firmware_update_support();
+
 protected:
     /// Call this function once after the actual IO ports are set up. Calling
     /// before the executor starts looping is okay.
@@ -290,8 +302,63 @@ protected:
     /// The datagram service bound to the interface object. Owned by
     /// ifaceHolder_;
     DatagramService *datagramService_ {ifaceHolder_->datagram_service()};
-    /// Calls the config listeners with the configuration FD.
-    ConfigUpdateFlow configUpdateFlow_ {iface()};
+    /// Config update listener responsible for executing factory reset on all
+    /// events. It is important that this gets added to the config update
+    /// service at the first position so that any other configuration handler
+    /// would already see the updated event IDs. Some event listeners depend on
+    /// this to be able to override the automatically generated sequential
+    /// event IDs with well-known event IDs.
+    struct FactoryResetEventsHelper : public ConfigUpdateListener
+    {
+        /// Constructor.
+        /// @param parent pointer to parent stack base.
+        FactoryResetEventsHelper(SimpleStackBase *parent)
+            : parent_(parent)
+            , cfg_(0)
+            , hasCfg_(false)
+        {
+        }
+
+        /// Sets the internal configuration data.
+        /// @param cfg internal configuration data.
+        void set_cfg(InternalConfigData cfg)
+        {
+            cfg_ = cfg;
+            hasCfg_ = true;
+        }
+
+        /// {@inheritdoc}
+        UpdateAction apply_configuration(
+            int fd, bool initial_load, BarrierNotifiable *done) override
+        {
+            done->notify();
+            return UPDATED;
+        }
+
+        /// {@inheritdoc}
+        void factory_reset(int fd) override
+        {
+            if (hasCfg_)
+            {
+                parent_->factory_reset_all_events(
+                    cfg_, parent_->node()->node_id(), fd);
+            }
+        }
+
+        /// Pointer to the parent stack base.
+        SimpleStackBase *parent_;
+        /// Internal configuration data.
+        InternalConfigData cfg_;
+        /// True if configuration data has been set.
+        bool hasCfg_;
+    } factoryResetEventsHelper_ {this};
+
+    /// Iplementation of the ConfigUpdateService, which is a singleton. Calls
+    /// the config listeners with the configuration FD to load the config,
+    /// perform update complete, and perform factory reset. The event factory
+    /// reset implementation is added here to guarantee it is the first entry
+    /// in the registered listeners list.
+    ConfigUpdateFlow configUpdateFlow_ {iface(), {&factoryResetEventsHelper_}};
     /// The initialization flow takes care for node startup duties.
     InitializeFlow initFlow_ {&service_};
     /// Dispatches event protocol requests to the event handlers.
@@ -502,7 +569,7 @@ private:
         /// This flow is the connection between the stack and the device
         /// drivers. It also acts as a hub to multiple different clients or CAN
         /// ports.
-        CanHubFlow canHub0_;
+        FilteringCanHubFlow canHub0_;
         /// Implementation of OpenLCB interface.
         IfCan ifCan_;
         /// Datagram service (and clients) matching the interface.
@@ -635,7 +702,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     /// The actual node.
@@ -672,7 +746,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     /// The actual node.
@@ -714,7 +795,14 @@ private:
     /// @return PIP value
     uint64_t get_pip() override
     {
-        return PIP_RESPONSE;
+        return pipHandler_.get_response();
+    }
+
+    /// Sets the PIP response value.
+    /// @param pip new PIP value
+    void set_pip(uint64_t pip) override
+    {
+        pipHandler_.set_response(pip);
     }
 
     TrainService tractionService_ {iface()};

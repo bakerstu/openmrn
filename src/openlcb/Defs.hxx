@@ -102,9 +102,11 @@ struct Defs
         MTI_EXACT                     = 0xFFFF, /**< match mask for a single MTI */
         MTI_NONE                      = 0x0000, /**< invalid MTI */
         MTI_INITIALIZATION_COMPLETE   = 0x0100, /**< initialization complete */
+        MTI_INITIALIZATION_COMPLETE_SIMPLE = 0x0101, /**< initialization complete (simple subset) */
         MTI_VERIFY_NODE_ID_ADDRESSED  = 0x0488, /**< verify a Node ID */
         MTI_VERIFY_NODE_ID_GLOBAL     = 0x0490, /**< verify a Node ID globally */
         MTI_VERIFIED_NODE_ID_NUMBER   = 0x0170, /**< respond to a verify Node ID request */
+        MTI_VERIFIED_NODE_ID_SIMPLE   = 0x0171, /**< respond to a verify Node ID request (simple subset) */
         MTI_OPTIONAL_INTERACTION_REJECTED = 0x0068, /**< rejected request */
         MTI_TERMINATE_DUE_TO_ERROR    = 0x00A8, /**< terminate due to some error */
         MTI_PROTOCOL_SUPPORT_INQUIRY  = 0x0828, /**< inquire on supported protocols */

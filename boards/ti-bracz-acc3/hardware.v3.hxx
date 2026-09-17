@@ -83,8 +83,12 @@ struct Debug {
   typedef DummyPin RailcomPackets;
   typedef DummyPin RailcomCh2Data;
   typedef DummyPin RailcomRxActivate;
+  typedef DummyPin RailComBeforeCutoutTiming;
+  typedef DummyPin RailcomTurnonPhase1;
   typedef DummyPin CapTimerOverflow;
   typedef DummyPin DccPacketFinishedHook;
+  typedef DummyPin DccInCutoutPin;
+  
 
   typedef LED_GOLD_SW_Pin DetectRepeat;
 };

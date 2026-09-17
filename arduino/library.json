@@ -21,15 +21,16 @@
       "type": "git",
       "url": "https://github.com/openmrn/OpenMRNLite"
     },
-    "version": "1.0.3",
+    "version": "2.2.0",
     "license": "BSD-2-Clause",
     "frameworks": "arduino",
-    "platforms": "espressif32",
+    "platforms": ["espressif32", "ststm32", "atmelsam"]
     "build": {
         "srcFilter" : [
             "-<.git/>",
             "-<examples/>",
             "+<*>",
+            "+<ble/*>",
             "+<dcc/*>",
             "+<executor/*>",
             "+<freertos/*>",

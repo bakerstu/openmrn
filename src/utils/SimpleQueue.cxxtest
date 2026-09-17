@@ -122,7 +122,7 @@ protected:
     QTHelper<QT> helper_;
 };
 
-TYPED_TEST_CASE_P(SimpleQueueTest);
+TYPED_TEST_SUITE_P(SimpleQueueTest);
 
 TYPED_TEST_P(SimpleQueueTest, empty) {
     EXPECT_THAT(this->list_queue(&this->q_), ElementsAre());
@@ -202,8 +202,8 @@ TYPED_TEST_P(SimpleQueueTest, reuse) {
     EXPECT_THAT(this->list_queue(&this->q_), ElementsAre(24, 23, 25));
 }
 
-REGISTER_TYPED_TEST_CASE_P(SimpleQueueTest, empty, push_front, pop_front, insert, erase, reuse);
+REGISTER_TYPED_TEST_SUITE_P(SimpleQueueTest, empty, push_front, pop_front, insert, erase, reuse);
 
-INSTANTIATE_TYPED_TEST_CASE_P(Simple, SimpleQueueTest, SimpleQueue);
+INSTANTIATE_TYPED_TEST_SUITE_P(Simple, SimpleQueueTest, SimpleQueue);
 
-INSTANTIATE_TYPED_TEST_CASE_P(Typed, SimpleQueueTest, TypedQueue<ValueQMember>);
+INSTANTIATE_TYPED_TEST_SUITE_P(Typed, SimpleQueueTest, TypedQueue<ValueQMember>);

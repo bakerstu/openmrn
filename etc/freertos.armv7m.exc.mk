@@ -58,6 +58,7 @@ CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
 
 CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
+            -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
             -fno-exceptions
 
@@ -70,7 +71,7 @@ LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            $(ARCHFLAGS) -Os \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
-           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
+           --specs=nano.specs
 
 SYSLIB_SUBDIRS +=
 SYSLIBRARIES +=

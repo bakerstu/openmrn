@@ -412,6 +412,15 @@ int _isatty_r(struct _reent *reent, int fd)
     return 1;
 }
 
+/** Get the tty information of a file or device.
+ * @param fd file descriptor determine if it is a tty
+ * @return 1 if a tty, else 0
+ */
+int _isatty(int fd)
+{
+    return 1;
+}
+
 /** remove a file.
  * @param reent thread safe reentrant structure
  * @param path file name

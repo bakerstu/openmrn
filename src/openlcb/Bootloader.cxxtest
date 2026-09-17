@@ -15,6 +15,7 @@ using ::testing::InvokeWithoutArgs;
 extern "C" {
 /** This calls into the bootloader main. */
 extern void bootloader_entry();
+extern volatile unsigned g_bootloader_busy;
 
 extern Atomic g_bootloader_lock;
 }
@@ -53,8 +54,6 @@ static uint8_t virtual_flash[FLASH_SIZE];
 BootloaderPort *g_bootloader_port = nullptr;
 
 extern "C" {
-
-extern volatile unsigned g_bootloader_busy;
 
 void bootloader_led(enum BootloaderLed led, bool value)
 {
@@ -379,6 +378,11 @@ protected:
         expect_packet(":X191004AAN1A2A3A4A5A6A;");
     }
 
+    void expect_node_initialized()
+    {
+        expect_packet(":X191004AAN1A2A3A4A5A6A;");
+    }
+
     void proper_startup()
     {
         expect_boot(true);
@@ -508,6 +512,12 @@ TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
 TEST_F(BootloaderTest, WelcomeMessageArrives)
 {
     proper_startup();
+
+    // Get another node initialized.
+    clear_expect();
+    expect_node_initialized();
+    bootloader_reinit_node();
+
     exit_bootloader();
 }
 
@@ -590,6 +600,19 @@ TEST_F(BootloaderTest, VerifyGlobal)
 
     expect_packet(":X191704AAN1A2A3A4A5A6A;");
     send_packet(":X19490321N;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, PriorityBitZeroBootloader)
+{
+    proper_startup();
+
+    // Verify Addressed with priority 0 (X09...) instead of normal priority 1 (X19...)
+    expect_packet(":X191704AAN1A2A3A4A5A6A;");
+    send_packet(":X09488321N04AA;");
     wait();
     Mock::VerifyAndClear(&canBus_);
 

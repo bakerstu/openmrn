@@ -294,23 +294,65 @@ StateFlowBase::Action Console::Session::process_read()
 
     while(count--)
     {
+        bool unclosed = false; // dangling quote mark flag
         if (line[pos++] == '\n')
         {
             /* parse the line input into individual arguments */
             unsigned argc = 0;
             char last = '\0';
-
+            char quote = '\0'; // Quote mark we are in (\0 means no quotes).
             for (size_t i = 0; i < pos; ++i)
             {
                 switch (line[i])
                 {
                     case '\r':
                     case '\n':
+                    if (quote != '\0') 
+                    { // dangling quote check
+                        /* Open quotes at EOL? -- syntax error! */
+                        fprintf(fp, "syntax error: unclosed %c\n",quote);
+                        i = pos; // force EOL
+                        unclosed = true; // set error flag
+                    }
                     case ' ':
-                        line[i] = '\0';
+                        // Space is only meaningful when not in quotes
+                        if (quote == '\0') line[i] = '\0';
                         break;
+                    case '\'':
                     case '"':
-                        /** @todo quoted arguments not yet supported */
+                        /// This is a relativly simple handling.  Escaping
+                        // is not implemented, although both types of
+                        // quotes (double and single) are handled,
+                        // allowing one to quote the other.
+                        if (quote == line[i]) 
+                        {/* End of quoted */
+                            line[i] = '\0'; // EOS (clobber the quote)
+                            quote = '\0';   // reset flag
+                            // Handling a following space.
+                            if ((i + 1) < pos && line[i + 1] <= ' ') 
+                            {
+                                line[++i] = '\0';
+                            }
+                            break;
+                        } 
+                        else if (quote == '\0') 
+                        { /* Start of quoted */
+                            quote = line[i]; // Save  the quote mark
+                            if ((i + 1) < pos) 
+                            { 
+                                // skip over the quote and start an arg.
+                                args[argc] = &line[i + 1];
+                                argc = (argc == MAX_ARGS) ? MAX_ARGS : argc + 1;
+                            }
+                            else 
+                            {
+                                /* Loose quote mark at EOL? -- syntax error! */
+                                fprintf(fp, "syntax error: unclosed %c\n",quote);
+                                i = pos; // force EOL
+                                unclosed = true; // set error flag
+                            }
+                            break;
+                        }
                     default:
                         if (last == '\0')
                         {
@@ -340,6 +382,7 @@ StateFlowBase::Action Console::Session::process_read()
                     break;
                 default:
                 {
+                    if (unclosed) break;
                     CommandStatus status = callback(argc, args);
                     if (status == COMMAND_NEXT)
                     {

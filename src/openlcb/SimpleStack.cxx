@@ -341,7 +341,7 @@ int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
     // though.
     HASSERT(SNIP_DYNAMIC_FILENAME == CONFIG_FILENAME);
     Uint8ConfigEntry(0).write(fd, 2);
-    factory_reset_all_events(cfg, node()->node_id(), fd);
+    factoryResetEventsHelper_.set_cfg(cfg);
     configUpdateFlow_.factory_reset();
     return fd;
 }
@@ -355,6 +355,8 @@ int SimpleStackBase::check_version_and_factory_reset(
     {
         fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
     }
+
+    factoryResetEventsHelper_.set_cfg(cfg);
 
     if (cfg.version().read(fd) != expected_version)
     {
@@ -371,7 +373,6 @@ int SimpleStackBase::check_version_and_factory_reset(
     }
     if (force)
     {
-        factory_reset_all_events(cfg, node()->node_id(), fd);
         configUpdateFlow_.factory_reset();
         cfg.version().write(fd, expected_version);
     }
@@ -411,6 +412,13 @@ void SimpleStackBase::factory_reset_all_events(
         id |= next_event++;
         EventConfigEntry(cdi_event_offsets_ptr[i]).write(fd, id);
     }
+}
+
+void SimpleStackBase::pip_add_firmware_update_support()
+{
+    uint64_t pip = get_pip();
+    pip |= Defs::FIRMWARE_UPGRADE;
+    set_pip(pip);
 }
 
 void SimpleCanStackBase::add_gridconnect_port(

@@ -49,3 +49,5 @@ CSRCS += stm32f0xx_hal_adc.c \
 CXXSRCS += Stm32Can.cxx \
            Stm32Uart.cxx \
            Stm32EEPROMEmulation.cxx
+
+stm32f0xx_hal_crc.o : CFLAGS += -Wno-overflow

@@ -57,14 +57,14 @@ CFLAGS += -c $(CORECFLAGS) -std=c99 -Wstrict-prototypes  \
 CXXFLAGS += -c $(CORECFLAGS) -std=c++14 -D_ISOC99_SOURCE \
             -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS -D__LINEAR_MAP__ \
             -fno-exceptions -fno-rtti \
-            -Wsuggest-override -Wno-psabi \
+            -Wsuggest-override -Wno-psabi -Wno-overloaded-virtual \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
 
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv6-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv6-m \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn -Wl,--undefined=cpuload_tick $(LDFLAGSEXTRA) $(LDFLAGSENV) \
-           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
+           --specs=nano.specs
 
 # We disable linking against certain components from libc that we don't need
 # and pull in a lot of code dependencies (typically 50-100 kbytes), like

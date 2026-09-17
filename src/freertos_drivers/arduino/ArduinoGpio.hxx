@@ -36,8 +36,8 @@
 #define _DRIVERS_ARDUINOGPIO_HXX_
 
 #include "os/Gpio.hxx"
-#include "GpioWrapper.hxx"
-#if defined(ESP32)
+#include "freertos_drivers/common/GpioWrapper.hxx"
+#ifdef ESP_PLATFORM
 #include <esp32-hal.h>
 #include <driver/gpio.h>
 #else
@@ -119,7 +119,7 @@ public:
     /// @return true if pin is configured as an output pin.
     static bool is_output()
     {
-#if defined(ESP32)
+#ifdef ESP_PLATFORM
         if(digitalPinIsValid(PIN_NUM) && digitalPinCanOutput(PIN_NUM))
         {
             // pins 32 and below use the first GPIO controller
@@ -132,7 +132,7 @@ public:
                 return GPIO.enable1_w1ts.val & ((uint32_t)1 << (PIN_NUM & 31));
             }
         }
-#endif
+#endif // ESP_PLATFORM
         return false;
     }
 

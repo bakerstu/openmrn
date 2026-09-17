@@ -36,5 +36,9 @@
 #include "can_frame.h"
 #include <cstdint>
 
+namespace openmrn_arduino {
+
 unsigned Can::numReceivedPackets_{0};
 unsigned Can::numTransmittedPackets_{0};
+
+} // namespace openmrn_arduino

@@ -94,6 +94,18 @@ uint8_t __atomic_fetch_add_1(uint8_t *ptr, uint8_t val, int memorder)
     return ret;
 }
 
+/// __atomic_fetch_add_2
+///
+/// This function is needed for GCC-generated code.
+uint16_t __atomic_fetch_add_2(uint16_t *ptr, uint16_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint16_t ret = *ptr;
+    *ptr += val;
+    REL_LOCK();
+    return ret;
+}
+
 /// __atomic_fetch_sub_2
 ///
 /// This function is needed for GCC-generated code.

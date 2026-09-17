@@ -132,7 +132,7 @@ public:
     /// Adds new entry to the vector.
     void insert(data_type &&d)
     {
-        container_.push_back(d);
+        container_.push_back(std::move(d));
     }
 
     /// Removes an entry from the vector, pointed by an iterator.

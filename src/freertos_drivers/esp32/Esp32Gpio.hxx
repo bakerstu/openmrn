@@ -43,7 +43,7 @@
 
 #include <driver/gpio.h>
 #include <esp_rom_gpio.h>
-
+#include <soc/adc_channel.h>
 #include <soc/gpio_struct.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
@@ -51,7 +51,8 @@
 ///
 /// This is necessary since ESP-IDF does not expose gpio_get_direction(pin).
 #define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
-                             GPIO.enable.data & BIT(pin & 25))
+                             GPIO.enable.data & \
+                             BIT(pin & SOC_GPIO_VALID_OUTPUT_GPIO_MASK))
 #else // NOT ESP32-C3
 /// Helper macro to test if a pin has been configured for output.
 ///
@@ -97,7 +98,7 @@ public:
     // the DevKitM-1 board.
     static_assert(!(PIN_NUM >= 11 && PIN_NUM <= 17)
                 , "Pin is reserved for flash usage.");
-#else // ESP32
+#elif CONFIG_IDF_TARGET_ESP32
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 39, "Valid pin range is 0..39.");
     static_assert(PIN_NUM != 24, "Pin does not exist");
     static_assert(!(PIN_NUM >= 28 && PIN_NUM <= 31), "Pin does not exist");
@@ -119,7 +120,7 @@ public:
                 , "Pin is reserved for PSRAM usage.");
 #endif // BOARD_HAS_PSRAM
 #endif // ESP32_PICO
-#endif // CONFIG_IDF_TARGET_ESP32S2 / CONFIG_IDF_TARGET_ESP32S3
+#endif // CONFIG_IDF_TARGET_ESP32
 
     /// Sets the output state of the connected GPIO pin.
     ///
@@ -325,7 +326,7 @@ public:
     static_assert(!PDEN || (PDEN && PIN_NUM != 9),
                   "GPIO 9 typically has a built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#else // ESP32
+#elif CONFIG_IDF_TARGET_ESP32
     // GPIO 2, 4 and 12 typically have pull-down resistors.
     static_assert(!PUEN ||
                   (PUEN && (PIN_NUM != 2 && PIN_NUM != 4 && PIN_NUM != 12)),
@@ -333,10 +334,10 @@ public:
                   "enabling pull-up is not possible.");
     // GPIO 0, 5 and 15 typically have pull-up resistors.
     static_assert(!PDEN ||
-                  (PDEN && (PIN_NUM != 0 && PIN_NUM != 5 && PIN_NUM == 15)),
+                  (PDEN && (PIN_NUM != 0 && PIN_NUM != 5 && PIN_NUM != 15)),
                   "GPIO 0, 5, 15 typically have built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#endif // CONFIG_IDF_TARGET_ESP32S2
+#endif // CONFIG_IDF_TARGET_ESP32
     /// Initializes the hardware pin.
     static void hw_init()
     {
@@ -346,8 +347,6 @@ public:
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
-        // using GPIO_MODE_INPUT_OUTPUT instead of GPIO_MODE_OUTPUT so that
-        // we can read the IO state
         cfg.mode = GPIO_MODE_INPUT;
         if (PUEN)
         {
@@ -559,7 +558,6 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
     struct NAME##Defs                                                          \
     {                                                                          \
         static const gpio_num_t PIN_NUM = (gpio_num_t)NUM;                     \
-                                                                               \
     public:                                                                    \
         static gpio_num_t pin()                                                \
         {                                                                      \

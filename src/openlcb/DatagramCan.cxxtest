@@ -87,6 +87,21 @@ TEST_F(AsyncRawDatagramTest, SingleFrameDatagramArrivesRightTarget)
     send_packet(":X1A22A555NFF01020304050607;");
 }
 
+TEST_F(AsyncRawDatagramTest, PriorityBitZeroDatagram)
+{
+    EXPECT_CALL(
+        handler_,
+        handle_message(
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_DATAGRAM),
+                          Field(&GenMessage::dstNode, node_),
+                          Field(&GenMessage::payload,
+                                IsBufferValue(0xEE01020304050607ULL))
+                          )),
+            _));
+    // Priority 0 (X0A...) instead of normal priority 1 (X1A...)
+    send_packet(":X0A22A555NEE01020304050607;");
+}
+
 TEST_F(AsyncRawDatagramTest, MultiFrameDatagramArrivesRightTarget)
 {
     EXPECT_CALL(
@@ -999,7 +1014,6 @@ TEST_F(TwoNodeDatagramTest, PingPongTestOne)
 {
     print_all_packets();
     setup_other_node(true);
-    expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1040,7 +1054,6 @@ TEST_F(TwoNodeDatagramTest, PingPongTestError)
 {
     print_all_packets();
     setup_other_node(true);
-    expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1073,7 +1086,6 @@ TEST_F(TwoNodeDatagramTest, PingPongTestLoopback)
 {
     print_all_packets();
     setup_other_node(false);
-    // expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1107,7 +1119,6 @@ TEST_F(TwoNodeDatagramTest, PingPongLoopbackError)
 {
     print_all_packets();
     setup_other_node(false);
-    // expect_other_node_lookup();
 
     PingPongHandler handler_one(&datagram_support_, node_);
     PingPongHandler handler_two(otherNodeDatagram_, otherNode_.get());
@@ -1136,7 +1147,6 @@ TEST_F(TwoNodeDatagramTest, NoDestinationHandler)
 {
     print_all_packets();
     setup_other_node(true);
-    expect_other_node_lookup();
 
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{OTHER_NODE_ID, 0};

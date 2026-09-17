@@ -61,6 +61,8 @@
 #ifndef _UTILS_DEBOUNCER_HXX_
 #define _UTILS_DEBOUNCER_HXX_
 
+#include <cstdint>
+
 /** This debouncer will update state if for N consecutive attempts the input
  * value is the same. */
 class QuiesceDebouncer
@@ -204,6 +206,12 @@ public:
     bool current_state()
     {
         return currentState_;
+    }
+
+    /// @return the number of 1's in the past window.
+    unsigned current_count()
+    {
+        return lastCount_;
     }
 
     /// Callback from the polling loop checking the input state. @param state

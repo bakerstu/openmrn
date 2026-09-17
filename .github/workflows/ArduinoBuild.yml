@@ -10,10 +10,7 @@
 name: ArduinoBuild
 on:
   push:
-    paths:
-      - '**.ino'
-      - '**rduino**'
-      - '**ArduinoBuild.yml'
+    branch: master
   pull_request:
 jobs:
   build-stm32:
@@ -25,19 +22,40 @@ jobs:
 
     - name: Generate OpenMRNLite library
       run: |
-        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f
-        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+        mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
+        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm32/*/build_opt.h
+        echo ${{ github.workflow }}-${{ github.ref }}
 
     - name: Compile STM32 examples
       uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/stm32duino/BoardManagerFiles/master/STM32/package_stm_index.json
         arduino-board-fqbn: STM32:stm32:Nucleo_144:pnum=NUCLEO_F767ZI,upload_method=MassStorage,xserial=generic,usb=CDCgen,xusb=FS,opt=osstd,rtlib=nano
-        sketch-names: Stm32*.ino
+        sketch-names-find-start: arduino/examples/Stm32
         build-properties: '{ "All": "-DHAL_CAN_MODULE_ENABLED" }'
         debug-compile: true
-        required-libraries: OpenMRNLite
+
+  build-featherm4can:
+    name: Build Arduino Feather M4 CAN examples
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
+        echo ${{ github.workflow }}-${{ github.ref }}
+
+    - name: Compile Feather M4 CAN examples
+      uses: ArminJo/arduino-test-compile@v3
+      with:
+        platform-url: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json
+        arduino-board-fqbn: adafruit:samd:adafruit_feather_m4_can
+        sketch-names-find-start: arduino/examples/FeatherM4Can
+        required-libraries: ACANFD_FeatherM4CAN
 
   build-esp32:
     name: Build Arduino ${{ matrix.target }} examples
@@ -52,19 +70,17 @@ jobs:
 
     - name: Generate OpenMRNLite library
       run: |
-        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f
-        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+        mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
 
     - name: Compile ESP32 examples
       uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:node32s
-        sketch-names: ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino
+        sketch-names-find-start: arduino/examples/ESP32
         debug-compile: true
-        required-libraries: OpenMRNLite
-        arduino-platform: esp32:esp32@2.0.17
+        arduino-platform: esp32:esp32@3.3.0
       if: ${{ matrix.target == 'esp32' }}
 
     - name: Compile ESP32-C3 examples
@@ -72,10 +88,9 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:esp32c3
-        sketch-names: ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino
+        sketch-names-find-start: arduino/examples/ESP32C3
         debug-compile: true
-        required-libraries: OpenMRNLite
-        arduino-platform: esp32:esp32@2.0.17
+        arduino-platform: esp32:esp32@3.3.0
       if: ${{ matrix.target == 'esp32c3' }}
     
     - name: Compile ESP32-S2 examples
@@ -83,8 +98,7 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:esp32s2
-        sketch-names: ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino
+        sketch-names-find-start: arduino/examples/ESP32S2
         debug-compile: true
-        required-libraries: OpenMRNLite
-        arduino-platform: esp32:esp32@2.0.17
+        arduino-platform: esp32:esp32@3.3.0
       if: ${{ matrix.target == 'esp32s2' }}

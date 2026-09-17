@@ -43,6 +43,9 @@
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_ll_dma.h"
 #include "stm32f0xx_ll_usart.h"
+#elif defined(STM32G0B1xx)
+#include "stm32g0xx_ll_dma.h"
+#include "stm32g0xx_ll_usart.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_ll_dma.h"
 #include "stm32f1xx_ll_usart.h"
@@ -97,6 +100,13 @@ struct RailcomHw
     // If DMA channel routing is in use, that has to be set up externally
     // (e.g. in hw_preinit).
     static const RailcomDmaChannel DMA[CHANNEL_COUNT];
+
+    // For railcom direction sensing, the EXTI interrupts have to be set up
+    // correctly (meaning that the correct GPIO port is selected for the
+    // line). These are the respective lines (LL_EXTI_LINE_0..15) for each
+    // channel:
+
+    static const uint32_t RAILCOM_DIR_EXTI[CHANNEL_COUNT];
 
     // Make sure there are enough entries here for all the channels times a few
     // DCC packets.
@@ -211,7 +221,7 @@ private:
     }
 
     // File node interface
-    void enable() OVERRIDE
+    void enable() override
     {
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
@@ -231,6 +241,14 @@ private:
 
             // Disables the receiver.
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
+
+            // Configures the EXTI
+            /*
+            LL_EXTI_DisableIT_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            LL_EXTI_DisableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            */
 
             // configure DMA
 
@@ -267,16 +285,17 @@ private:
     void feedback_sample() override
     {
         HW::enable_measurement(true);
-        this->add_sample(HW::sample());
+        auto s = HW::sample();
         HW::disable_measurement();
+        this->add_sample(s);
     }
 
     void start_cutout() override
     {
+        Debug::RailcomRxActivate::set(true);
         HW::enable_measurement(false);
         const bool need_ch1_cutout =
             HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
-        Debug::RailcomRxActivate::set(true);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
             while (LL_USART_IsActiveFlag_RXNE(uart(i)))
@@ -284,7 +303,10 @@ private:
                 uint8_t data = uart(i)->RDR;
                 (void)data;
             }
-            returnedPackets_[i] = this->alloc_new_packet(i);
+            if (!returnedPackets_[i])
+            {
+                returnedPackets_[i] = this->alloc_new_packet(i);
+            }
             if (need_ch1_cutout && returnedPackets_[i])
             {
                 LL_USART_EnableDMAReq_RX(uart(i));
@@ -295,12 +317,30 @@ private:
                 dma_ch(i)->CNDTR = 2;
                 dma_ch(i)->CMAR = (uint32_t)returnedPackets_[i]->ch1Data;
                 dma_ch(i)->CCR |= DMA_CCR_EN; // enable DMA
+
+                // Sets up the direction flag.
+                /*
+                LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
+                LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
+                LL_EXTI_EnableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
+                */
             }
         }
+        //LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
         Debug::RailcomDriverCutout::set(true);
     }
 
-    void middle_cutout() override
+#ifdef STM32G0    
+    // The original version of this function uses an atomic lock which we
+    // really don't need here in this P0 interrupt.
+    static void LL_USART_SetTransferDirection(
+        USART_TypeDef *USARTx, uint32_t TransferDirection)
+    {
+        MODIFY_REG(USARTx->CR1, USART_CR1_RE | USART_CR1_TE, TransferDirection);
+    }
+#endif    
+    
+    void __attribute__((optimize("O3"))) middle_cutout() override
     {
         Debug::RailcomDriverCutout::set(false);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
@@ -340,6 +380,18 @@ private:
                 returnedPackets_[i]->ch1Data[0] = 0xF8;
                 returnedPackets_[i]->ch1Size = 1;
             }
+            else if (returnedPackets_[i]->ch1Size)
+            {
+                // Checks the direction.
+                /// @todo this direction capture does not work.
+                returnedPackets_[i]->haveCh1Dir = 0; // = 1;
+                // Direction is "west" if the current came in with a positive
+                // sense. That means that the DIR pin has never seen a low
+                // edge.
+                // returnedPackets_[i]->ch1Dir =
+                //    (LL_EXTI_IsActiveFallingFlag_0_31(
+                //        HW::RAILCOM_DIR_EXTI[i])) == 0;
+            }
 
             // Set up channel 2 reception with DMA.
             dma_ch(i)->CNDTR = 6;
@@ -349,9 +401,16 @@ private:
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_RX);
             LL_USART_ClearFlag_FE(uart(i));
             LL_USART_Enable(uart(i));
+
+            /// @todo: this does not actually work
+            
+            // Set up direction capture.
+            //LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
+            //LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
         }
         HW::middle_cutout_hook();
         Debug::RailcomDriverCutout::set(true);
+        //LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
     }
 
     void end_cutout() override
@@ -383,6 +442,18 @@ private:
                     returnedPackets_[i]->add_ch2_data(0xF8);
                 }
             }
+            else if (returnedPackets_[i]->ch2Size)
+            {
+                // Checks the direction.
+                /// @todo this direction capture does not work.
+                returnedPackets_[i]->haveCh2Dir = 0; // = 1;
+                // Direction is "west" if the current came in with a positive
+                // sense. That means that the DIR pin has never seen a low
+                // edge.
+                // returnedPackets_[i]->ch2Dir =
+                //    (LL_EXTI_IsActiveFallingFlag_0_31(
+                //        HW::RAILCOM_DIR_EXTI[i])) == 0;
+            }
 
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
 
@@ -397,13 +468,7 @@ private:
         {
             // Ensures that at least one feedback packet is sent back even when
             // it is with no railcom payload.
-            auto *p = this->alloc_new_packet(15);
-            if (p)
-            {
-                this->feedbackQueue_.commit_back();
-                Debug::RailcomPackets::toggle();
-                HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
-            }
+            no_cutout();
         }
         Debug::RailcomCh2Data::set(false);
         Debug::RailcomDriverCutout::set(false);
@@ -420,6 +485,26 @@ private:
             Debug::RailcomPackets::toggle();
             HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
         }
+    }
+
+    /// @copydoc RailcomDriver::set_feedback_key()
+    ///
+    /// This implementation also preallocates storage for returned packets for
+    /// CHANNEL_COUNT entries. Since the packet allocation can take a few usec,
+    /// doing it here, ahead of time can avoid running out of time starting
+    /// the cutout.
+    void set_feedback_key(uint32_t key, uint16_t dcc_address) override
+    {
+        Debug::RailComAllocPacketTiming::set(true);
+        RailcomDriverBase<HW>::set_feedback_key(key, dcc_address);
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
+        {
+            if (!returnedPackets_[i])
+            {
+                returnedPackets_[i] = this->alloc_new_packet(i);
+            }
+        }
+        Debug::RailComAllocPacketTiming::set(false);
     }
 };
 

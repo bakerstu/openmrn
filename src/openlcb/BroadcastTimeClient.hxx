@@ -427,7 +427,7 @@ private:
         }
         if (sleeping_)
         {
-            timer_.trigger();
+            timer_.ensure_triggered();
             sleeping_ = false;
         }
     }

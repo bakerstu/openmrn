@@ -119,17 +119,6 @@ protected:
         wait();
     }
 
-    /// Adds the necessary expectations for the address lookup reuqests on the
-    /// CANbus by the first datagram being sent from node_ to otherNode_. Not
-    /// needed for mode 1 operation.
-    void expect_other_node_lookup()
-    {
-        expect_packet(":X1070222AN02010D000103;"); // looking for DST node
-        expect_packet(":X10701225N02010D000103;"); // found dst node
-        // expect_packet(":X1949022AN02010D000103;"); // hard-looking for DST node
-        // expect_packet(":X19170225N02010D000103;"); // node ID verified
-    }
-
     std::unique_ptr<DefaultNode> otherNode_;
     // Second objects if we want a bus-traffic test.
     std::unique_ptr<IfCan> otherIfCan_;

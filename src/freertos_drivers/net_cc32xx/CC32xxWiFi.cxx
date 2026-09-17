@@ -988,6 +988,14 @@ void CC32xxWiFi::wlan_task()
 
     unsigned next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
 
+    // Set wakeup to nonblocking mode.
+    SlSockNonblocking_t opt;
+    opt.NonBlockingEnabled = 1;
+    // Enable or disable non-blocking mode
+    result = sl_SetSockOpt(
+        wakeup, SL_SOL_SOCKET, SL_SO_NONBLOCKING, (uint8_t *)&opt, sizeof(opt));
+    HASSERT(result == 0);
+
     for ( ; /* forever */ ; )
     {
 
@@ -1006,8 +1014,9 @@ void CC32xxWiFi::wlan_task()
         SlFdSet_t wfds_tmp = wfds;
         SlFdSet_t efds_tmp = efds;
         SlTimeval_t tv;
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
+        // Wake up every 40 msec in case we missed a select_wakeup.
+        tv.tv_sec = 0;
+        tv.tv_usec = 40000;
 
         result = sl_Select(fdHighest + 1, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
 
@@ -1055,6 +1064,9 @@ void CC32xxWiFi::wlan_task()
                     /* this is the socket we use as a signal */
                     char data;
                     sl_Recv(wakeup, &data, 1, 0);
+                    portENTER_CRITICAL();
+                    --pendingWakeup_;
+                    portEXIT_CRITICAL();
                 }
                 else
                 {
@@ -1103,12 +1115,10 @@ void CC32xxWiFi::select_wakeup()
         char data = -1;
         ssize_t result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
                                    length);
-        while (result != 1 && connected)
-        {
-            usleep(MSEC_TO_USEC(50));
-            result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
-                               length);
-        }
+        portENTER_CRITICAL();
+        ++pendingWakeup_;
+        portEXIT_CRITICAL();
+        (void)result;
     }
 }
 

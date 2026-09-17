@@ -277,7 +277,7 @@ TEST_P(BitSetMultiTest, set_multi_small)
     expect_all_one();
 }
 
-INSTANTIATE_TEST_CASE_P(AllTests, BitSetMultiTest,
+INSTANTIATE_TEST_SUITE_P(AllTests, BitSetMultiTest,
     Combine(Values(7, 31, 32, 33, 67, 131, 254), Range(1, 33)));
 
 using BitSetMultiLargeTest = BitSetMultiTest;
@@ -300,5 +300,5 @@ TEST_P(BitSetMultiLargeTest, multi_dirty)
     EXPECT_EQ(dlist, actual);
 }
 
-INSTANTIATE_TEST_CASE_P(AllTests, BitSetMultiLargeTest,
+INSTANTIATE_TEST_SUITE_P(AllTests, BitSetMultiLargeTest,
     Combine(Values(67, 131, 254), Range(1, 33)));

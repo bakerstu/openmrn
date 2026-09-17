@@ -36,9 +36,12 @@
 #ifndef _UTILS_TCPLOGGING_HXX_
 #define _UTILS_TCPLOGGING_HXX_
 
+#include <fcntl.h>
+
 #include "executor/StateFlow.hxx"
 #include "utils/logging.h"
 #include "utils/Singleton.hxx"
+#include "utils/socket_listener.hxx"
 
 /// Buffer content structure for sending log entries.
 struct LogEntry
@@ -152,6 +155,10 @@ private:
             ::close(fd_);
         }
         fd_ = fd;
+        if (fd_ >= 0)
+        {
+            ::fcntl(fd_, F_SETFL, ::fcntl(fd_, F_GETFL, 0) | O_NONBLOCK);
+        }
     }
 
     /// Helper class for listening on a TCP socket.
@@ -170,7 +177,7 @@ public:
     SerialLoggingServer(Service *service, const char *name)
         : FdLoggingServer(service)
     {
-        fd_ = ::open(name, O_WRONLY);
+        fd_ = ::open(name, O_WRONLY | O_NONBLOCK);
         HASSERT(fd_ >= 0);
     }
 };

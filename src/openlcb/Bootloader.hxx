@@ -43,16 +43,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef ESP_PLATFORM
-#include "bootloader_hal.h"
-#else
-#include "freertos/bootloader_hal.h"
-#endif
-#include "openlcb/Defs.hxx"
+#include "openlcb/ApplicationChecksum.hxx"
 #include "openlcb/CanDefs.hxx"
 #include "openlcb/DatagramDefs.hxx"
+#include "openlcb/Defs.hxx"
 #include "openlcb/MemoryConfig.hxx"
-#include "openlcb/ApplicationChecksum.hxx"
+#include "openlcb/bootloader_hal.h"
 #include "can_frame.h"
 
 namespace openlcb
@@ -122,6 +118,8 @@ struct BootloaderState
     uintptr_t write_buffer_offset;
     // Offset inside the write buffer for the next incoming data.
     unsigned write_buffer_index;
+    // Request the bootloader to reinit the node (on the bus).
+    bool request_reinit_node;
 };
 
 /// Global state variables.
@@ -368,8 +366,8 @@ void handle_memory_config_frame()
                 set_error_code(DatagramDefs::INVALID_ARGUMENTS);
                 return;
             }
-            // fall through
         }
+        // fall through
         case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
         {
             // Poor man's reset. Clears the entire state machine, which will
@@ -394,8 +392,8 @@ void handle_memory_config_frame()
                 set_error_code(r);
                 return;
             }
-            // fall through
         }
+        // fall through
         case MemoryConfigDefs::COMMAND_RESET:
         {
             set_can_frame_addressed(Defs::MTI_DATAGRAM_OK);
@@ -764,13 +762,7 @@ void handle_input_frame()
     }
     uint32_t can_id = GET_CAN_FRAME_ID_EFF(state_.input_frame);
     int dlc = state_.input_frame.can_dlc;
-    if (CanDefs::get_priority(can_id) != CanDefs::NORMAL_PRIORITY)
-    {
-        // Non-OpenLCB frame. Ignore.
-        state_.input_frame_full = 0;
-        return;
-    }
-    else if ((can_id & 0xfff) == state_.alias)
+    if ((can_id & 0xfff) == state_.alias)
     {
         // Alias conflict.
         if (CanDefs::is_cid_frame(can_id))
@@ -811,8 +803,8 @@ void handle_input_frame()
         state_.input_frame_full = 0;
         return;
     }
-    else if ((can_id >> 12) == (0x1A000 | state_.alias) ||
-        (can_id >> 12) == (0x1B000 | state_.alias))
+    else if (((can_id >> 12) & ~0x10000) == (0x0A000 | state_.alias) ||
+             ((can_id >> 12) & ~0x10000) == (0x0B000 | state_.alias))
     {
         // Datagram start frame.
 
@@ -833,8 +825,8 @@ void handle_input_frame()
         }
     }
 #ifdef BOOTLOADER_DATAGRAM
-    else if ((can_id >> 12) == (0x1C000 | state_.alias) ||
-        (can_id >> 12) == (0x1D000 | state_.alias))
+    else if (((can_id >> 12) & ~0x10000) == (0x0C000 | state_.alias) ||
+             ((can_id >> 12) & ~0x10000) == (0x0D000 | state_.alias))
     {
         if (!state_.incoming_datagram_pending ||
             CanDefs::get_src(can_id) != state_.write_src_alias)
@@ -865,12 +857,12 @@ void handle_input_frame()
     }
 #endif
 #ifdef BOOTLOADER_STREAM
-    else if ((can_id >> 12) == (0x1F000 | state_.alias) && dlc > 1)
+    else if (((can_id >> 12) & ~0x10000) == (0x0F000 | state_.alias) && dlc > 1)
     {
         return handle_stream_data();
     }
 #endif
-    else if ((can_id >> 24) == 0x19)
+    else if (((can_id >> 24) & ~0x10) == 0x09)
     {
         // global or addressed message
         Defs::MTI mti = (Defs::MTI)CanDefs::get_mti(can_id);
@@ -1029,8 +1021,12 @@ bool bootloader_init() {
     {
         bool request = request_bootloader();
         bootloader_led(LED_REQUEST, request);
-        bool csum_ok = check_application_checksum();
-        bootloader_led(LED_CSUM_ERROR, !csum_ok);
+        bool csum_ok = false;
+        if (!request)
+        {
+            csum_ok = check_application_checksum();
+            bootloader_led(LED_CSUM_ERROR, !csum_ok);
+        }
         if (!request && csum_ok)
         {
             g_bootloader_busy = 0;
@@ -1048,6 +1044,17 @@ bool bootloader_init() {
 /// should keep running (i.e., to call again).
 bool bootloader_loop()
 {
+    if (state_.request_reinit_node)
+    {
+        if (state_.init_state == INITIALIZED)
+        {
+            // Back out of the initialized state so that it can try the node
+            // initialized transition again. Assume the alias is still good. If
+            // it is not, then there is already recovery logic for this.
+            state_.init_state = static_cast<InitState>(state_.init_state - 1);
+        }
+        state_.request_reinit_node = false;
+    }
     {
 #ifdef __linux__
         AtomicHolder h(&g_bootloader_lock);
@@ -1127,6 +1134,12 @@ void bootloader_entry()
 #endif
     } // while true
     try_send_can_frame(state_.output_frame);
+}
+
+/// Set bootloader state to restart initialization.
+void bootloader_reinit_node()
+{
+    state_.request_reinit_node = true;
 }
 
 } // extern "C"

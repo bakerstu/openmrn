@@ -678,6 +678,7 @@ private:
     OSMutex lock_;
 
     int wakeup; /**< loopback socket to wakeup select() */
+    int32_t pendingWakeup_; /**< number of sent -received wakeup messages */
 
     int16_t rssi; /**< receive signal strength indicator */
 

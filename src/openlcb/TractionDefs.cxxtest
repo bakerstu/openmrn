@@ -56,4 +56,15 @@ TEST(TractionDefsTest, address_render)
                      0x0501010118F0, &decoded_type, &decoded_address));
 }
 
+TEST(TractionDefsTest, accy_address)
+{
+    EXPECT_EQ(0x0101020000FF001Fu, TractionDefs::accy_normal_event(12));
+    EXPECT_EQ(0x0101020000FF001Eu, TractionDefs::accy_reversed_event(12));
+
+    // User address rolls over after 2044.
+    EXPECT_EQ(0x0101020000FF0001u, TractionDefs::accy_normal_event(2045));
+    EXPECT_EQ(0x0101020000FF0000u, TractionDefs::accy_reversed_event(2045));
+}
+
+
 } // namespace openlcb

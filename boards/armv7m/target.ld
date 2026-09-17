@@ -13,17 +13,20 @@ __cs3_heap_end = __top_RAM - 1024;
 __start_ram = ORIGIN(RAM);
 __end_ram = __top_RAM;
 
+REGION_ALIAS("REGION_PGM", FLASH);
+
 SECTIONS
 {
     /* MAIN TEXT SECTION */    
     .text : ALIGN(4)
     {
+        __start_bin = .;
         FILL(0xff)
         KEEP(*(.interrupt_vector))
 
         /* Makes place for the app header to be filled in by the bootloader
         checksum program. */
-        . = __app_header_offset;
+        . = __start_bin + __app_header_offset;
         QUAD(0); /* App header: checksum for vector table. */
         QUAD(0);
         LONG(0); /* App header: data size */
@@ -50,6 +53,11 @@ SECTIONS
         *(.after_vectors*)
 
         *(SORT(.text*))
+
+        . = ALIGN(4);
+        _end_code = .;
+        _srodata = .;
+        
         *(.rodata)
         *(SORT(.rodata.*))
         . = ALIGN(4);
@@ -117,10 +125,7 @@ SECTIONS
         _end_uninit_RESERVED = .;
     } > RAM
 
-    /* It seems that in order for LPCXpresso to properly flash the data
-    section, an alignment of 256 bytes is necessary. Otherwise the separate
-    flashing of the data section will corrupt the end of the text section. */
-    .data : ALIGN(256)
+    .data : ALIGN(4)
     {
         FILL(0xff)
         _data = .;
@@ -137,6 +142,14 @@ SECTIONS
 
         _edata = .;
     } > RAM AT>FLASH
+
+
+    .measurement : ALIGN(4)
+    {
+        __flash_use = .;
+        __flash_first = ORIGIN(REGION_PGM);
+        __flash_last = ORIGIN(REGION_PGM) + LENGTH(REGION_PGM);
+    } > REGION_PGM   
 
 
     /* MAIN BSS SECTION */

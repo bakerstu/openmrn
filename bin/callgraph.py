@@ -62,11 +62,11 @@ def Blacklist(s):
 
 def escape(s):
   try:
-    ret = re.sub('[\*\(\)\-\:\+ ,/.]', '_', s)
+    ret = re.sub('[*\(\)\-\:\+ ,/.]', '_', s)
     return ret
-  except Exception, e:
-    print >> sys.stderr, e
-    print >> sys.stderr, "bad type of s: " , s
+  except Exception as e:
+    print(e, file=sys.stderr);
+    print("bad type of s: " , s, file=sys.stderr)
     return "xxxxxxx"
 
 all_symbols = dict()
@@ -149,8 +149,8 @@ class Symbol(object):
     comment = "//" if self.removed_by_filter else ""
     try:
       if self.has_cycle: cyclestring = "c"
-    except AttributeError, err:
-      print >>sys.stderr,"Not processed? ", self.name
+    except AttributeError as err:
+      print("Not processed? ", self.name, file=sys.stderr)
       cyclestring = "N"
       self.total_code_size = self.codesize
     if FLAGS.strip_template:
@@ -177,15 +177,15 @@ def Demangle(names):
     pipe = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     pstdout, _ = pipe.communicate()
     #print >> pstdin, "\n".join(names)
-    demangled = pstdout.split("\n")
+    demangled = pstdout.decode().split("\n")
 
     # Each line ends with a newline, so the final entry of the split output
     # will always be ''.
     assert len(demangled) == len(names)+1
 
     f = open('demangled.txt', 'w')
-    for i in xrange(len(demangled)-1):
-      print >>f, names[i], demangled[i]
+    for i in range(len(demangled)-1):
+      print(names[i], demangled[i], file=f);
     f.close()
     return demangled[:-1]
 
@@ -205,12 +205,12 @@ def ReadLstFile(f):
           current_symbol.codesize = last_seen_address - last_offset + 4
         else:
           current_symbol.codesize = offset - last_offset
-        print >>sys.stderr, "last symbol ", current_symbol.name ," size: ", current_symbol.codesize
+        print("last symbol ", current_symbol.name ," size: ", current_symbol.codesize, file=sys.stderr)
       current_symbol = GetSymbol(name, offset)
       if current_symbol.address is None:
         current_symbol.address = offset
       elif current_symbol.address != offset:
-        print >>sys.stderr, "multiple addresses: %08x %08x for %s" % (current_symbol.address, offset, current_symbol.name)
+        print("multiple addresses: %08x %08x for %s" % (current_symbol.address, offset, current_symbol.name), file=sys.stderr)
       if offset:
         address_lookup[offset + 1] = current_symbol
         #address_lookup[offset] = current_symbol  # creates false positives
@@ -237,13 +237,13 @@ def ReadLstFile(f):
   for (symbol, dst_address) in address_edges:
     if dst_address not in address_lookup: continue
     dstname = address_lookup[dst_address].name
-    print >>sys.stderr, "Address edge: %s -> %08x %s" % (
-        symbol.name, dst_address, dstname)
+    print("Address edge: %s -> %08x %s" % (
+        symbol.name, dst_address, dstname), file=sys.stderr)
     symbol.AddDep(dstname)
 
 
 def ReadMapFile(f):
-  print >>sys.stderr, "reading map file."
+  print("reading map file.", file=sys.stderr)
   cpptext_re = re.compile('^ [.]text[.](.*)$')
   obj_re = re.compile('^ ([.]text)?[ \t]+0x([0-9a-f]*)[ \t]+0x([0-9a-f]*)[ \t]+(?:([a-z/A-Z0-9_\.]*[.]a)[\(])?([a-zA-Z_-]*[.]o)[\)]?$')
 
@@ -283,13 +283,13 @@ def ReadMapFile(f):
       if m:
         dst_lib = m.group('library')
         dst_obj = m.group('object')
-        print >>sys.stderr, ("pulled lib %s obj %s" % (dst_lib, dst_obj))
+        print(("pulled lib %s obj %s" % (dst_lib, dst_obj)), file=sys.stderr)
       m = caller_re.match(line)
       if m:
         src_lib = m.group('library')
         src_obj = m.group('object')
         src_fun = m.group('function')
-        print >>sys.stderr, ("called by lib %s obj %s fun %s" % (src_lib, src_obj, src_fun))
+        print(("called by lib %s obj %s fun %s" % (src_lib, src_obj, src_fun)), file=sys.stderr)
         # we try to assign a symbol name to the function
         sym_name = None
         symbol = None
@@ -306,10 +306,10 @@ def ReadMapFile(f):
           sym_name = src_fun.replace("D2Ev", "D1Ev")
           symbol = all_symbols[sym_name]
         else:
-          print >>sys.stderr, "Cound not resolve function name to symbol: ", src_fun
+          print("Cound not resolve function name to symbol: ", src_fun, file=sys.stderr)
         if sym_name:
           object_expn[escape(dst_obj)] = symbol
-          print >>sys.stderr, ("expn[%s] = %s"% ( escape(dst_obj), symbol.name))
+          print(("expn[%s] = %s"% ( escape(dst_obj), symbol.name)), file=sys.stderr)
         object_parent[escape(dst_obj)] = escape(src_obj)
     m = section_start_re.match(line)
     if m:
@@ -322,9 +322,9 @@ def ReadMapFile(f):
     if m:
       count = count + 1
       if False and FLAGS.verbose and not printed:
-        print >>sys.stderr, line
+        print(line, file=sys.stderr)
         printed = True
-        print >>sys.stderr, "matched textsection ", m.groups() 
+        print("matched textsection ", m.groups() , file=sys.stderr)
       if m.group('section'):
         section = m.group('section')
         subsection = None
@@ -336,8 +336,8 @@ def ReadMapFile(f):
         objfile = m.group('object')
         library = m.group('library')
       if m.group('length') is not None and m.group('function') is not None:
-        print >>sys.stderr, line
-        print >>sys.stderr, "length %s and function %s " % (m.group('length'), m.group('function')), m.groups() 
+        print(line, file=sys.stderr)
+        print("length %s and function %s " % (m.group('length'), m.group('function')), m.groups(), file=sys.stderr)
       if section is not None and m.group('function') is not None:
         entry = MapEntry()
         entry.section = section
@@ -360,7 +360,7 @@ def ReadMapFile(f):
         entry.library = library
         section_addresses.append(entry.address)
         sections[entry.address] = entry
-  print >>sys.stderr, "found %d lines, %d entries." % (count, len(entries))
+  print("found %d lines, %d entries." % (count, len(entries)), file=sys.stderr)
   return entries
 
 
@@ -372,7 +372,7 @@ def ProcessMapEntries(entries):
   alias_count = 0;
   last_address = 0;
   for e in entries:
-    print >> sys.stderr, "sym: ", e
+    print("sym: ", e, file=sys.stderr)
     if e.address == 0:
       continue;
     if e.function == "(size before relaxing)":
@@ -393,42 +393,42 @@ def ProcessMapEntries(entries):
         symbol = all_symbols[e.subsection]
         subsection_found_count += 1
       elif e.address + 1 in address_lookup:
-        print >>sys.stderr, ("symbol 0x%x is an alias of %s: " % (e.address, address_lookup[e.address + 1].name)), e
+        print(("symbol 0x%x is an alias of %s: " % (e.address, address_lookup[e.address + 1].name)), e, file=sys.stderr)
         alias_count += 1
         continue
       else:
-        print >>sys.stderr, "symbol not found: ", e
+        print("symbol not found: ", e, file=sys.stderr)
         not_found_count += 1
         continue
       last_address = e.address
       if e.objfile is not None:
         symbol.objfile = escape(e.objfile)
-  print >>sys.stderr, ('map symbol lookup: found %d via direct, %d via enmangle, %d via subsection, %d aliased, %d not found' % (direct_found_count, enmangle_found_count, subsection_found_count, alias_count, not_found_count))
+  print(('map symbol lookup: found %d via direct, %d via enmangle, %d via subsection, %d aliased, %d not found' % (direct_found_count, enmangle_found_count, subsection_found_count, alias_count, not_found_count)), file=sys.stderr)
   missing_count = 0
   section_addresses.sort()
-  for sym in all_symbols.itervalues():
+  for sym in all_symbols.values():
     if sym.objfile is not None:
       continue
     # lookup section
     i = bisect.bisect_right(section_addresses, sym.address)
-    print >>sys.stderr, ("bisect lookup address %x index %d, section count %d" % (sym.address, i, len(section_addresses)))
+    print(("bisect lookup address %x index %d, section count %d" % (sym.address, i, len(section_addresses))), file=sys.stderr)
     if i:
       section = sections[section_addresses[i-1]]
       if not (section.address <= sym.address and (section.address + section.length) > sym.address):
-        print >>sys.stderr, ("section address mismatch: name %s, address %x, section address %x, section length %d" % (sym.name, sym.address, section.address, section.length))
+        print(("section address mismatch: name %s, address %x, section address %x, section length %d" % (sym.name, sym.address, section.address, section.length)), file=sys.stderr)
       elif section.subsection is not None and section.address == sym.address and section.subsection != sym.name and  sym.name != re.sub('D2Ev', 'D1Ev', section.subsection):
-        print >>sys.stderr, ("subsection mismatch: name '%s', subsection '%s'" % (sym.name, section.subsection))
+        print(("subsection mismatch: name '%s', subsection '%s'" % (sym.name, section.subsection)), file=sys.stderr)
         sym.objfile = escape(section.objfile)
         continue
       else:
-        print >>sys.stderr, "objfile found for symbol: ", sym.name, (" :@%x " % section.address), section.objfile
+        print("objfile found for symbol: ", sym.name, (" :@%x " % section.address), section.objfile, file=sys.stderr)
         sym.objfile = escape(section.objfile)
         continue
     else:
-      print >>sys.stderr, ("Bisect address lookup failed: address %x" % sym.address)
+      print(("Bisect address lookup failed: address %x" % sym.address), file=sys.stderr)
     missing_count += 1
-    print >>sys.stderr, "symbol missing objfile: ", sym.name
-  print >>sys.stderr, ("%d symbols missing objfile" % missing_count)
+    print("symbol missing objfile: ", sym.name, file=sys.stderr)
+  print(("%d symbols missing objfile" % missing_count), file=sys.stderr)
 
 def TraverseSymbol(pending_set, visited_set, symbol, depth):
   """returns the depth of the minimum cycle that was found"""
@@ -438,23 +438,23 @@ def TraverseSymbol(pending_set, visited_set, symbol, depth):
   pending_set[symbol.name] = depth
   symbol.in_cycle_edge_count = 0
   total_size = symbol.codesize * 1.0
-  for dep_symbol in symbol.deps.itervalues():
+  for dep_symbol in symbol.deps.values():
     if dep_symbol.name in pending_set:
       cycle = min(cycle, pending_set[dep_symbol.name])
       dep_symbol.in_cycle_edge_count += 1
       continue
     new_cycle = TraverseSymbol(pending_set, visited_set, dep_symbol, depth + 1)
     if new_cycle < cycle:
-      print >>sys.stderr,"cycle %s/%d-> %s/%d"% (symbol.name, depth,
-                                                 dep_symbol.name, new_cycle)
+      print("cycle %s/%d-> %s/%d"% (symbol.name, depth,
+                                    dep_symbol.name, new_cycle), file=sys.stderr)
     cycle = min(new_cycle, cycle)
     dep_edge_fraction = (len(dep_symbol.indeps) -
                          dep_symbol.in_cycle_edge_count)
     if dep_edge_fraction > 0:
       total_size += (dep_symbol.total_code_size / dep_edge_fraction)
     else:
-      print >>sys.stderr, "Symbol %s -> %s has no dep_edge." % (
-          symbol.name, dep_symbol.name)
+      print("Symbol %s -> %s has no dep_edge." % (
+        symbol.name, dep_symbol.name), file=sys.stderr)
   symbol.total_code_size = total_size
   del pending_set[symbol.name]
   visited_set.add(symbol.name)
@@ -466,11 +466,11 @@ def BindSymbolsToMain():
   # Takes any symbols with no in-edges and binds them to an object file,
   # another symbol or to the main binary.
   mainfile = GetSymbol('binary')
-  v = [v for v in all_symbols.itervalues()]
+  v = [v for v in all_symbols.values()]
   for symbol in v:
     if symbol.name == "binary": continue
     if (len(symbol.indeps) == 0 or len(symbol.indeps) == symbol.in_cycle_edge_count):
-      print >>sys.stderr, "symbol %s with no indeps." % symbol.name
+      print("symbol %s with no indeps." % symbol.name, file=sys.stderr)
       if symbol.objfile is not None:
         objsymbol = GetSymbol(symbol.objfile)
         if objsymbol.objfile is None: objsymbol.objfile = symbol.objfile
@@ -491,13 +491,13 @@ def BindSymbolsToMain():
                 else:
                   callersym = mainfile
                   break;
-              print >>sys.stderr, "circular objfile ref: ", symbol.name, " object ", symbol.objfile, ", parent obj " , parent_obj  ,"resolved to caller ", callersym.name
+              print("circular objfile ref: ", symbol.name, " object ", symbol.objfile, ", parent obj " , parent_obj  ,"resolved to caller ", callersym.name, file=sys.stderr)
             callersym.AddDep(objsymbol.name)
           else:
-            print >>sys.stderr, "unreferenced symbol unbound: ", symbol.name, " object ", symbol.objfile
+            print("unreferenced symbol unbound: ", symbol.name, " object ", symbol.objfile, file=sys.stderr)
             mainfile.AddDep(objsymbol.name)
       else:
-        print >>sys.stderr, "Unknown-objfile and unreferenced symbol ", symbol.name
+        print("Unknown-objfile and unreferenced symbol ", symbol.name, file=sys.stderr)
         mainfile.AddDep(symbol.name)
 
 
@@ -508,7 +508,7 @@ def FindCycles():
   done_set = set()
   for symbol in pending_queue:
     TraverseSymbol(dict(), done_set, symbol, 1)
-  for symbol in all_symbols.itervalues():
+  for symbol in all_symbols.values():
     TraverseSymbol(dict(), done_set, symbol, 1)
 
 
@@ -527,7 +527,7 @@ def ProcessDemangledName(name):
   return name
 
 def DemangleAllNames():
-  all_names = [k for k in all_symbols.iterkeys()]
+  all_names = [k for k in all_symbols.keys()]
   demangled_names = Demangle(all_names)
   for i in range(len(all_names)):
     symbol = all_symbols[all_names[i]]
@@ -537,47 +537,48 @@ def DemangleAllNames():
 
 def PrintObjects():
   objtotalsize = dict()
-  for symbol in all_symbols.itervalues():
+  for symbol in all_symbols.values():
     o = symbol.objfile
+    if o is None: o = "none_o"
     newtotalsize = symbol.codesize
     if o in objtotalsize:
       newtotalsize += objtotalsize[o]
     objtotalsize[o] = newtotalsize
-  objlist = [ (v, k) for k, v in objtotalsize.iteritems() ]
+  objlist = [ (v, k) for k, v in objtotalsize.items()]
   objlist.sort()
-  print >>sys.stderr, "Objects:"
+  print("Objects:", file=sys.stderr)
   totalsize = 0
   for (v, k) in objlist:
-    print >>sys.stderr, "%5d %s" % (v, k)
+    print("%5d %s" % (v, k), file=sys.stderr)
     totalsize += v
-  print >>sys.stderr, "--------------------"
-  print >>sys.stderr, "%5d %s" % (totalsize, "Total")
+  print("--------------------", file=sys.stderr)
+  print("%5d %s" % (totalsize, "Total"), file=sys.stderr)
   
 
 def PrintOutput():
-  print "digraph g {"
-  print "rankdir=LR"
+  print("digraph g {")
+  print("rankdir=LR")
 
   # first print names
-  for name, symbol in all_symbols.iteritems():
-    print symbol.PrintNode()
+  for name, symbol in all_symbols.items():
+    print(symbol.PrintNode())
   # then print links
-  for name, symbol in all_symbols.iteritems():
-    for dname, dep_symbol in symbol.deps.iteritems():
+  for name, symbol in all_symbols.items():
+    for dname, dep_symbol in symbol.deps.items():
       do_kill = False
       if dep_symbol.blacklisted: do_kill = True
       if dep_symbol.removed_by_filter: do_kill = True
       if len(dep_symbol.indeps) > FLAGS.max_indep: do_kill = True
       if symbol.removed_by_filter: do_kill = True
-      print "%s%s -> %s;" % ("//" if do_kill else "" ,escape(symbol.name), escape(dep_symbol.name));
-  print "}"
+      print("%s%s -> %s;" % ("//" if do_kill else "" ,escape(symbol.name), escape(dep_symbol.name)));
+  print("}")
   return
 
   l = ['main', 'main_thread', 'out_blinker_thread(void*)', 'can_open', 'can_close', 'can_read', 'can_write', 'can_ioctl', 'mbed_can_init(devtab*)', 'mbed_can_tx_msg(devtab*)']
   ls = set(l)
   for i in l:
     if not (i.startswith('__') and (i.endswith('_from_thumb') or i.endswith('_from_arm'))):
-      print "%s;" % escape(i)
+      print("%s;" % escape(i))
     for g in cg[i]:
       if g in ls: continue
       ls.add(g)
@@ -595,17 +596,17 @@ def PrintOutput():
           dest = dest[2:-11]
         if dest.startswith('__') and dest.endswith('_from_arm'):
           dest = dest[2:-9]
-          print "%s -> %s;" % (escape(i), escape(dest));
-  print "}"
+          print("%s -> %s;" % (escape(i), escape(dest)))
+  print("}")
 
 
 def PrintObjectGraph():
   objects = dict()
   # adds symbols to object mapping and calculate object file codesize
-  for sym in all_symbols.itervalues():
+  for sym in all_symbols.values():
     if sym.objfile is None:
       sym.objfile = "None"
-      print >>sys.stderr, ("Symbol with no object file %s size %d" % (sym.name, sym.codesize))
+      print(("Symbol with no object file %s size %d" % (sym.name, sym.codesize)), file=sys.stderr)
     if sym.objfile not in objects:
       obj = Symbol(sym.objfile)
       objects[sym.objfile] = obj
@@ -613,27 +614,27 @@ def PrintObjectGraph():
       obj = objects[sym.objfile]
     obj.codesize += sym.codesize
   # adds dependencies
-  for sym in all_symbols.itervalues():
+  for sym in all_symbols.values():
     obj = objects[sym.objfile]
-    for dep in sym.deps.itervalues():
+    for dep in sym.deps.values():
       depobj = objects[dep.objfile]
-      print >>sys.stderr, ("OBJDEP %s -> %s  [%s -> %s]" % (obj.name, depobj.name, sym.displayname, dep.displayname))
+      print(("OBJDEP %s -> %s  [%s -> %s]" % (obj.name, depobj.name, sym.displayname, dep.displayname)), file=sys.stderr)
       obj.deps[depobj.name] = depobj
       depobj.indeps[obj.name] = obj
   # print all objects
-  print "digraph g {"
-  for obj in objects.itervalues():
-    print obj.PrintNode()
-  for obj in objects.itervalues():
-    for dname, dep_symbol in obj.deps.iteritems():
-      print "%s -> %s;" % (escape(obj.name), escape(dep_symbol.name));
-  print "}"
+  print("digraph g {")
+  for obj in objects.values():
+    print(obj.PrintNode())
+  for obj in objects.values():
+    for dname, dep_symbol in obj.deps.items():
+      print("%s -> %s;" % (escape(obj.name), escape(dep_symbol.name)))
+  print("}")
   return
   
 
 def usage():
-  print "Usage: callgraph.py [-hCto] [--min_size bytes] [--max_indep count] [(-m|--map) mapfile] > callgraph.dot\n"
-  print """
+  print("Usage: callgraph.py [-hCto] [--min_size bytes] [--max_indep count] [(-m|--map) mapfile] > callgraph.dot\n")
+  print("""
 Options:
   -h --help: print this message
   -C --[no-]demangle: turns on/off C++ symbol demangling
@@ -642,14 +643,14 @@ Options:
   --min_size bytes: does not display boxes with less total size than quoted
   --max_indep count: skips edges that go into boxes with more than this many in-edges
   -m --map file: reads file (format gnu LD .map) for additional information
-"""
+""")
 
 def parseargs():
   try:
     opts, args = getopt.getopt(sys.argv[1:], "hm:vo", ["help", "map=", "demangle", "min_size=", "max_indep=", "objects", "focus="])
   except getopt.GetoptError as err:
     # print help information and exit:
-    print str(err) # will print something like "option -a not recognized"
+    print(str(err)) # will print something like "option -a not recognized"
     usage()
     sys.exit(2)
   output = None
@@ -662,10 +663,10 @@ def parseargs():
       sys.exit()
     elif o in ("-m", "--map"):
       FLAGS.map_file = a
-      print >> sys.stderr, "will read map file ", FLAGS.map_file
+      print("will read map file ", FLAGS.map_file, file=sys.stderr)
     elif o in ("--focus"):
       FLAGS.focus_re = re.compile(a)
-      print >> sys.stderr, "focus on symbol like (regexp match) ", a
+      print("focus on symbol like (regexp match) ", a, file=sys.stderr)
     elif o in ("-C", "--demangle"):
       FLAGS.demangle = True
     elif o in ("-t", "--no-strip-template"):
@@ -676,10 +677,10 @@ def parseargs():
       FLAGS.demangle = False
     elif o in ("--min_size"):
       FLAGS.min_size = int(a)
-      print >> sys.stderr, "minimum symbol size ", FLAGS.min_size
+      print("minimum symbol size ", FLAGS.min_size, file=sys.stderr)
     elif o in ("--max_indep"):
       FLAGS.max_indep = int(a)
-      print >> sys.stderr, "maximum in-degree ", FLAGS.max_indep
+      print("maximum in-degree ", FLAGS.max_indep, file=sys.stderr)
     else:
       assert False, "unhandled option"
 
@@ -688,13 +689,13 @@ def ApplyFilters():
   l = []
   # symbols from which we want all downstream symbols
   dl = []
-  for name, symbol in all_symbols.iteritems():
+  for name, symbol in all_symbols.items():
     if FLAGS.focus_re is not None:
       m = FLAGS.focus_re.search(symbol.displayname)
       if m:
-        for dname, dep_symbol in symbol.deps.iteritems():
+        for dname, dep_symbol in symbol.deps.items():
           dl.append(dep_symbol)
-        for dname, dep_symbol in symbol.indeps.iteritems():
+        for dname, dep_symbol in symbol.indeps.items():
           l.append(dep_symbol)
       else:
         symbol.removed_by_filter = True
@@ -704,21 +705,21 @@ def ApplyFilters():
         symbol.removed_by_filter = True
       else:
         if len(symbol.indeps) > FLAGS.max_indep: continue
-        for dname, dep_symbol in symbol.indeps.iteritems():
+        for dname, dep_symbol in symbol.indeps.items():
           l.append(dep_symbol)
   # We go into all inwards dependencies and make them show
   for symbol in l:
     if symbol.removed_by_filter:
       if len(symbol.indeps) > FLAGS.max_indep: continue
-      for dname, dep_symbol in symbol.indeps.iteritems():
+      for dname, dep_symbol in symbol.indeps.items():
         l.append(dep_symbol)
     symbol.removed_by_filter = False
   # We go into all outwards dependencies and make them show
   for symbol in dl:
-    print >>sys.stderr, "downstream symbol ", symbol.name
+    print("downstream symbol ", symbol.name, file=sys.stderr)
     if not symbol.removed_by_filter: continue
     if len(symbol.indeps) > FLAGS.max_indep: continue
-    for dname, dep_symbol in symbol.deps.iteritems():
+    for dname, dep_symbol in symbol.deps.items():
       dl.append(dep_symbol)
     symbol.removed_by_filter = False
 
@@ -728,7 +729,7 @@ def main():
   ReadLstFile(sys.stdin)
   if FLAGS.demangle:
     DemangleAllNames()
-  print >> sys.stderr, "will read map file ", FLAGS.map_file
+  print("will read map file ", FLAGS.map_file, file=sys.stderr)
   if FLAGS.map_file:
     entries = ReadMapFile(open(FLAGS.map_file, 'r'))
     ProcessMapEntries(entries)

@@ -113,7 +113,29 @@ public:
             }
         }
 #endif
-        
+
+        /// Stops the polling loop. There is no guarantee how many more packets
+        /// will go out after this call is invoked, but no further packets will
+        /// be generated.
+        void pause()
+        {
+            needShutdown_ = true;
+        }
+
+        /// Restarts the polling loop. No-op if the loop has not been paused
+        /// (yet).
+        void resume()
+        {
+            if (needShutdown_)
+            {
+                needShutdown_ = false;
+            }
+            if (is_terminated())
+            {
+                start_flow(STATE(get_buffer));
+            }
+        }
+
         /// Sets the scheduling policy. This must be called exactly once after
         /// construction before scheduling any bus activity.
         void set_policy(unsigned num_prio, const Fixed16 *strides)
@@ -145,6 +167,7 @@ public:
             auto buf = get_buffer_deleter(get_allocation_result(sink_));
             if (needShutdown_)
             {
+                needShutdown_ = false;
                 return exit();
             }
             // Picks the next activity to do on the bus.
@@ -170,7 +193,7 @@ public:
         /// Total number of packets that the pool can generate.
         uint16_t numPacketsInPool_;
         /// True if shutdown was requested.
-        uint16_t needShutdown_ : 1;
+        bool needShutdown_;
     }; // class Master
 
 private:

@@ -117,6 +117,42 @@ TEST_F(SocketClientTest, connect_host)
     wait();
 }
 
+TEST_F(SocketClientTest, connect_host_with_timeout)
+{
+    EXPECT_CALL(*this, connect_callback(_, _)).Times(1);
+
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_mdns_executor,
+        SocketClientParams::from_static("127.0.0.1", LISTEN_PORT),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2), 1));
+
+    // Wait for just over 1 second.
+    for (unsigned i = 0; i < 12 && !sc_->is_connected(); ++i)
+    {
+        usleep(100 * 1000);
+        wait();
+    }
+    EXPECT_TRUE(sc_->is_connected());
+}
+
+TEST_F(SocketClientTest, connect_host_with_timeout_fail)
+{
+    EXPECT_CALL(*this, connect_callback(_, _)).Times(0);
+
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_mdns_executor,
+        SocketClientParams::from_static("8.8.8.67", 12021),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2), 1));
+
+    // Wait for just over 1 second.
+    for (unsigned i = 0; i < 12 && !sc_->is_connected(); ++i)
+    {
+        usleep(100 * 1000);
+        wait();
+    }
+    EXPECT_FALSE(sc_->is_connected());
+}
+
 TEST_F(SocketClientTest, connect_mdns_not_published)
 {
     sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),

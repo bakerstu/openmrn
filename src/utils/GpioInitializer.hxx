@@ -35,6 +35,8 @@
 #ifndef _UTILS_GPIOINITIALIZER_HXX_
 #define _UTILS_GPIOINITIALIZER_HXX_
 
+#include <tuple>
+
 /// Forward declaration to make the template matcher happy.
 template <class T> struct GpioInitHelper;
 
@@ -61,22 +63,22 @@ template <typename Head, typename... Tail>
 struct GpioInitHelper<std::tuple<Head, Tail...>>
 {
     /// Middle step of the recursion for an individual pin.
-    static void hw_init()
+    static void __attribute__((always_inline)) hw_init()
     {
         Head::hw_init();
-        GpioInitHelper<std::tuple<Tail...>>::hw_init();
+        return GpioInitHelper<std::tuple<Tail...>>::hw_init();
     }
     /// Middle step of the recursion for an individual pin.
-    static void hw_set_to_safe()
+    static void __attribute__((always_inline)) hw_set_to_safe()
     {
         Head::hw_set_to_safe();
-        GpioInitHelper<std::tuple<Tail...>>::hw_set_to_safe();
+        return GpioInitHelper<std::tuple<Tail...>>::hw_set_to_safe();
     }
     /// Middle step of the recursion for an individual pin.
-    static void set(bool value)
+    static void __attribute__((always_inline)) set(bool value)
     {
         Head::set(value);
-        GpioInitHelper<std::tuple<Tail...>>::set(value);
+        return GpioInitHelper<std::tuple<Tail...>>::set(value);
     }
 };
 

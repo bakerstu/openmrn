@@ -417,6 +417,7 @@ struct GcPacketPrinter::Impl : public CanHubPortInterface
         {
             fprintf(stderr, "\n");
         }
+        fflush(stderr);
     }
 
     /// Which hun are we registered to.
@@ -431,6 +432,11 @@ GcPacketPrinter::GcPacketPrinter(CanHubFlow *can_hub, bool timestamped) : impl_(
 
 GcPacketPrinter::~GcPacketPrinter()
 {
+}
+
+CanHubPortInterface *GcPacketPrinter::get_port()
+{
+    return impl_.get();
 }
 
 /// Implementation class that adds a device to a CAN hub with dynamic

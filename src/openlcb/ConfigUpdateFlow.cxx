@@ -69,7 +69,8 @@ void ConfigUpdateFlow::factory_reset()
 void ConfigUpdateFlow::register_update_listener(ConfigUpdateListener *listener)
 {
     AtomicHolder h(this);
-    pendingListeners_.push_front(listener);
+    pendingListeners_.insert(pendingLast_, listener);
+    ++pendingLast_;
     if (is_state(exit().next_state()))
     {
         start_flow(STATE(do_initial_load));
@@ -85,6 +86,10 @@ void ConfigUpdateFlow::unregister_update_listener(
         if (it.operator->() == listener)
         {
             listeners_.erase(it);
+            if (it == listeners_.end())
+            {
+                last_ = it;
+            }
             continue;
         }
         ++it;
@@ -94,6 +99,10 @@ void ConfigUpdateFlow::unregister_update_listener(
         if (it.operator->() == listener)
         {
             pendingListeners_.erase(it);
+            if (it == pendingListeners_.end())
+            {
+                pendingLast_ = it;
+            }
             continue;
         }
         ++it;

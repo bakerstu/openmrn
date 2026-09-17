@@ -43,10 +43,18 @@ void ClearFrame(struct can_frame* frame) {
   frame->can_dlc = 0;
 }
 
+class MockCallback
+{
+public:
+    MOCK_METHOD0(on_connect, void());
+};
+
 class GcTcpHubTest : public AsyncCanTest
 {
 protected:
-    GcTcpHubTest() : tcpHub_(&can_hub0, 12023)
+    GcTcpHubTest()
+        : tcpHub_(&can_hub0, 12023,
+            std::bind(&MockCallback::on_connect, &mCback_))
     {
         while (!tcpHub_.is_started())
         {
@@ -151,6 +159,7 @@ protected:
     }
     
     GcTcpHub tcpHub_;
+    ::testing::StrictMock<MockCallback> mCback_;
 };
 
 TEST_F(GcTcpHubTest, CreateDestroy)
@@ -160,6 +169,7 @@ TEST_F(GcTcpHubTest, CreateDestroy)
 
 TEST_F(GcTcpHubTest, TwoClientsPingPong)
 {
+    EXPECT_CALL(mCback_, on_connect()).Times(2);
     Client a;
     Client b;
     // Test writing from one client and arriving at another.
@@ -184,6 +194,7 @@ TEST_F(GcTcpHubTest, ClientCloseExpect)
     EXPECT_EQ(1U, can_hub_size);
     EXPECT_EQ(0U, tcpHub_.get_num_clients());
     {
+        EXPECT_CALL(mCback_, on_connect()).Times(2);
         Client a;
         Client b;
         expect_packet(":S001N01;");
@@ -216,6 +227,7 @@ TEST_F(GcTcpHubTest, LoadTest)
   const int count = 100;
   
   vector<std::unique_ptr<Client>> clients;
+    EXPECT_CALL(mCback_, on_connect()).Times(count);
   for (int i = 0; i < count; ++i) {
       clients.emplace_back(new Client);
   }

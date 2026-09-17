@@ -234,6 +234,22 @@ void CC32xxUart::set_mode()
  */
 void CC32xxUart::send()
 {
+    /// @todo: We observed situations where the TX interrupt got lost, causing
+    /// a deadlock of the UART driver, with the txBuf being full, txPending ==
+    /// true, select being not write-active, the hardware TX fifo being empty,
+    /// and this situation persisting for an extended period of time.
+    ///
+    /// The tx_char and send function is being called either in an interrupt
+    /// context or in application context under a critical section lock. This
+    /// function normally does not take an extended period of time. However,
+    /// there is a possibility that during the switch from FIFO-low to EOT
+    /// interrupt a race condition makes the interrupt get lost. There is a
+    /// patch for this specific situation here, but it is unclear whether this
+    /// is the only cause or condition leading to the above deadlock.
+    ///
+    /// There is some additional discussion in
+    /// https://github.com/bakerstu/openmrn/pull/949.
+
     do
     {
         uint8_t data = 0;
@@ -259,6 +275,12 @@ void CC32xxUart::send()
         /* no more data left to send */
         MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_EOT);
         MAP_UARTIntClear(base_, UART_INT_TX);
+        if (!MAP_UARTBusy(base_))
+        {
+            // We lost a race and might have removed the expected TX interrupt.
+            // This will ensure that we enter the irq handler again.
+            MAP_IntPendSet(interrupt_);
+        }
     }
 }
 
@@ -329,7 +351,7 @@ void CC32xxUart::interrupt_handler()
         }
     }
     /* transmit a character if we have pending tx data */
-    if (txPending_ && (status & UART_INT_TX))
+    if (txPending_ && ((status & UART_INT_TX) || (!MAP_UARTBusy(base_))))
     {
         if (txBuf->pending())
         {

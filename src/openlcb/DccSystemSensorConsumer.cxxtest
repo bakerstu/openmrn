@@ -1,0 +1,131 @@
+/** \copyright
+ * Copyright (c) 2026, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file DccSystemSensorConsumer.cxxtest
+ *
+ * Unit tests for DCC System Sensor consumer.
+ *
+ * @author Balazs Racz
+ * @date 18 Jan 2026
+ */
+
+#include "openlcb/DccSystemSensorConsumer.hxx"
+#include "utils/async_traction_test_helper.hxx"
+
+namespace openlcb
+{
+
+class DccSystemSensorTest : public AsyncNodeTest
+{
+protected:
+    DccSystemSensorTest()
+    {
+        wait();
+    }
+
+    DccSystemSensorConsumer consumer_ {node_};
+};
+
+TEST_F(DccSystemSensorTest, create)
+{
+}
+
+TEST_F(DccSystemSensorTest, global_identify)
+{
+    clear_expect(true);
+    // Consumer range for two 4096 long ranges.
+    expect_packet(":X194A422AN0101020000FB0FFF;"); // Active range
+    expect_packet(":X194A422AN0101020000FA0FFF;"); // Inactive range
+
+    // identify events addressed.
+    send_packet(":X19968111N022A;");
+    wait();
+}
+
+TEST_F(DccSystemSensorTest, identify_sensor_state)
+{
+    // Sensor 0 initially unknown.
+    EXPECT_FALSE(consumer_.is_sensor_state_known(1));
+    
+    // Query Sensor 0 Active event (Base Active + 0)
+    // 01.01.02.00.00.FB.00.00
+    send_packet_and_expect_response(":X198F4111N0101020000FB0000;",
+        ":X194C722AN0101020000FB0000;"); // UNKNOWN
+
+    // Sensor 0 Inactive event (Base Inactive + 0)
+    // 01.01.02.00.00.FA.00.00
+    send_packet_and_expect_response(":X198F4111N0101020000FA0000;",
+        ":X194C722AN0101020000FA0000;"); // UNKNOWN
+
+    // Set Sensor 0 to Active (Receive event)
+    send_packet(":X195B4111N0101020000FB0000;");
+    wait();
+
+    // Verify state
+    EXPECT_TRUE(consumer_.is_sensor_state_known(1));
+    EXPECT_TRUE(consumer_.is_sensor_state_active(1));
+
+    // Query Sensor 0 Active event -> Should be VALID
+    send_packet_and_expect_response(":X198F4111N0101020000FB0000;",
+        ":X194C422AN0101020000FB0000;"); // VALID
+
+    // Query Sensor 0 Inactive event -> Should be INVALID
+    send_packet_and_expect_response(":X198F4111N0101020000FA0000;",
+        ":X194C522AN0101020000FA0000;"); // INVALID
+
+    // Set Sensor 0 to Inactive
+    send_packet(":X195B4111N0101020000FA0000;");
+    wait();
+
+    // Verify state
+    EXPECT_TRUE(consumer_.is_sensor_state_known(1));
+    EXPECT_FALSE(consumer_.is_sensor_state_active(1));
+
+    // Query Sensor 0 Active event -> Should be INVALID
+    send_packet_and_expect_response(":X198F4111N0101020000FB0000;",
+        ":X194C522AN0101020000FB0000;"); // INVALID
+
+    // Query Sensor 0 Inactive event -> Should be VALID
+    send_packet_and_expect_response(":X198F4111N0101020000FA0000;",
+        ":X194C422AN0101020000FA0000;"); // VALID
+}
+
+TEST_F(DccSystemSensorTest, multiple_sensors)
+{
+    // Sensor 10
+    send_packet(":X195B4111N0101020000FB000A;"); // Set active
+    wait();
+    EXPECT_TRUE(consumer_.is_sensor_state_known(11));
+    EXPECT_TRUE(consumer_.is_sensor_state_active(11));
+
+    // Sensor 4095
+    send_packet(":X195B4111N0101020000FA0FFF;"); // Set inactive
+    wait();
+    EXPECT_TRUE(consumer_.is_sensor_state_known(4096));
+    EXPECT_FALSE(consumer_.is_sensor_state_active(4096));
+}
+
+} // namespace openlcb

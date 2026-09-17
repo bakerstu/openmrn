@@ -270,3 +270,47 @@ TEST(ConsoleTest, testAddCommandFlow)
 }
 
 
+static Console::CommandStatus echo_command(FILE *fp, int argc, const char *argv[], void *context)
+{
+    if (argc == 0) {
+        fprintf(fp, "the echo command\n");
+    } else if (argc == 2) {
+        fprintf(fp, "%s\n", argv[1]);
+    } else {
+        return Console::COMMAND_ERROR;
+    }
+
+    return Console::COMMAND_OK;
+}
+
+TEST(ConsoleTest, testQuotedParameters)
+{
+    g_console.add_command("echo", echo_command, nullptr);
+    
+    int s = ConnectSocket("localhost", 12345);
+    
+    EXPECT_EQ(::read(s, buf, 1024), 2);
+    EXPECT_TRUE(!strncmp(buf, "> ", 2));
+    
+    EXPECT_EQ(::write(s, "echo \"It couldn't\"\n",19), 19);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 14);
+    EXPECT_TRUE(!strncmp(buf, "It couldn't\n> ", 14));
+    
+    EXPECT_EQ(::write(s, "echo '\"Oh no, no, no\", said the man'\n", 37), 37);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 32);
+    EXPECT_TRUE(!strncmp(buf, "\"Oh no, no, no\", said the man\n> ", 32));
+    
+    /* Check for error checks */
+    EXPECT_EQ(::write(s, "echo '\"Oh no, no, no\", said the man\n", 36), 36);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 27);
+    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed '\n> ", 27));
+    
+    EXPECT_EQ(::write(s, "echo \"\n", 7), 7);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 27);
+    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed \"\n> ", 27));
+    close(s);
+}

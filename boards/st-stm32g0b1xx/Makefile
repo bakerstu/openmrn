@@ -38,7 +38,7 @@ multibin:
 	for i in $$(seq 1 $(NUM)) ; do $(MAKE) $(EXECUTABLE).bin ADDRESS=$$(printf 0x%02x $$(($(ADDRESS)+$$i))) ; cp $(EXECUTABLE).bin $(EXECUTABLE).f303.$$(printf %02x%02x $(ADDRHIGH) $$(($(ADDRESS)+$$i-1))).bin ; done
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
-all: $(EXECUTABLE).bin
+all: $(EXECUTABLE).bin $(EXECUTABLE).lst
 
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
@@ -51,6 +51,12 @@ gdb:
 # Prints the option bytes and other relevant memory areas. For debugging.
 option_view_xds:
 	openocd -f interface/xds110.cfg -c 'transport select swd' -c 'adapter_khz 950' -f target/stm32l4x.cfg -c 'reset_config separate' -c 'init' -c 'echo "option flash"' -c 'read_memory 0x1fff7800 32 8' -c 'echo "option reg"' -c 'read_memory 0x40022020 32 4' -c 'stm32l4x option_read 0 0x20'  -c 'stm32l4x option_read 0 0x2C' -c 'echo "flash begin"' -c 'read_memory 0x08000000 32 8' -c 'exit'
+
+# Sets an STM32G0 MCU to single-bank: 	monitor stm32l4x option_write 0 0x20 0x00000000 0x00200000	
+option_set_single_bank:
+	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
+	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "monitor stm32l4x option_write 0 0x20 0x00000000 0x00200000" -ex "quit"
+
 
 # Recovers a "level-1" locked microcontroller to an empty state. Uses an
 # XDS110.

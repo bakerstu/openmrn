@@ -31,6 +31,9 @@ cov:
 tests:
 	$(MAKE) -C targets/test tests
 
+tests-single:
+	$(MAKE) -C targets/test tests-single
+
 llvm-tests:
 	$(MAKE) -C targets/linux.llvm run-tests
 

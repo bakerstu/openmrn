@@ -64,7 +64,20 @@ public:
     /// @return true if there is no entry in the queue.
     bool empty() { return size() == 0; }
     /// @return true if the queue cannot accept more elements.
-    bool full() { return size() >= SIZE; }
+    bool full()
+    {
+        auto sz = size();
+        if (sz >= SIZE)
+        {
+            return true;
+        }
+        if (sz != 0 && rdIndex_ == wrIndex_)
+        {
+            // noncommit members make the queue full.
+            return true;
+        }
+        return false;
+    }
     /// @return the current number of entries in the queue.
     size_t size() { return __atomic_load_n(&count_, __ATOMIC_SEQ_CST); }
 
@@ -119,6 +132,27 @@ public:
     void commit_back() {
         HASSERT(count_ <= SIZE);
         __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
+    }
+
+    /// Checks if there is space in the back. If yes, allocates one entry as
+    /// noncommit space and returns the pointer. If full, returns nullptr.
+    /// @return nullptr if the queue is full, otherwise a noncommit entry.
+    T *noncommit_back_or_null()
+    {
+        auto sz = size();
+        if (sz >= SIZE)
+        {
+            return nullptr;
+        }
+        if (sz != 0 && rdIndex_ == wrIndex_)
+        {
+            // noncommit members make the queue full.
+            return nullptr;
+        }
+        auto *ret = &storage_[wrIndex_];
+        if (++wrIndex_ >= SIZE)
+            wrIndex_ = 0;
+        return ret;
     }
 
 private:

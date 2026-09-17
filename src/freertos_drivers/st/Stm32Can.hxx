@@ -36,24 +36,29 @@
 
 #include <cstdint>
 
+#include "freertos_drivers/common/Can.hxx"
 #ifdef ARDUINO
 #include <Arduino.h>
-#include "freertos_drivers/arduino/Can.hxx"
+using CanBase = openmrn_arduino::Can;
 #else
-#include "freertos_drivers/common/Can.hxx"
+using CanBase = ::Can;
 #endif
 
 #include "stm32f_hal_conf.hxx"
 
+/// Max possible number of CAN ifs across the whole STM32 -- the constructor
+/// will calculate the actual max for the specific chip compiling for
+#define MAXCANIFS 3 
+
 /** Specialization of CAN driver for LPC17xx and LPC40xx CAN.
  */
-class Stm32Can : public Can
+class Stm32Can : public CanBase
 {
 public:
     /** Constructor.
      * @param name name of this device instance in the file system
      */
-    Stm32Can(const char *name);
+    Stm32Can(const char *name, uint8_t index = 0);
 
     /** Destructor.
      */
@@ -69,7 +74,7 @@ public:
     void sce_interrupt_handler();
 
     /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Can *instances[1];
+    static Stm32Can *instances[MAXCANIFS];
 
 private:
 #ifndef ARDUINO    
@@ -91,11 +96,15 @@ private:
     static unsigned int intCount;
 
     uint8_t state_; ///< present bus state
-
-    /** Default constructor.
-     */
+    
+    CAN_TypeDef *can_; ///< CAN hardware registers for this instance (defined in the SDK).
+    IRQn_Type canIrqn_; ///< CAN IRQn for this instance.
+    IRQn_Type canSecondIrqn_; ///< CAN Second IRQn (if used) for this instance. 
+    IRQn_Type canThirdIrqn_; ///< CAN Third IRQn (if used) for this instance. 
+    
+    /** Default constructor. */
     Stm32Can();
-
+    
     DISALLOW_COPY_AND_ASSIGN(Stm32Can);
 };
 

@@ -35,7 +35,7 @@
 
 #include "utils/ReflashBootloader.hxx"
 
-#include "freertos/bootloader_hal.h"
+#include "openlcb/bootloader_hal.h"
 
 /// The list of segments to copy from the reflash-bootloader program code to
 /// the flash space occupied by the bootloader (and thus overwriting the

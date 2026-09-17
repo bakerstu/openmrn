@@ -204,7 +204,7 @@ extern const char* g_death_file;
 /// @param BASE_CLASS the name of the immediate base class
 #define INHERIT_CONSTEXPR_CONSTRUCTOR(CURRENT_CLASS, BASE_CLASS)               \
     template <typename... Args>                                                \
-    explicit constexpr CURRENT_CLASS(Args... args)                             \
+    explicit constexpr __attribute__((always_inline)) CURRENT_CLASS(Args... args) \
         : BASE_CLASS(args...)                                                  \
     {                                                                          \
     }
@@ -238,7 +238,7 @@ extern const char* g_death_file;
 /// };
 #define GET_PARENT_PTR(ParentClass, variable)                                  \
     reinterpret_cast<ParentClass *>(                                           \
-        reinterpret_cast<char *>(this) - offsetof(ParentClass, variable));
+        reinterpret_cast<char *>(this) - offsetof(ParentClass, variable))
 
 
 /// Helper macro for printing a node ID on printf that does not support %llx.
