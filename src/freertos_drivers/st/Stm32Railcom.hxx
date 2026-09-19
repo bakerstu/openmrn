@@ -101,12 +101,16 @@ struct RailcomHw
     // (e.g. in hw_preinit).
     static const RailcomDmaChannel DMA[CHANNEL_COUNT];
 
-    // For railcom direction sensing, the EXTI interrupts have to be set up
-    // correctly (meaning that the correct GPIO port is selected for the
-    // line). These are the respective lines (LL_EXTI_LINE_0..15) for each
-    // channel:
+    // Set to true if direction detection is supported on this board.
+    static constexpr bool HAVE_DIRECTION = true;
 
-    static const uint32_t RAILCOM_DIR_EXTI[CHANNEL_COUNT];
+    // Clears any activity flags and arms direction detection for all channels
+    // before a cutout window (Channel 1 or Channel 2) begins.
+    static void clear_direction() {}
+
+    // Samples/queries direction bits for all channels at the end of a cutout window.
+    // Bit i corresponds to channel i (1 = West, 0 = East).
+    static uint32_t get_direction() { return 0; }
 
     // Make sure there are enough entries here for all the channels times a few
     // DCC packets.
@@ -242,14 +246,6 @@ private:
             // Disables the receiver.
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
 
-            // Configures the EXTI
-            /*
-            LL_EXTI_DisableIT_0_31(HW::RAILCOM_DIR_EXTI[i]);
-            LL_EXTI_DisableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
-            LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
-            LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
-            */
-
             // configure DMA
 
             // peripheral address
@@ -296,6 +292,10 @@ private:
         HW::enable_measurement(false);
         const bool need_ch1_cutout =
             HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
+        if (HW::HAVE_DIRECTION && need_ch1_cutout)
+        {
+            HW::clear_direction();
+        }
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
             while (LL_USART_IsActiveFlag_RXNE(uart(i)))
@@ -317,16 +317,8 @@ private:
                 dma_ch(i)->CNDTR = 2;
                 dma_ch(i)->CMAR = (uint32_t)returnedPackets_[i]->ch1Data;
                 dma_ch(i)->CCR |= DMA_CCR_EN; // enable DMA
-
-                // Sets up the direction flag.
-                /*
-                LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
-                LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
-                LL_EXTI_EnableEvent_0_31(HW::RAILCOM_DIR_EXTI[i]);
-                */
             }
         }
-        //LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
         Debug::RailcomDriverCutout::set(true);
     }
 
@@ -343,6 +335,11 @@ private:
     void __attribute__((optimize("O3"))) middle_cutout() override
     {
         Debug::RailcomDriverCutout::set(false);
+        uint32_t dir = 0;
+        if (HW::HAVE_DIRECTION)
+        {
+            dir = HW::get_direction();
+        }
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
             if (!returnedPackets_[i])
@@ -382,15 +379,16 @@ private:
             }
             else if (returnedPackets_[i]->ch1Size)
             {
-                // Checks the direction.
-                /// @todo this direction capture does not work.
-                returnedPackets_[i]->haveCh1Dir = 0; // = 1;
-                // Direction is "west" if the current came in with a positive
-                // sense. That means that the DIR pin has never seen a low
-                // edge.
-                // returnedPackets_[i]->ch1Dir =
-                //    (LL_EXTI_IsActiveFallingFlag_0_31(
-                //        HW::RAILCOM_DIR_EXTI[i])) == 0;
+                if (HW::HAVE_DIRECTION)
+                {
+                    returnedPackets_[i]->haveCh1Dir = 1;
+                    returnedPackets_[i]->ch1Dir = (dir >> i) & 1;
+                }
+                else
+                {
+                    returnedPackets_[i]->haveCh1Dir = 0;
+                    returnedPackets_[i]->ch1Dir = 0;
+                }
             }
 
             // Set up channel 2 reception with DMA.
@@ -401,21 +399,23 @@ private:
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_RX);
             LL_USART_ClearFlag_FE(uart(i));
             LL_USART_Enable(uart(i));
-
-            /// @todo: this does not actually work
-            
-            // Set up direction capture.
-            //LL_EXTI_ClearFallingFlag_0_31(HW::RAILCOM_DIR_EXTI[i]);
-            //LL_EXTI_EnableFallingTrig_0_31(HW::RAILCOM_DIR_EXTI[i]);
+        }
+        if (HW::HAVE_DIRECTION)
+        {
+            HW::clear_direction();
         }
         HW::middle_cutout_hook();
         Debug::RailcomDriverCutout::set(true);
-        //LL_EXTI_EnableIT_0_31(HW::RAILCOM_DIR_EXTI[7]);
     }
 
     void end_cutout() override
     {
         HW::disable_measurement();
+        uint32_t dir = 0;
+        if (HW::HAVE_DIRECTION)
+        {
+            dir = HW::get_direction();
+        }
         bool have_packets = false;
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
@@ -444,15 +444,16 @@ private:
             }
             else if (returnedPackets_[i]->ch2Size)
             {
-                // Checks the direction.
-                /// @todo this direction capture does not work.
-                returnedPackets_[i]->haveCh2Dir = 0; // = 1;
-                // Direction is "west" if the current came in with a positive
-                // sense. That means that the DIR pin has never seen a low
-                // edge.
-                // returnedPackets_[i]->ch2Dir =
-                //    (LL_EXTI_IsActiveFallingFlag_0_31(
-                //        HW::RAILCOM_DIR_EXTI[i])) == 0;
+                if (HW::HAVE_DIRECTION)
+                {
+                    returnedPackets_[i]->haveCh2Dir = 1;
+                    returnedPackets_[i]->ch2Dir = (dir >> i) & 1;
+                }
+                else
+                {
+                    returnedPackets_[i]->haveCh2Dir = 0;
+                    returnedPackets_[i]->ch2Dir = 0;
+                }
             }
 
             LL_USART_SetTransferDirection(uart(i), LL_USART_DIRECTION_NONE);
