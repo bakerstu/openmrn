@@ -1,0 +1,158 @@
+/** \copyright
+ * Copyright (c) 2026, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file RailcomBroadcastDecoder.cxxtest
+ *
+ * Unit tests for RailcomBroadcastDecoder.
+ *
+ * @author Balazs Racz
+ * @date 19 Sep 2026
+ */
+
+#include "dcc/RailcomBroadcastDecoder.hxx"
+
+#include "dcc/RailCom.hxx"
+#include "utils/test_main.hxx"
+
+namespace dcc
+{
+
+class RailcomBroadcastDecoderTest : public ::testing::Test
+{
+protected:
+    RailcomBroadcastDecoderTest()
+    {
+    }
+
+    void send_addr(uint16_t addr, bool have_dir = false, uint8_t dir = 0)
+    {
+        Feedback fb;
+        uint16_t dcc_addr = (3 << 8); // mobile decoder packet
+        fb.reset(0, dcc_addr);
+        fb.haveCh1Dir = have_dir ? 1 : 0;
+        fb.ch1Dir = dir;
+
+        uint8_t low_byte = addr & 0xff;
+        uint8_t high_byte = (addr >> 8) & 0xff;
+
+        // Channel 1 sends ADRLOW or ADRHIGH per packet.
+        uint8_t buf[2];
+        RailcomDefs::append12(RMOB_ADRLOW, low_byte, buf);
+        fb.add_ch1_data(buf[0]);
+        fb.add_ch1_data(buf[1]);
+        decoder_.process_packet(fb);
+
+        fb.reset(0, dcc_addr);
+        fb.haveCh1Dir = have_dir ? 1 : 0;
+        fb.ch1Dir = dir;
+        RailcomDefs::append12(RMOB_ADRHIGH, high_byte, buf);
+        fb.add_ch1_data(buf[0]);
+        fb.add_ch1_data(buf[1]);
+        decoder_.process_packet(fb);
+    }
+
+    void send_empty()
+    {
+        Feedback fb;
+        fb.reset(0, 3 << 8); // mobile decoder packet
+        decoder_.process_packet(fb);
+    }
+
+    RailcomBroadcastDecoder decoder_;
+};
+
+TEST_F(RailcomBroadcastDecoderTest, InitialState)
+{
+    EXPECT_EQ(0u, decoder_.current_address());
+    EXPECT_EQ(RailcomDirection::UNKNOWN, decoder_.current_direction());
+}
+
+TEST_F(RailcomBroadcastDecoderTest, DetectAddressNoDirection)
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        send_addr(0x1234, false, 0);
+    }
+    EXPECT_EQ(0x1234u, decoder_.current_address());
+    EXPECT_EQ(RailcomDirection::UNKNOWN, decoder_.current_direction());
+}
+
+TEST_F(RailcomBroadcastDecoderTest, DetectAddressWest)
+{
+    // dir = 1 is West
+    for (int i = 0; i < 6; ++i)
+    {
+        send_addr(0x0567, true, 1);
+    }
+    EXPECT_EQ(0x0567u, decoder_.current_address());
+    EXPECT_EQ(RailcomDirection::WEST, decoder_.current_direction());
+}
+
+TEST_F(RailcomBroadcastDecoderTest, DetectAddressEast)
+{
+    // dir = 0 is East
+    for (int i = 0; i < 6; ++i)
+    {
+        send_addr(0x0567, true, 0);
+    }
+    EXPECT_EQ(0x0567u, decoder_.current_address());
+    EXPECT_EQ(RailcomDirection::EAST, decoder_.current_direction());
+}
+
+TEST_F(RailcomBroadcastDecoderTest, DirectionChange)
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        send_addr(0x0567, true, 1);
+    }
+    EXPECT_EQ(0x0567u, decoder_.current_address());
+    EXPECT_EQ(RailcomDirection::WEST, decoder_.current_direction());
+
+    for (int i = 0; i < 6; ++i)
+    {
+        send_addr(0x0567, true, 0);
+    }
+    EXPECT_EQ(RailcomDirection::EAST, decoder_.current_direction());
+}
+
+TEST_F(RailcomBroadcastDecoderTest, DirectionDecayAndResetOnEmpty)
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        send_addr(0x0567, true, 1);
+    }
+    EXPECT_EQ(0x0567u, decoder_.current_address());
+    EXPECT_EQ(RailcomDirection::WEST, decoder_.current_direction());
+
+    for (int i = 0; i < 10; ++i)
+    {
+        send_empty();
+    }
+    EXPECT_EQ(0u, decoder_.current_address());
+    EXPECT_EQ(RailcomDirection::UNKNOWN, decoder_.current_direction());
+}
+
+} // namespace dcc
