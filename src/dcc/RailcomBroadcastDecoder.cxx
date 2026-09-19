@@ -55,7 +55,7 @@ bool RailcomBroadcastDecoder::process_packet(const dcc::Feedback &packet)
     }
     if (packet.ch1Size)
     {
-        return process_data(packet.ch1Data, packet.ch1Size);
+        return process_data(packet.ch1Data, packet.ch1Size, packet.haveCh1Dir, packet.ch1Dir);
     }
     else
     {
@@ -69,7 +69,8 @@ bool RailcomBroadcastDecoder::process_packet(const dcc::Feedback &packet)
     }
 }
 
-bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
+bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size,
+                                           bool have_dir, uint8_t dir)
 {
     for (unsigned i = 0; i < size; ++i)
     {
@@ -105,6 +106,8 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
                 {
                     currentL_ = payload;
                     countL_ = 0;
+                    dirConfidence_ = 0;
+                    currentDirection_ = RailcomDirection::UNKNOWN;
                 }
                 break;
             case dcc::RMOB_ADRHIGH:
@@ -119,15 +122,42 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
                 {
                     currentH_ = payload;
                     countH_ = 0;
+                    dirConfidence_ = 0;
+                    currentDirection_ = RailcomDirection::UNKNOWN;
                 }
                 break;
             default:
                 return false; // This is something we don't know about.
         }
+        if (have_dir)
+        {
+            if (dir) // West
+            {
+                if (dirConfidence_ < 8)
+                {
+                    dirConfidence_ += 2;
+                }
+            }
+            else // East
+            {
+                if (dirConfidence_ > -8)
+                {
+                    dirConfidence_ -= 2;
+                }
+            }
+        }
         if (countL_ >= (MIN_REPEAT_COUNT * 2) &&
             countH_ >= (MIN_REPEAT_COUNT * 2))
         {
             currentAddress_ = (uint16_t(currentH_) << 8) | currentL_;
+            if (dirConfidence_ >= 4)
+            {
+                currentDirection_ = RailcomDirection::WEST;
+            }
+            else if (dirConfidence_ <= -4)
+            {
+                currentDirection_ = RailcomDirection::EAST;
+            }
         }
         return true;
     }
@@ -167,9 +197,19 @@ void RailcomBroadcastDecoder::notify_empty()
     {
         --countL_;
     }
+    if (dirConfidence_ > 0)
+    {
+        --dirConfidence_;
+    }
+    else if (dirConfidence_ < 0)
+    {
+        ++dirConfidence_;
+    }
     if ((!countH_) || (!countL_))
     {
         currentAddress_ = 0;
+        dirConfidence_ = 0;
+        currentDirection_ = RailcomDirection::UNKNOWN;
     }
 }
 
