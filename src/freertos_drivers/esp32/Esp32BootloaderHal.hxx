@@ -69,6 +69,8 @@
 #include <esp32s3/rom/rtc.h>
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
 #include <esp32c3/rom/rtc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#include <esp32c6/rom/rtc.h>
 #else
 #error Unknown/Unsupported ESP32 variant.
 #endif

@@ -70,6 +70,17 @@
 #include <soc/gpio_sig_map.h>
 #include <stdint.h>
 
+#if SOC_TWAI_CONTROLLER_NUM > 1
+// SoCs with multiple TWAI controllers (ESP32-C6) number the peripheral
+// resources, this driver always uses the first controller.
+#define PERIPH_TWAI_MODULE PERIPH_TWAI0_MODULE
+#define ETS_TWAI_INTR_SOURCE ETS_TWAI0_INTR_SOURCE
+#define TWAI_TX_IDX TWAI0_TX_IDX
+#define TWAI_RX_IDX TWAI0_RX_IDX
+#define TWAI_CLKOUT_IDX TWAI0_CLKOUT_IDX
+#define TWAI_BUS_OFF_ON_IDX TWAI0_BUS_OFF_ON_IDX
+#endif // SOC_TWAI_CONTROLLER_NUM > 1
+
 #include "can_frame.h"
 #include "can_ioctl.h"
 #include "executor/Notifiable.hxx"
@@ -1004,7 +1015,7 @@ void Esp32HardwareTwai::hw_init()
     if (busStatusPin_ != GPIO_NUM_NC)
     {
         gpio_set_pull_mode((gpio_num_t)busStatusPin_, GPIO_FLOATING);
-        esp_rom_gpio_connect_out_signal(extClockPin_, TWAI_BUS_OFF_ON_IDX,
+        esp_rom_gpio_connect_out_signal(busStatusPin_, TWAI_BUS_OFF_ON_IDX,
             false, false);
         esp_rom_gpio_pad_select_gpio((gpio_num_t)busStatusPin_);
     }
