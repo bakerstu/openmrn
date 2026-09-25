@@ -205,6 +205,8 @@ public:
         , useDefaultBaud_(use_default_baud)
     {
         link_->register_link_status(this);
+        link_->get_rx_iface()->register_packet_rx_callback(
+            std::bind(&LinkManager::packet_rx_callback, this));
     }
 
 #if defined(GTEST)
@@ -226,6 +228,19 @@ private:
 private:
     /// Alias for short response timeout used during link establishment.
     static constexpr long long RESP_TIMEOUT = Defs::RESP_TIMEOUT_SHORT;
+
+    // Callback for when any packet is received.
+    void packet_rx_callback()
+    {
+        if (link_->is_link_up())
+        {
+            // Note: link_is_down() is technically the "next" state, if
+            //       the link fails (timer_ expires without pong).
+            HASSERT(is_state(STATE(link_is_down)));
+            // Everything is good, don't trigger an early timer_ wakeup.
+            timer_.restart();
+        }
+    }
 
     /// Called when the link is started.
     void on_link_start() override
@@ -338,14 +353,10 @@ private:
         switch(buf->data()->command())
         {
             case Defs::RESP_PING:
+                /// @todo This is a good place to extract the revision info.
                 if (link_->is_link_up())
                 {
-                    // Note: link_is_down() is technically the "next" state, if
-                    //       the link fails (timer_ expires without pong).
-                    HASSERT(is_state(STATE(link_is_down)));
-                    // Everything is good, don't trigger an early timer_ wakeup.
-                    timer_.restart();
-                    return; 
+                    return;
                 }
                 break;
             case Defs::RESP_BAUD_RATE_QUERY:
