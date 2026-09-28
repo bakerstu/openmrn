@@ -163,6 +163,15 @@ struct RailcomDefs
 
     static const auto OS_INTERRUPT = INT_UART1;
 
+    static constexpr bool HAVE_DIRECTION = false;
+    static void clear_direction()
+    {
+    }
+    static uint32_t get_direction()
+    {
+        return 0;
+    }
+
     typedef RAILCOM_CH1_Pin CH1_Pin;
 
     static void hw_init() {
