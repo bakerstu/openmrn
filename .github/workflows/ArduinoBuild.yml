@@ -63,7 +63,7 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        target: [esp32, esp32c3, esp32s2]
+        target: [esp32, esp32c3, esp32c6, esp32s2]
     steps:
     - name: Checkout
       uses: actions/checkout@master
@@ -92,6 +92,16 @@ jobs:
         debug-compile: true
         arduino-platform: esp32:esp32@3.3.0
       if: ${{ matrix.target == 'esp32c3' }}
+
+    - name: Compile ESP32-C6 examples
+      uses: ArminJo/arduino-test-compile@v3
+      with:
+        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+        arduino-board-fqbn: esp32:esp32:esp32c6
+        sketch-names-find-start: arduino/examples/ESP32C6
+        debug-compile: true
+        arduino-platform: esp32:esp32@3.3.0
+      if: ${{ matrix.target == 'esp32c6' }}
     
     - name: Compile ESP32-S2 examples
       uses: ArminJo/arduino-test-compile@v3
