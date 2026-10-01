@@ -201,6 +201,40 @@ TEST_F(PacketTest, DccIdle)
     EXPECT_THAT(get_packet(), ElementsAre(0xff, 0, 0xff));
 }
 
+TEST_F(PacketTest, AddDccDecoderAckRequest)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_decoder_ack_request();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0x0f, 55 ^ 0x0f));
+    EXPECT_TRUE(check_checksum());
+}
+
+TEST_F(PacketTest, DccDecoderAckRequestShort)
+{
+    pkt_.set_dcc_decoder_ack_request(DccShortAddress(55));
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0x0f, 55 ^ 0x0f));
+    EXPECT_TRUE(check_checksum());
+}
+
+TEST_F(PacketTest, DccDecoderAckRequestLong)
+{
+    pkt_.set_dcc_decoder_ack_request(DccLongAddress(10239));
+    EXPECT_THAT(get_packet(), ElementsAre(0xe7, 0xff, 0x0f, 0x17));
+    EXPECT_TRUE(check_checksum());
+}
+
+TEST_F(PacketTest, DccDecoderAckRequestDefault)
+{
+    pkt_.set_dcc_decoder_ack_request();
+    EXPECT_THAT(get_packet(), ElementsAre(0xe7, 0xff, 0x0f, 0x17));
+    EXPECT_TRUE(check_checksum());
+}
+
+TEST_F(PacketTest, DccDecoderAckRequestOpcode)
+{
+    EXPECT_EQ(0x0f, Defs::DCC_DECODER_ACK_REQUEST);
+    EXPECT_EQ(0b00001111, Defs::DCC_DECODER_ACK_REQUEST);
+}
 
 TEST_F(PacketTest, DccReset)
 {
