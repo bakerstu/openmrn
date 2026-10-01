@@ -115,6 +115,59 @@ TEST(ConfigRenderer, IntWithMax)
     EXPECT_EQ("<int size='1'>\n<name>fffoo</name>\n<max>21</max>\n</int>\n", s);
 }
 
+TEST(ConfigRenderer, HiddenAtomicEntriesDirect)
+{
+    using Hidden = AtomConfigOptions::Hidden;
+    {
+        auto rnd = Uint8ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='1'/>\n", s);
+    }
+    {
+        auto rnd = Uint16ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='2'/>\n", s);
+    }
+    {
+        auto rnd = Uint32ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='4'/>\n", s);
+    }
+    {
+        auto rnd = StringConfigEntry<16>(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, AtomConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='16'/>\n", s);
+    }
+    {
+        auto rnd = EventConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, AtomConfigOptions(Hidden(true)));
+        EXPECT_EQ("<group offset='8'/>\n", s);
+    }
+}
+
+TEST(ConfigRenderer, HiddenAtomicEntryWithOffset)
+{
+    using Hidden = AtomConfigOptions::Hidden;
+    using Offset = AtomConfigOptions::Offset;
+    {
+        auto rnd = Uint8ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true), Offset(-123)));
+        EXPECT_EQ("<group offset='-122'/>\n", s);
+    }
+    {
+        auto rnd = Uint16ConfigEntry(0).config_renderer();
+        string s;
+        rnd.render_cdi(&s, NumericConfigOptions(Hidden(true), Offset(10)));
+        EXPECT_EQ("<group offset='12'/>\n", s);
+    }
+}
+
 CDI_GROUP(TestGroup, Name("testgroup"), Description("test group desc"),
           RepName("foorep"), FixedSize(6));
 CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
@@ -225,6 +278,37 @@ TEST(ComplexGroupRender, HiddenRepeatedGroupRender)
 )";
     string s;
     TestNodeConfigWithHiddenRepeatedGroup cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+}
+
+CDI_GROUP(TestNodeConfigWithHiddenAtomicEntries, Name("node_config"));
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry, Name("Version"));
+CDI_GROUP_ENTRY(hidden_u8, Uint8ConfigEntry, Hidden(true));
+CDI_GROUP_ENTRY(hidden_u16, Uint16ConfigEntry, Hidden(true));
+CDI_GROUP_ENTRY(hidden_event, EventConfigEntry, Hidden(true));
+CDI_GROUP_ENTRY(hidden_string, StringConfigEntry<20>, Hidden(true));
+CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
+CDI_GROUP_END();
+
+TEST(ComplexGroupRender, HiddenAtomicEntriesGroupRender)
+{
+    const char kExpectedTestNodeCdi[] =
+        R"(<group>
+<name>node_config</name>
+<int size='1'>
+<name>Version</name>
+</int>
+<group offset='1'/>
+<group offset='2'/>
+<group offset='8'/>
+<group offset='20'/>
+<int size='1'>
+</int>
+</group>
+)";
+    string s;
+    TestNodeConfigWithHiddenAtomicEntries cfg(0);
     cfg.config_renderer().render_cdi(&s);
     EXPECT_EQ(kExpectedTestNodeCdi, s);
 }
@@ -369,6 +453,83 @@ TEST(CdiRender, NoRenderHiddenSegment)
 )data";
     EXPECT_EQ(kExpectedTestNodeCdi, s);
     EXPECT_EQ(34u, cfg.testseg().e2().offset());
+}
+
+CDI_GROUP(TestGroupEmptyGroupOffset);
+CDI_GROUP_ENTRY(revert_align, openlcb::EmptyGroup<0>, Offset(-104), Hidden(true));
+CDI_GROUP_END();
+
+CDI_GROUP(TestCdiEmptyGroupOffset, MainCdi());
+CDI_GROUP_ENTRY(seg, TestGroupEmptyGroupOffset, Segment(1));
+CDI_GROUP_END();
+
+TEST(CdiRender, EmptyGroupWithNegativeOffset)
+{
+    string s;
+    TestCdiEmptyGroupOffset cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" R"data(
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<segment space='1'>
+<group offset='-104'/>
+</segment>
+</cdi>
+)data";
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+    EXPECT_THAT(s, ::testing::HasSubstr("<group offset='-104'/>"));
+}
+
+CDI_GROUP(TestGroupToHide);
+CDI_GROUP_ENTRY(entry, Uint8ConfigEntry);
+CDI_GROUP_END();
+
+CDI_GROUP(TestGroupHiddenGroupOffset);
+CDI_GROUP_ENTRY(hidden_group, TestGroupToHide, Hidden(true), Offset(-50));
+CDI_GROUP_END();
+
+CDI_GROUP(TestCdiHiddenGroupOffset, MainCdi());
+CDI_GROUP_ENTRY(seg, TestGroupHiddenGroupOffset, Segment(1));
+CDI_GROUP_END();
+
+TEST(CdiRender, HiddenGroupWithNegativeOffset)
+{
+    string s;
+    TestCdiHiddenGroupOffset cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    EXPECT_THAT(s, ::testing::HasSubstr("<group offset='-49'/>"));
+}
+
+CDI_GROUP(TestGroupNonHiddenEmptyGroupOffset);
+CDI_GROUP_ENTRY(revert_align_visible, openlcb::EmptyGroup<0>, Offset(-104));
+CDI_GROUP_END();
+
+CDI_GROUP(TestCdiNonHiddenEmptyGroupOffset, MainCdi());
+CDI_GROUP_ENTRY(seg, TestGroupNonHiddenEmptyGroupOffset, Segment(1));
+CDI_GROUP_END();
+
+TEST(CdiRender, NonHiddenEmptyGroupWithNegativeOffset)
+{
+    string s;
+    TestCdiNonHiddenEmptyGroupOffset cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    EXPECT_THAT(s, ::testing::HasSubstr("<group offset='-104'/>"));
+}
+
+CDI_GROUP(TestGroupNonZeroEmptyGroupOffset);
+CDI_GROUP_ENTRY(nonzero_align, openlcb::EmptyGroup<10>, Offset(-104));
+CDI_GROUP_END();
+
+CDI_GROUP(TestCdiNonZeroEmptyGroupOffset, MainCdi());
+CDI_GROUP_ENTRY(seg, TestGroupNonZeroEmptyGroupOffset, Segment(1));
+CDI_GROUP_END();
+
+TEST(CdiRender, NonZeroEmptyGroupWithNegativeOffset)
+{
+    string s;
+    TestCdiNonZeroEmptyGroupOffset cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    // 10 + (-104) = -94 offset in CDI
+    EXPECT_THAT(s, ::testing::HasSubstr("<group offset='-94'/>"));
 }
 
 
