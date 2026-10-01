@@ -78,6 +78,12 @@ void Packet::add_dcc_checksum()
     packet_header.skip_ec = 1;
 }
 
+void Packet::add_dcc_decoder_ack_request()
+{
+    payload[dlc++] = DCC_DECODER_ACK_REQUEST;
+    add_dcc_checksum();
+}
+
 void Packet::set_dcc_idle()
 {
     start_dcc_packet();

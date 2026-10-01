@@ -343,6 +343,26 @@ struct Packet : public DCCPacket
      * for DCC. */
     void add_dcc_checksum();
 
+    /** Adds a DCC decoder acknowledgement request command to the packet. This
+     * should be called after add_dcc_address. (Includes the checksum.) */
+    void add_dcc_decoder_ack_request();
+
+    /** Creates a DCC decoder acknowledgement request packet for the given address.
+     * (Includes the checksum.)
+     * @param a the DCC address */
+    template <class A> void set_dcc_decoder_ack_request(A a)
+    {
+        add_dcc_address(a);
+        add_dcc_decoder_ack_request();
+    }
+
+    /** Creates a DCC decoder acknowledgement request packet for address 10239.
+     * (Includes the checksum.) */
+    void set_dcc_decoder_ack_request()
+    {
+        set_dcc_decoder_ack_request(DccLongAddress(10239));
+    }
+
     /** Creates a DCC idle packet. (Includes the checksum.) */
     void set_dcc_idle();
 

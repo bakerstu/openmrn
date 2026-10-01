@@ -96,6 +96,9 @@ enum
     DCC_BINARY_LONG = 0b11000000,
     DCC_ANALOG_FN = 0b00111101,
 
+    /// Decoder acknowledgement request (per S-9.2.1 section 2.3.1.3).
+    DCC_DECODER_ACK_REQUEST = 0b00001111,
+
     DCC_PROG_READ1 = 0b11100100,
     DCC_PROG_WRITE1 = 0b11101100,
     DCC_PROG_READ4 = 0b11100000,
