@@ -42,6 +42,14 @@ namespace dcc
 
 struct Feedback;
 
+enum class RailcomDirection : uint8_t
+{
+    EXIT = 0,    ///< 0b00 -> 0x0000 (absent/exit)
+    WEST = 1,    ///< 0b01 -> 0x4000 (present/entry, facing West)
+    EAST = 2,    ///< 0b10 -> 0x8000 (present/entry, facing East)
+    UNKNOWN = 3, ///< 0b11 -> 0xC000 (present/entry, direction unknown)
+};
+
 /// Simple state machine to decode DCC address from railcom broadcast packets.
 /// Usage:
 ///
@@ -57,8 +65,11 @@ public:
         , countH_(0)
         , countL_(0)
         , countOcc_(0)
+        , dirConfidence_(0)
+        , currentDirection_(RailcomDirection::UNKNOWN)
         , currentAddress_(0)
         , lastAddress_(0)
+        , lastDirection_(RailcomDirection::UNKNOWN)
     {
     }
 
@@ -67,6 +78,24 @@ public:
     uint16_t current_address()
     {
         return currentAddress_;
+    }
+
+    /** @return the currently detected direction. */
+    RailcomDirection current_direction() const
+    {
+        return currentDirection_;
+    }
+
+    /** @return the last direction reported. */
+    RailcomDirection last_direction() const
+    {
+        return lastDirection_;
+    }
+
+    /** Sets the last direction reported. */
+    void set_last_direction(RailcomDirection dir)
+    {
+        lastDirection_ = dir;
     }
 
     /** Decodes a packet. @param packet is what to decode.
@@ -84,8 +113,9 @@ public:
 private:
     /// Helper function to process a sequence of bytes (whichever window they
     /// are coming from). @param data pointer to bytes @param size how many
-    /// bytes arethere to decode. @return dunno.
-    bool process_data(const uint8_t *data, unsigned size);
+    /// bytes are there to decode. @param have_dir true if direction was sensed.
+    /// @param dir 1 if West, 0 if East. @return true if address packet.
+    bool process_data(const uint8_t *data, unsigned size, bool have_dir, uint8_t dir);
 
     /// Notifies the state machine that there is no occupancy detected.
     void notify_empty();
@@ -103,18 +133,20 @@ private:
     /// we conclude the block is empty.
     static const uint8_t MIN_OCC = 3;
 
-    
     uint8_t currentH_; ///< last received high address bits
     uint8_t currentL_; ///< last received low address bits
     uint8_t countH_ : 4;   ///< observed repeat count of high address bits
     uint8_t countL_ : 4;   ///< observed repeat count of low address bits
     uint8_t countOcc_ : 5;   ///< observed repeat count of occupancy
+    int8_t dirConfidence_; ///< signed counter for direction confidence (-8..+8)
+    RailcomDirection currentDirection_; ///< currently detected locomotive direction
 
     uint16_t currentAddress_; ///< last valid address (0 if no valid address)
 
 public:
     /// usable by clients for storage.
     uint16_t lastAddress_;
+    RailcomDirection lastDirection_; ///< last reported locomotive direction
 };
 
 } // namespace dcc

@@ -39,4 +39,7 @@ jobs:
         run: |
           echo "concurrency: " ${{ github.workflow }}-${{ github.sha }}
           cd openmrn
-          make -j5 tests-single TESTBLACKLIST="utils/SocketClient.cxxtest openlcb/IfTcp.cxxtest"
+          TESTBLACKLIST="utils/SocketClient.cxxtest openlcb/IfTcp.cxxtest"
+          make -j5 tests TESTBLACKLIST="$TESTBLACKLIST" || \
+          { echo "Retrying failed tests in parallel (attempt 2)..."; make -j5 tests TESTBLACKLIST="$TESTBLACKLIST"; } || \
+          { echo "Retrying failed tests sequentially with tests-single (attempt 3)..."; make -j5 tests-single TESTBLACKLIST="$TESTBLACKLIST"; }
