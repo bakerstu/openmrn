@@ -197,13 +197,23 @@ void RailcomBroadcastClient::handle_producer_identified(
     }
 
     auto loco = parse_event(event->event);
-    if (event->state == EventState::INVALID)
+    if ((event->event & 0xC000) == 0)
     {
-        del_loco(loco);
+        if (event->state == EventState::VALID)
+        {
+            del_loco(loco);
+        }
     }
-    else if (event->state == EventState::VALID)
+    else
     {
-        add_loco(loco);
+        if (event->state == EventState::INVALID)
+        {
+            del_loco(loco);
+        }
+        else if (event->state == EventState::VALID)
+        {
+            add_loco(loco);
+        }
     }
 
     done->notify();
