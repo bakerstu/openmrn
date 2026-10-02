@@ -1,0 +1,298 @@
+/** \copyright
+ * Copyright (c) 2026, Rick Lull
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file ConfiguredExclusiveConsumer.cxxtest
+ *
+ * Unit tests for ConfiguredExclusiveConsumer.
+ *
+ * @author Rick Lull and Claude Code
+ * @date 21 Feb 2026
+ */
+
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/ConfiguredExclusiveConsumer.hxx"
+#include "openlcb/ConfigUpdateFlow.hxx"
+#include "os/MmapGpio.hxx"
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+namespace openlcb
+{
+
+static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
+
+/// Test fixture for ConfiguredExclusiveConsumer.
+class ConfiguredExclusiveConsumerTest : public AsyncNodeTest
+{
+protected:
+    ConfiguredExclusiveConsumerTest()
+    {
+    }
+
+    ~ConfiguredExclusiveConsumerTest()
+    {
+        wait_for_event_thread();
+        if (fd_ >= 0)
+        {
+            ::close(fd_);
+        }
+        unlink(tempFile_);
+    }
+
+    /// Creates a temporary config file with 3 event IDs and initializes the
+    /// consumer. Must be called from tests after construction.
+    void create_consumer()
+    {
+        // Create a temporary config file.
+        fd_ = mkstemp(tempFile_);
+        ASSERT_GE(fd_, 0);
+
+        // ExclusiveConsumerConfig layout per entry:
+        //   8 bytes description (StringConfigEntry<8>)
+        //   8 bytes event (EventConfigEntry / Uint64ConfigEntry, big-endian)
+        // Total: 16 bytes per entry.
+
+        // Write 3 entries worth of data (48 bytes total).
+        uint8_t buf[48];
+        memset(buf, 0, sizeof(buf));
+
+        // Entry 0 event at offset 8.
+        uint64_t ev0 = htobe64(kEventBase);
+        memcpy(buf + 8, &ev0, 8);
+        // Entry 1 event at offset 24.
+        uint64_t ev1 = htobe64(kEventBase + 1);
+        memcpy(buf + 24, &ev1, 8);
+        // Entry 2 event at offset 40.
+        uint64_t ev2 = htobe64(kEventBase + 2);
+        memcpy(buf + 40, &ev2, 8);
+
+        ASSERT_EQ((ssize_t)sizeof(buf), ::write(fd_, buf, sizeof(buf)));
+        ::lseek(fd_, 0, SEEK_SET);
+
+        updateFlow_.TEST_set_fd(fd_);
+
+        // Construct the consumer.
+        consumer_.reset(new ConfiguredExclusiveConsumer(
+            node_, kPins, 3, cfg_));
+
+        // Wait for the initial apply_configuration triggered by the
+        // ConfigUpdateService.
+        wait_for_main_executor();
+        wait_for_event_thread();
+    }
+
+    /// GPIO storage (3 bits: bit 0, 1, 2).
+    uint32_t gpioStorage_{0};
+
+    /// Three GPIO outputs backed by the storage word.
+    MmapGpio pin0_{&gpioStorage_, 0, true};
+    MmapGpio pin1_{&gpioStorage_, 1, true};
+    MmapGpio pin2_{&gpioStorage_, 2, true};
+
+    /// Pin array.
+    const Gpio *const kPins[3]{&pin0_, &pin1_, &pin2_};
+
+    /// Configuration group for 3 exclusive consumers at offset 0.
+    RepeatedGroup<ExclusiveConsumerConfig, 3> cfg_{0};
+
+    /// Config update flow (needed for the consumer to register).
+    ConfigUpdateFlow updateFlow_{ifCan_.get()};
+
+    /// The consumer under test.
+    std::unique_ptr<ConfiguredExclusiveConsumer> consumer_;
+
+    int fd_{-1};
+    char tempFile_[40] = "/tmp/excl_test_XXXXXX";
+};
+
+TEST_F(ConfiguredExclusiveConsumerTest, CreateDestroy)
+{
+    create_consumer();
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, SelectFirst)
+{
+    create_consumer();
+    EXPECT_EQ(0u, gpioStorage_);
+
+    // Send event for pin 0.
+    send_packet(":X195B4001N05010101FFFF0000;");
+    wait_for_event_thread();
+    EXPECT_TRUE(pin0_.is_set());
+    EXPECT_FALSE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, SelectSecond)
+{
+    create_consumer();
+
+    // Send event for pin 1.
+    send_packet(":X195B4001N05010101FFFF0001;");
+    wait_for_event_thread();
+    EXPECT_FALSE(pin0_.is_set());
+    EXPECT_TRUE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, SelectThird)
+{
+    create_consumer();
+
+    // Send event for pin 2.
+    send_packet(":X195B4001N05010101FFFF0002;");
+    wait_for_event_thread();
+    EXPECT_FALSE(pin0_.is_set());
+    EXPECT_FALSE(pin1_.is_set());
+    EXPECT_TRUE(pin2_.is_set());
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, ExclusiveSwitching)
+{
+    create_consumer();
+
+    // Activate pin 0.
+    send_packet(":X195B4001N05010101FFFF0000;");
+    wait_for_event_thread();
+    EXPECT_TRUE(pin0_.is_set());
+    EXPECT_FALSE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+
+    // Switch to pin 1 -- pin 0 must turn off.
+    send_packet(":X195B4001N05010101FFFF0001;");
+    wait_for_event_thread();
+    EXPECT_FALSE(pin0_.is_set());
+    EXPECT_TRUE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+
+    // Switch to pin 2 -- pin 1 must turn off.
+    send_packet(":X195B4001N05010101FFFF0002;");
+    wait_for_event_thread();
+    EXPECT_FALSE(pin0_.is_set());
+    EXPECT_FALSE(pin1_.is_set());
+    EXPECT_TRUE(pin2_.is_set());
+
+    // Switch back to pin 0 -- pin 2 must turn off.
+    send_packet(":X195B4001N05010101FFFF0000;");
+    wait_for_event_thread();
+    EXPECT_TRUE(pin0_.is_set());
+    EXPECT_FALSE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, SameEventTwice)
+{
+    create_consumer();
+
+    // Activate pin 1.
+    send_packet(":X195B4001N05010101FFFF0001;");
+    wait_for_event_thread();
+    EXPECT_FALSE(pin0_.is_set());
+    EXPECT_TRUE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+
+    // Same event again -- nothing should change.
+    send_packet(":X195B4001N05010101FFFF0001;");
+    wait_for_event_thread();
+    EXPECT_FALSE(pin0_.is_set());
+    EXPECT_TRUE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, UnrelatedEventIgnored)
+{
+    create_consumer();
+
+    // Activate pin 0.
+    send_packet(":X195B4001N05010101FFFF0000;");
+    wait_for_event_thread();
+    EXPECT_TRUE(pin0_.is_set());
+
+    // Send an unrelated event -- state should not change.
+    send_packet(":X195B4001N05010101FFFF00FF;");
+    wait_for_event_thread();
+    EXPECT_TRUE(pin0_.is_set());
+    EXPECT_FALSE(pin1_.is_set());
+    EXPECT_FALSE(pin2_.is_set());
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, IdentifyConsumer)
+{
+    create_consumer();
+
+    // Before any event is received, all outputs are inactive.
+    // IdentifyConsumer for event 0 should respond INVALID (0x4C5).
+    send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
+                                    ":X194C522AN05010101FFFF0000;");
+
+    // Activate pin 0.
+    send_packet(":X195B4001N05010101FFFF0000;");
+    wait_for_event_thread();
+    Mock::VerifyAndClear(&canBus_);
+
+    // Now IdentifyConsumer for event 0 should respond VALID (0x4C4).
+    send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
+                                    ":X194C422AN05010101FFFF0000;");
+
+    // IdentifyConsumer for event 1 should respond INVALID.
+    send_packet_and_expect_response(":X198F4001N05010101FFFF0001;",
+                                    ":X194C522AN05010101FFFF0001;");
+
+    // Switch to pin 1.
+    send_packet(":X195B4001N05010101FFFF0001;");
+    wait_for_event_thread();
+    Mock::VerifyAndClear(&canBus_);
+
+    // Now event 0 should be INVALID and event 1 should be VALID.
+    send_packet_and_expect_response(":X198F4001N05010101FFFF0000;",
+                                    ":X194C522AN05010101FFFF0000;");
+    send_packet_and_expect_response(":X198F4001N05010101FFFF0001;",
+                                    ":X194C422AN05010101FFFF0001;");
+}
+
+TEST_F(ConfiguredExclusiveConsumerTest, GlobalIdentify)
+{
+    create_consumer();
+
+    // Activate pin 2.
+    send_packet(":X195B4001N05010101FFFF0002;");
+    wait_for_event_thread();
+    Mock::VerifyAndClear(&canBus_);
+
+    // Global identify should produce 3 ConsumerIdentified messages:
+    // pin 0 INVALID, pin 1 INVALID, pin 2 VALID.
+    expect_packet(":X194C522AN05010101FFFF0000;"); // event 0 INVALID
+    expect_packet(":X194C522AN05010101FFFF0001;"); // event 1 INVALID
+    expect_packet(":X194C422AN05010101FFFF0002;"); // event 2 VALID
+    send_packet(":X19970001N;");
+    wait_for_event_thread();
+    Mock::VerifyAndClear(&canBus_);
+}
+
+} // namespace openlcb
