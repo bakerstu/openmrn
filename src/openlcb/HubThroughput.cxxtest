@@ -1,0 +1,626 @@
+/** \copyright
+ * Copyright (c) 2026, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file HubThroughput.cxxtest
+ *
+ * Unit tests for Hub latency and memory config download throughput.
+ *
+ * @author Balazs Racz
+ * @date 20 Sep 2026
+ */
+
+#define NO_GC_OPTIMIZE
+
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <thread>
+#include <atomic>
+#include <vector>
+#include <numeric>
+#include <algorithm>
+#include <cmath>
+#include <mutex>
+#include <memory>
+
+#include "openlcb/FilteringCanHubFlow.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/AliasAllocator.hxx"
+#include "openlcb/DatagramCan.hxx"
+#include "openlcb/DefaultNode.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
+#include "openlcb/MemoryConfig.hxx"
+#include "openlcb/MemoryConfigClient.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "utils/GcTcpHub.hxx"
+#include "utils/GridConnectHub.hxx"
+#include "utils/socket_listener.hxx"
+#include "utils/FdUtils.hxx"
+#include "utils/StringPrintf.hxx"
+#include "utils/test_main.hxx"
+#include "os/sleep.h"
+
+// Hub configuration constants matching applications/hub/targets/linux.x86/main.cxx
+OVERRIDE_CONST(gc_generate_newlines, 1);
+OVERRIDE_CONST(gridconnect_buffer_size, 1300);
+OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
+OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
+OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 5);
+OVERRIDE_CONST(gridconnect_tcp_snd_buffer_size, 8192);
+OVERRIDE_CONST(gridconnect_tcp_rcv_buffer_size, 8192);
+OVERRIDE_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1024);
+
+OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
+
+openlcb::MockSNIPUserFile snip_user_file(
+    "Default user name", "Default user description");
+const char *const openlcb::SNIP_DYNAMIC_FILENAME =
+    openlcb::MockSNIPUserFile::snip_user_file_path;
+
+openlcb::InitializeFlow g_init_flow(&g_service);
+
+namespace openlcb
+{
+
+static int next_test_port()
+{
+    static std::atomic<int> s_port{52120};
+    return s_port.fetch_add(10);
+}
+
+/// Reads a single GridConnect frame from fd. A packet begins with ':' and ends
+/// with ';'.
+/// @param fd file descriptor to read from
+/// @param out string where the packet characters will be stored
+/// @param recv_time if non-null, records monotonic timestamp in nanoseconds
+/// precisely when the semicolon is read.
+/// @return true if a complete frame was read, false on EOF or read error.
+static bool read_gc_frame(int fd, std::string *out, long long *recv_time = nullptr)
+{
+    out->clear();
+    char c;
+    // Advance until start of frame
+    while (true)
+    {
+        ssize_t ret = ::read(fd, &c, 1);
+        if (ret <= 0)
+        {
+            return false;
+        }
+        if (c == ':')
+        {
+            out->push_back(c);
+            break;
+        }
+    }
+    // Read until end of frame
+    while (true)
+    {
+        ssize_t ret = ::read(fd, &c, 1);
+        if (ret <= 0)
+        {
+            return false;
+        }
+        out->push_back(c);
+        if (c == ';')
+        {
+            if (recv_time)
+            {
+                *recv_time = os_get_time_monotonic();
+            }
+            break;
+        }
+    }
+    return true;
+}
+
+/// Helper to write all bytes to a file descriptor.
+static bool write_all(int fd, const std::string &data)
+{
+    size_t written = 0;
+    while (written < data.size())
+    {
+        ssize_t ret = ::write(fd, data.data() + written, data.size() - written);
+        if (ret <= 0)
+        {
+            if (ret < 0 && (errno == EINTR || errno == EAGAIN))
+            {
+                continue;
+            }
+            return false;
+        }
+        written += ret;
+    }
+    return true;
+}
+
+/// CAN-bus adapter rate limiter proxy.
+/// Limits the throughput of data passing across the simulated CAN-bus adapter
+/// to exactly one frame per millisecond in either direction.
+class CanRateLimiter
+{
+public:
+    CanRateLimiter(int client_fd, int hub_fd)
+        : clientFd_(client_fd)
+        , hubFd_(hub_fd)
+        , stop_(false)
+        , nextAllowedTime_(0)
+    {
+        tClientToHub_ = std::thread(&CanRateLimiter::forward_loop, this, clientFd_, hubFd_);
+        tHubToClient_ = std::thread(&CanRateLimiter::forward_loop, this, hubFd_, clientFd_);
+    }
+
+    ~CanRateLimiter()
+    {
+        stop_ = true;
+        ::shutdown(clientFd_, SHUT_RDWR);
+        ::shutdown(hubFd_, SHUT_RDWR);
+        if (tClientToHub_.joinable())
+        {
+            tClientToHub_.join();
+        }
+        if (tHubToClient_.joinable())
+        {
+            tHubToClient_.join();
+        }
+    }
+
+private:
+    void forward_loop(int in_fd, int out_fd)
+    {
+        std::string frame;
+        while (!stop_)
+        {
+            if (!read_gc_frame(in_fd, &frame))
+            {
+                break;
+            }
+            if (stop_)
+            {
+                break;
+            }
+            frame.push_back('\n');
+
+            // Enforce throughput limit across the CAN bus medium: at most
+            // one frame per millisecond in either direction.
+            std::unique_lock<std::mutex> l(lock_);
+            long long now = os_get_time_monotonic();
+            if (now < nextAllowedTime_)
+            {
+                long long delay_us = (nextAllowedTime_ - now) / 1000;
+                l.unlock();
+                usleep(delay_us);
+                l.lock();
+            }
+            now = os_get_time_monotonic();
+            nextAllowedTime_ = std::max(now, nextAllowedTime_) + 1000000LL; // 1 ms = 1,000,000 ns
+            l.unlock();
+
+            if (!write_all(out_fd, frame))
+            {
+                break;
+            }
+        }
+    }
+
+    int clientFd_;
+    int hubFd_;
+    std::atomic<bool> stop_;
+    std::mutex lock_;
+    long long nextAllowedTime_;
+    std::thread tClientToHub_;
+    std::thread tHubToClient_;
+};
+
+/// An OpenLCB node endpoint stack with IfCan, alias allocation, datagram service,
+/// memory config handler exposing a memory space, and memory config client.
+class EndpointStack
+{
+public:
+    EndpointStack(const char *name, NodeID node_id)
+        : executor_(name, 0, 0)
+        , service_(&executor_)
+        , canHub_(&service_)
+        , ifCan_(&executor_, &canHub_, config_local_alias_cache_size(),
+                 config_remote_alias_cache_size(), config_local_nodes_count())
+        , alloc_(node_id, &ifCan_)
+        , datagramService_(&ifCan_, 10, 10)
+        , node_(&ifCan_, node_id)
+        , memCfg_(&datagramService_, &node_, 10)
+        , client_(&node_, &memCfg_)
+    {
+    }
+
+    void register_space(uint8_t space_id, MemorySpace *space)
+    {
+        memCfg_.registry()->insert(&node_, space_id, space);
+    }
+
+    void connect_fd(int fd)
+    {
+        create_gc_port_for_can_hub(&canHub_, fd);
+    }
+
+    Executor<5> executor_;
+    Service service_;
+    CanHubFlow canHub_;
+    IfCan ifCan_;
+    AddAliasAllocator alloc_;
+    CanDatagramService datagramService_;
+    DefaultNode node_;
+    MemoryConfigHandler memCfg_;
+    MemoryConfigClient client_;
+};
+
+class HubLatencyTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        port_ = next_test_port();
+        hubCanHub_.reset(new FilteringCanHubFlow(&g_service));
+        tcpHub_.reset(new GcTcpHub(hubCanHub_.get(), port_));
+        while (!tcpHub_->is_started())
+        {
+            usleep(1000);
+        }
+
+        // Create bidirectional unix domain socket pair to simulate CAN-bus
+        // device connection.
+        int sv[2];
+        ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sv));
+        hubCanFd_ = sv[0];
+        simCanFd_ = sv[1];
+        create_gc_port_for_can_hub(hubCanHub_.get(), hubCanFd_);
+
+        // Connect two TCP sockets from separate threads in order (TCP1 first,
+        // then TCP2).
+        std::thread t1([this]() {
+            tcp1Fd_ = ConnectSocket("localhost", port_);
+            ASSERT_GE(tcp1Fd_, 0);
+            FdUtils::optimize_fd(tcp1Fd_);
+        });
+        t1.join();
+
+        std::thread t2([this]() {
+            tcp2Fd_ = ConnectSocket("localhost", port_);
+            ASSERT_GE(tcp2Fd_, 0);
+            FdUtils::optimize_fd(tcp2Fd_);
+        });
+        t2.join();
+
+        while (tcpHub_->get_num_clients() < 2)
+        {
+            usleep(1000);
+        }
+    }
+
+    void TearDown() override
+    {
+        if (simCanFd_ >= 0)
+        {
+            ::shutdown(simCanFd_, SHUT_RDWR);
+            ::close(simCanFd_);
+            simCanFd_ = -1;
+        }
+        if (tcp1Fd_ >= 0)
+        {
+            ::shutdown(tcp1Fd_, SHUT_RDWR);
+            ::close(tcp1Fd_);
+            tcp1Fd_ = -1;
+        }
+        if (tcp2Fd_ >= 0)
+        {
+            ::shutdown(tcp2Fd_, SHUT_RDWR);
+            ::close(tcp2Fd_);
+            tcp2Fd_ = -1;
+        }
+        tcpHub_.reset();
+        hubCanHub_.reset();
+        usleep(50000);
+    }
+
+    /// Measures packet latency between a source and destination endpoint.
+    /// Injects 1 packet every millisecond for at least 100 packets, measures
+    /// arrival time upon reading the finishing semicolon on the remote side,
+    /// and prints statistics.
+    void run_packet_latency(const char *src_name, int src_fd,
+                            const char *dst_name, int dst_fd,
+                            int other_fd)
+    {
+        static constexpr int NUM_PACKETS = 100;
+        std::vector<long long> send_times(NUM_PACKETS, 0);
+        std::vector<long long> recv_times(NUM_PACKETS, 0);
+        std::atomic<int> received_count{0};
+        std::atomic<bool> drain_stop{false};
+
+        // Background thread to drain the third endpoint so its socket buffer
+        // does not fill up while the Hub broadcasts packets.
+        std::thread drain_thread([other_fd, &drain_stop]() {
+            char buf[512];
+            while (!drain_stop.load())
+            {
+                fd_set read_fds;
+                FD_ZERO(&read_fds);
+                FD_SET(other_fd, &read_fds);
+                struct timeval tv;
+                tv.tv_sec = 0;
+                tv.tv_usec = 10000; // 10 ms
+                int sret = select(other_fd + 1, &read_fds, nullptr, nullptr, &tv);
+                if (sret > 0 && FD_ISSET(other_fd, &read_fds))
+                {
+                    ssize_t r = ::read(other_fd, buf, sizeof(buf));
+                    if (r <= 0)
+                    {
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Receiver thread on the destination endpoint
+        std::thread recv_thread([dst_fd, &recv_times, &received_count]() {
+            for (int i = 0; i < NUM_PACKETS; ++i)
+            {
+                std::string frame;
+                long long t_semicolon = 0;
+                if (!read_gc_frame(dst_fd, &frame, &t_semicolon))
+                {
+                    break;
+                }
+                // Parse sequence number from packet: ":X195B4%03XN%08X;"
+                // Hex payload starts after 'N'
+                size_t n_pos = frame.find('N');
+                if (n_pos != std::string::npos && n_pos + 8 < frame.size())
+                {
+                    unsigned seq = 0;
+                    if (sscanf(frame.c_str() + n_pos + 1, "%08X", &seq) == 1 &&
+                        seq < (unsigned)NUM_PACKETS)
+                    {
+                        recv_times[seq] = t_semicolon;
+                        received_count++;
+                    }
+                }
+            }
+        });
+
+        // Inject 1 packet every millisecond
+        long long start_time = os_get_time_monotonic();
+        for (int i = 0; i < NUM_PACKETS; ++i)
+        {
+            long long target_send_time = start_time + (long long)i * 1000000LL;
+            long long now = os_get_time_monotonic();
+            if (now < target_send_time)
+            {
+                usleep((target_send_time - now) / 1000);
+            }
+            std::string pkt = StringPrintf(":X195B4%03XN%08X;\n", i & 0xFFF, i);
+            send_times[i] = os_get_time_monotonic();
+            ASSERT_TRUE(write_all(src_fd, pkt));
+        }
+
+        recv_thread.join();
+        drain_stop = true;
+        drain_thread.join();
+
+        // Check if all packets arrived
+        ASSERT_EQ(NUM_PACKETS, received_count.load())
+            << "Packets were lost in transfer " << src_name << " -> " << dst_name;
+
+        // Compute latencies in milliseconds
+        std::vector<double> latencies_ms(NUM_PACKETS);
+        double sum = 0.0;
+        for (int i = 0; i < NUM_PACKETS; ++i)
+        {
+            ASSERT_GT(recv_times[i], send_times[i]);
+            latencies_ms[i] = (double)(recv_times[i] - send_times[i]) / 1e6;
+            sum += latencies_ms[i];
+        }
+
+        double mean = sum / NUM_PACKETS;
+        double variance = 0.0;
+        double mean_abs_dev = 0.0;
+        for (int i = 0; i < NUM_PACKETS; ++i)
+        {
+            double diff = latencies_ms[i] - mean;
+            variance += diff * diff;
+            mean_abs_dev += std::abs(diff);
+        }
+        double stddev = std::sqrt(variance / NUM_PACKETS);
+        mean_abs_dev /= NUM_PACKETS;
+
+        std::sort(latencies_ms.begin(), latencies_ms.end());
+        double median = (latencies_ms[49] + latencies_ms[50]) / 2.0;
+
+        // Median Absolute Deviation (MAD)
+        std::vector<double> abs_devs(NUM_PACKETS);
+        for (int i = 0; i < NUM_PACKETS; ++i)
+        {
+            abs_devs[i] = std::abs(latencies_ms[i] - median);
+        }
+        std::sort(abs_devs.begin(), abs_devs.end());
+        double mad = (abs_devs[49] + abs_devs[50]) / 2.0;
+
+        double p10 = latencies_ms[10];
+        double p90 = latencies_ms[90];
+
+        fprintf(stderr,
+            "\n[ LATENCY STATS ] %s -> %s (%d packets):\n"
+            "  Mean:   %6.3f ms\n"
+            "  StdDev: %6.3f ms\n"
+            "  MAD:    %6.3f ms (Mean Abs Dev: %6.3f ms)\n"
+            "  10%%:    %6.3f ms\n"
+            "  90%%:    %6.3f ms\n",
+            src_name, dst_name, NUM_PACKETS, mean, stddev, mad, mean_abs_dev, p10, p90);
+    }
+
+    int port_;
+    std::unique_ptr<FilteringCanHubFlow> hubCanHub_;
+    std::unique_ptr<GcTcpHub> tcpHub_;
+    int hubCanFd_{-1};
+    int simCanFd_{-1};
+    int tcp1Fd_{-1};
+    int tcp2Fd_{-1};
+};
+
+TEST_F(HubLatencyTest, PacketLatency)
+{
+    // 1. CAN -> TCP1
+    run_packet_latency("CAN", simCanFd_, "TCP1", tcp1Fd_, tcp2Fd_);
+    // 2. TCP1 -> CAN
+    run_packet_latency("TCP1", tcp1Fd_, "CAN", simCanFd_, tcp2Fd_);
+    // 3. TCP1 -> TCP2
+    run_packet_latency("TCP1", tcp1Fd_, "TCP2", tcp2Fd_, simCanFd_);
+    // 4. TCP2 -> TCP1
+    run_packet_latency("TCP2", tcp2Fd_, "TCP1", tcp1Fd_, simCanFd_);
+}
+
+TEST_F(HubLatencyTest, MemoryConfigDownload)
+{
+    // Generate 8 kbyte test payload for CAN-bus tests
+    static constexpr size_t MEM_SIZE_CAN = 8 * 1024;
+    // Generate 30 kbyte test payload for TCP test
+    static constexpr size_t MEM_SIZE_TCP = 30 * 1024;
+    static constexpr uint8_t SPACE_ID_CAN = 0xFD;
+    static constexpr uint8_t SPACE_ID_TCP = 0xFE;
+
+    std::vector<uint8_t> test_data_can(MEM_SIZE_CAN);
+    for (size_t i = 0; i < MEM_SIZE_CAN; ++i)
+    {
+        test_data_can[i] = (uint8_t)((i * 37 + 11) & 0xFF);
+    }
+    std::vector<uint8_t> test_data_tcp(MEM_SIZE_TCP);
+    for (size_t i = 0; i < MEM_SIZE_TCP; ++i)
+    {
+        test_data_tcp[i] = (uint8_t)((i * 37 + 11) & 0xFF);
+    }
+
+    ReadOnlyMemoryBlock space_can(test_data_can.data(), test_data_can.size());
+    ReadOnlyMemoryBlock space_tcp(test_data_tcp.data(), test_data_tcp.size());
+
+    static constexpr NodeID NODE_CAN = 0x050101011801ULL;
+    static constexpr NodeID NODE_TCP1 = 0x050101011802ULL;
+    static constexpr NodeID NODE_TCP2 = 0x050101011803ULL;
+
+    EndpointStack stack_can("stack_can", NODE_CAN);
+    EndpointStack stack_tcp1("stack_tcp1", NODE_TCP1);
+    EndpointStack stack_tcp2("stack_tcp2", NODE_TCP2);
+
+    stack_can.register_space(SPACE_ID_CAN, &space_can);
+    stack_tcp1.register_space(SPACE_ID_CAN, &space_can);
+    stack_tcp1.register_space(SPACE_ID_TCP, &space_tcp);
+    stack_tcp2.register_space(SPACE_ID_TCP, &space_tcp);
+
+    // Connect stack_can through CAN rate limiter (1 frame/ms in either direction)
+    int sv_can[2];
+    ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sv_can));
+    stack_can.connect_fd(sv_can[0]);
+    CanRateLimiter rate_limiter(sv_can[1], simCanFd_);
+
+    // Connect stack_tcp1 and stack_tcp2
+    stack_tcp1.connect_fd(tcp1Fd_);
+    stack_tcp2.connect_fd(tcp2Fd_);
+
+    // Wait for all three nodes to allocate aliases and initialize
+    while (!stack_can.node_.is_initialized() ||
+           !stack_tcp1.node_.is_initialized() ||
+           !stack_tcp2.node_.is_initialized())
+    {
+        usleep(10000);
+    }
+
+    struct TransferTest
+    {
+        const char *src_name;
+        const char *dst_name;
+        EndpointStack *server_stack;
+        EndpointStack *client_stack;
+        uint8_t space_id;
+        const std::vector<uint8_t> &expected_data;
+    };
+
+    std::vector<TransferTest> tests = {
+        {"CAN", "TCP1", &stack_can, &stack_tcp1, SPACE_ID_CAN, test_data_can},
+        {"TCP1", "CAN", &stack_tcp1, &stack_can, SPACE_ID_CAN, test_data_can},
+        {"TCP1", "TCP2", &stack_tcp1, &stack_tcp2, SPACE_ID_TCP, test_data_tcp},
+        {"TCP2", "TCP1", &stack_tcp2, &stack_tcp1, SPACE_ID_TCP, test_data_tcp},
+    };
+
+    for (const auto &t : tests)
+    {
+        NodeID server_node_id = t.server_stack->node_.node_id();
+
+        auto t_start = os_get_time_monotonic();
+        auto b = invoke_flow_nowait(&t.client_stack->client_,
+                                    MemoryConfigClientRequest::READ,
+                                    NodeHandle(server_node_id),
+                                    t.space_id);
+        b->wait();
+        auto t_end = os_get_time_monotonic();
+
+        ASSERT_EQ(0, b->b->data()->resultCode)
+            << "Memory config read failed for " << t.src_name << " -> " << t.dst_name;
+        ASSERT_EQ(t.expected_data.size(), b->b->data()->payload.size())
+            << "Size mismatch for " << t.src_name << " -> " << t.dst_name;
+        ASSERT_EQ(0, memcmp(t.expected_data.data(), b->b->data()->payload.data(), t.expected_data.size()))
+            << "Payload mismatch for " << t.src_name << " -> " << t.dst_name;
+
+        double elapsed_ms = (double)(t_end - t_start) / 1e6;
+        double throughput_bps = (double)t.expected_data.size() / (elapsed_ms / 1000.0);
+
+        fprintf(stderr,
+            "\n[ MEMORY CONFIG DOWNLOAD ] %s -> %s (%zu bytes):\n"
+            "  Total time: %8.2f ms\n"
+            "  Throughput: %8.2f bytes/sec\n",
+            t.src_name, t.dst_name, t.expected_data.size(), elapsed_ms, throughput_bps);
+    }
+
+    // Allow any trailing acknowledgements to be transmitted
+    usleep(100000);
+
+    ::shutdown(sv_can[0], SHUT_RDWR);
+    if (tcp1Fd_ >= 0)
+    {
+        ::shutdown(tcp1Fd_, SHUT_RDWR);
+        tcp1Fd_ = -1;
+    }
+    if (tcp2Fd_ >= 0)
+    {
+        ::shutdown(tcp2Fd_, SHUT_RDWR);
+        tcp2Fd_ = -1;
+    }
+    if (simCanFd_ >= 0)
+    {
+        ::shutdown(simCanFd_, SHUT_RDWR);
+        simCanFd_ = -1;
+    }
+    usleep(250000);
+}
+
+} // namespace openlcb
