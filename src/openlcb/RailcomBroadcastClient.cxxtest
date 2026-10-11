@@ -219,6 +219,88 @@ TEST_F(RailcomBroadcastClientTest, RemoveNonExistentLocoFromEventReport)
     expect_no_seq_increment();
 }
 
+TEST_F(RailcomBroadcastClientTest, EmptyBlockEventReportClearsLocos)
+{
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(3)));
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(5, true)));
+    wait();
+    ASSERT_EQ(2u, client_->current_locos().size());
+    expect_seq_increment(2);
+
+    // Short address 0 entry (0xF800) indicates "track is empty arrives".
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(0, false)));
+    wait();
+    ASSERT_TRUE(client_->current_locos().empty());
+    expect_seq_increment();
+}
+
+TEST_F(RailcomBroadcastClientTest, EmptyBlockProducerIdentifiedClearsLocos)
+{
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(3)));
+    wait();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    expect_seq_increment();
+
+    // 0xF800 as Producer Identified VALID indicates empty block.
+    send_packet(make_incoming_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, entry_event(0, false)));
+    wait();
+    ASSERT_TRUE(client_->current_locos().empty());
+    expect_seq_increment();
+}
+
+TEST_F(RailcomBroadcastClientTest, TrackEmptyLeavesDoesNotClearLocos)
+{
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(3)));
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(5, true)));
+    wait();
+    ASSERT_EQ(2u, client_->current_locos().size());
+    expect_seq_increment(2);
+
+    // 0x3800 indicates "track is empty leaves". It must NOT clear locos!
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, exit_event(0, false)));
+    wait();
+    ASSERT_EQ(2u, client_->current_locos().size());
+    expect_no_seq_increment();
+
+    // 0x3800 as Producer Identified VALID must NOT clear locos!
+    send_packet(make_incoming_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFIED_VALID, exit_event(0, false)));
+    wait();
+    ASSERT_EQ(2u, client_->current_locos().size());
+    expect_no_seq_increment();
+
+    // 0xF800 as Producer Identified INVALID must NOT clear locos!
+    send_packet(make_incoming_event_packet(
+        Defs::MTI_PRODUCER_IDENTIFIED_INVALID, entry_event(0, false)));
+    wait();
+    ASSERT_EQ(2u, client_->current_locos().size());
+    expect_no_seq_increment();
+}
+
+TEST_F(RailcomBroadcastClientTest, LocoZeroLongAddress)
+{
+    // Long address 0 entry
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(0, true)));
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, entry_event(3)));
+    wait();
+    ASSERT_EQ(2u, client_->current_locos().size());
+    expect_seq_increment(2);
+    NodeID expected0 = TractionDefs::train_node_id_from_legacy(
+        dcc::TrainAddressType::DCC_LONG_ADDRESS, 0);
+    EXPECT_EQ(expected0, client_->current_locos()[0].node_id());
+
+    // Long address 0 exit should not clear other locos
+    send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, exit_event(0, true)));
+    wait();
+    ASSERT_EQ(1u, client_->current_locos().size());
+    expect_seq_increment();
+    NodeID expected3 = TractionDefs::train_node_id_from_legacy(
+        dcc::TrainAddressType::DCC_SHORT_ADDRESS, 3);
+    EXPECT_EQ(expected3, client_->current_locos()[0].node_id());
+}
+
+
 TEST_F(RailcomBroadcastClientTest, IgnoreOutOfRange)
 {
     uint64_t event = (base_ + 0x10000) | 0xC000 | 3; // Outside 16-bit range

@@ -160,6 +160,8 @@ private:
     void add_loco(LocoInfo n);
     /// Removes a locomotive from the locos_ array.
     void del_loco(LocoInfo n);
+    /// Clears all locomotives from the locos_ array and increments seq_.
+    void clear_locos();
 
     /// Sequence number for data version in the locos_ array.
     uint16_t seq_ {0};

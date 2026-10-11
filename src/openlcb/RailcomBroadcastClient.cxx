@@ -74,12 +74,6 @@ void RailcomBroadcastClient::query()
 RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::parse_event(
     uint64_t event)
 {
-    uint16_t lo = event & 0xFFFF;
-    if (!lo)
-    {
-        return LocoInfo(0, true);
-    }
-
     // Extract address from bottom 14 bits
     uint16_t address = event & 0x3FFF;
     NodeID id = 0;
@@ -136,7 +130,18 @@ void RailcomBroadcastClient::handle_event_report(
         return;
     }
 
+    uint16_t offset = event->event & 0xFFFF;
+    if (offset == 0xF800)
+    {
+        clear_locos();
+        return;
+    }
+
     auto loco = parse_event(event->event);
+    if (loco.empty())
+    {
+        return;
+    }
     if ((event->event & 0xC000) == 0)
     {
         del_loco(loco);
@@ -147,16 +152,19 @@ void RailcomBroadcastClient::handle_event_report(
     }
 }
 
+void RailcomBroadcastClient::clear_locos()
+{
+    if (locos_.size())
+    {
+        locos_.clear();
+        seq_++;
+    }
+}
+
 void RailcomBroadcastClient::add_loco(LocoInfo id)
 {
     if (id.empty())
     {
-        // Unoccupied.
-        if (locos_.size())
-        {
-            locos_.clear();
-            seq_++;
-        }
         return;
     }
     bool found = false;
@@ -179,6 +187,10 @@ void RailcomBroadcastClient::add_loco(LocoInfo id)
 
 void RailcomBroadcastClient::del_loco(LocoInfo id)
 {
+    if (id.empty())
+    {
+        return;
+    }
     auto it = std::remove(locos_.begin(), locos_.end(), id);
     if (it != locos_.end())
     {
@@ -196,14 +208,38 @@ void RailcomBroadcastClient::handle_producer_identified(
         return done->notify();
     }
 
-    auto loco = parse_event(event->event);
-    if (event->state == EventState::INVALID)
+    uint16_t offset = event->event & 0xFFFF;
+    if (offset == 0xF800)
     {
-        del_loco(loco);
+        if (event->state == EventState::VALID)
+        {
+            clear_locos();
+        }
+        return done->notify();
     }
-    else if (event->state == EventState::VALID)
+
+    auto loco = parse_event(event->event);
+    if (loco.empty())
     {
-        add_loco(loco);
+        return done->notify();
+    }
+    if ((event->event & 0xC000) == 0)
+    {
+        if (event->state == EventState::VALID)
+        {
+            del_loco(loco);
+        }
+    }
+    else
+    {
+        if (event->state == EventState::INVALID)
+        {
+            del_loco(loco);
+        }
+        else if (event->state == EventState::VALID)
+        {
+            add_loco(loco);
+        }
     }
 
     done->notify();
