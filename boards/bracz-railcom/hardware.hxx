@@ -176,6 +176,15 @@ struct RailcomDefs
 
     static const auto OS_INTERRUPT = INT_UART1;
 
+    static constexpr bool HAVE_DIRECTION = false;
+    static void clear_direction()
+    {
+    }
+    static uint32_t get_direction()
+    {
+        return 0;
+    }
+
     static bool need_ch1_cutout() {
         return true;
     }
