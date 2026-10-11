@@ -78,9 +78,9 @@ void Packet::add_dcc_checksum()
     packet_header.skip_ec = 1;
 }
 
-void Packet::add_dcc_noop()
+void Packet::add_dcc_decoder_ack_request()
 {
-    payload[dlc++] = 0;
+    payload[dlc++] = DCC_DECODER_ACK_REQUEST;
     add_dcc_checksum();
 }
 
@@ -91,12 +91,6 @@ void Packet::set_dcc_idle()
     payload[0] = payload[2] = 0xFF;
     payload[1] = 0;
     packet_header.skip_ec = 1;
-}
-
-void Packet::set_dcc_noop()
-{
-    add_dcc_address(DccLongAddress(10239));
-    add_dcc_noop();
 }
 
 void Packet::set_dcc_reset_all_decoders()

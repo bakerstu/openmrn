@@ -112,6 +112,10 @@ struct RailcomHw
         if (!CH4_Pin::get()) ret |= 8;
         return ret;
     }
+
+    static constexpr bool HAVE_DIRECTION = false;
+    static void clear_direction() {}
+    static uint32_t get_direction() { return 0; }
 }; 
 
 // The weak attribute is needed if the definition is put into a header file.
@@ -192,7 +196,12 @@ private:
     void start_cutout() OVERRIDE
     {
         HW::enable_measurement(false);
-        const bool need_ch1_cutout = HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
+        const bool need_ch1_cutout =
+            HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
+        if (HW::HAVE_DIRECTION && need_ch1_cutout)
+        {
+            HW::clear_direction();
+        }
         Debug::RailcomRxActivate::set(true);
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
@@ -213,6 +222,11 @@ private:
     void middle_cutout() OVERRIDE
     {
         Debug::RailcomDriverCutout::set(false);
+        uint32_t dir = 0;
+        if (HW::HAVE_DIRECTION)
+        {
+            dir = HW::get_direction();
+        }
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
             while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
@@ -244,7 +258,24 @@ private:
                 }
                 returnedPackets_[i]->add_ch1_data(data);
             }
+            if (returnedPackets_[i] && returnedPackets_[i]->ch1Size)
+            {
+                if (HW::HAVE_DIRECTION)
+                {
+                    returnedPackets_[i]->haveCh1Dir = 1;
+                    returnedPackets_[i]->ch1Dir = (dir >> i) & 1;
+                }
+                else
+                {
+                    returnedPackets_[i]->haveCh1Dir = 0;
+                    returnedPackets_[i]->ch1Dir = 0;
+                }
+            }
             HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
+        }
+        if (HW::HAVE_DIRECTION)
+        {
+            HW::clear_direction();
         }
         HW::middle_cutout_hook();
         Debug::RailcomDriverCutout::set(true);
@@ -253,6 +284,11 @@ private:
     void end_cutout() OVERRIDE
     {
         HW::disable_measurement();
+        uint32_t dir = 0;
+        if (HW::HAVE_DIRECTION)
+        {
+            dir = HW::get_direction();
+        }
         bool have_packets = false;
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
@@ -279,6 +315,19 @@ private:
                     Debug::RailcomE0::toggle();
                 }
                 returnedPackets_[i]->add_ch2_data(data);
+            }
+            if (returnedPackets_[i] && returnedPackets_[i]->ch2Size)
+            {
+                if (HW::HAVE_DIRECTION)
+                {
+                    returnedPackets_[i]->haveCh2Dir = 1;
+                    returnedPackets_[i]->ch2Dir = (dir >> i) & 1;
+                }
+                else
+                {
+                    returnedPackets_[i]->haveCh2Dir = 0;
+                    returnedPackets_[i]->ch2Dir = 0;
+                }
             }
             HWREG(HW::UART_BASE[i] + UART_O_CTL) &= ~UART_CTL_RXE;
             Debug::RailcomRxActivate::set(false);
