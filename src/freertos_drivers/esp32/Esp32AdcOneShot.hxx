@@ -105,6 +105,9 @@ public:
         const adc_unit_t unit = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2;
 #elif CONFIG_IDF_TARGET_ESP32C3
         const adc_unit_t unit = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2;
+#elif CONFIG_IDF_TARGET_ESP32C6
+        // ESP32-C6 only has ADC1 (GPIO 0-6).
+        const adc_unit_t unit = ADC_UNIT_1;
 #else
         #warning Unable to determine ADC unit number, defaulting to ADC_UNIT_1
         const adc_unit_t unit = ADC_UNIT_1;
@@ -175,6 +178,9 @@ public:
         const adc_unit_t unit = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2;
 #elif CONFIG_IDF_TARGET_ESP32C3
         const adc_unit_t unit = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2;
+#elif CONFIG_IDF_TARGET_ESP32C6
+        // ESP32-C6 only has ADC1 (GPIO 0-6).
+        const adc_unit_t unit = ADC_UNIT_1;
 #else
         const adc_unit_t unit = ADC_UNIT_1;
 #endif

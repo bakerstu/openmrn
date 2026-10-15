@@ -150,7 +150,7 @@ void cpuload_tick(unsigned irq)
         bool is_idle = FREERTOS_GET_IDLE_TASK_HANDLE_FOR_CORE(PRO_CPU_NUM) == hdl;
         Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
     }
-// NOTE: The ESP32-S2 and ESP32-C3 are single-core SoC and defines the
+// NOTE: The ESP32-S2, ESP32-C3 and ESP32-C6 are single-core SoC and define the
 // FREERTOS_UNICORE flag which we can use here to disable recording of the
 // APP_CPU. This can also be used on dual core SoCs with some restrictions.
 #ifndef CONFIG_FREERTOS_UNICORE
