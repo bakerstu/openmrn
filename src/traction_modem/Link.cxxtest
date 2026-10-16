@@ -298,6 +298,7 @@ TEST_F(LinkTest, LinkUpMaxDelay)
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_crc(&b->data()->payload);
+        mRxFlow_.trigger_packet_rx_callback();
         static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
         wait_for_main_executor();
         testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
