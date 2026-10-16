@@ -36,7 +36,9 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 
+#include <functional>
 #include <memory>
 
 #include "executor/Executor.hxx"
@@ -49,6 +51,9 @@
 #include "utils/SocketCan.hxx"
 #include "utils/constants.hxx"
 #include "openlcb/FilteringCanHubFlow.hxx"
+#include "HubMetrics.hxx"
+#include "MonitoringServer.hxx"
+#include "MetricsPort.hxx"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
@@ -75,6 +80,9 @@ bool timestamped = false;
 bool export_mdns = false;
 const char* mdns_name = "openmrn_hub";
 bool printpackets = false;
+int monitoring_port = 8080;
+bool enable_monitoring = true;
+int stats_dump_interval = 0;  // 0 = disabled
 
 void usage(const char *e)
 {
@@ -84,7 +92,7 @@ void usage(const char *e)
 #if defined(__linux__)
         "[-s socketcan_interface] "
 #endif
-        "[-t] [-l]\n\n",
+        "[-t] [-l] [-M monitoring_port] [--no-monitoring] [--stats-dump N]\n\n",
         e);
     fprintf(stderr,
         "GridConnect CAN HUB.\nListens to a specific TCP port, "
@@ -109,6 +117,12 @@ void usage(const char *e)
             "\t-t prints timestamps for each packet.\n");
     fprintf(stderr,
             "\t-l print all packets.\n");
+    fprintf(stderr,
+            "\t-M monitoring_port   enables HTTP monitoring server on specified port (default: 8080).\n");
+    fprintf(stderr,
+            "\t--no-monitoring      disables HTTP monitoring server.\n");
+    fprintf(stderr,
+            "\t--stats-dump N       prints statistics summary to stderr every N seconds.\n");
 #ifdef HAVE_AVAHI_CLIENT
     fprintf(stderr,
             "\t-m exports the current service on mDNS.\n");
@@ -118,10 +132,43 @@ void usage(const char *e)
     exit(1);
 }
 
+/// Long option values for options that don't have a short-option equivalent.
+enum LongOptionValue
+{
+    OPT_NO_MONITORING = 1000,
+    OPT_STATS_DUMP = 1001,
+};
+
+/// Parses a numeric command line argument as a TCP port number.
+/// @param name human readable name of the argument, used in error messages.
+/// @param value the string to parse.
+/// @param argv0 argv[0] of the process, used for the usage message.
+/// @return the parsed port number, in the range [1, 65535].
+static int parse_port_arg(const char *name, const char *value, char *argv0)
+{
+    char *endptr;
+    errno = 0;
+    long val = strtol(value, &endptr, 10);
+    if (errno != 0 || *endptr != '\0' || val < 1 || val > 65535)
+    {
+        fprintf(stderr, "Invalid %s: %s\n", name, value);
+        usage(argv0);
+    }
+    return (int)val;
+}
+
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:s:u:q:tlmn:")) >= 0)
+    int option_index = 0;
+    
+    static struct option long_options[] = {
+        {"no-monitoring", no_argument, 0, OPT_NO_MONITORING},
+        {"stats-dump", required_argument, 0, OPT_STATS_DUMP},
+        {0, 0, 0, 0}
+    };
+    
+    while ((opt = getopt_long(argc, argv, "hp:d:s:u:q:tlmn:M:", long_options, &option_index)) >= 0)
     {
         switch (opt)
         {
@@ -137,13 +184,19 @@ void parse_args(int argc, char *argv[])
                 break;
 #endif
             case 'p':
-                port = atoi(optarg);
+                port = parse_port_arg("port number", optarg, argv[0]);
+                break;
+            case 'M':
+                monitoring_port =
+                    parse_port_arg("monitoring port number", optarg, argv[0]);
+                enable_monitoring = true;
                 break;
             case 'u':
                 upstream_host = optarg;
                 break;
             case 'q':
-                upstream_port = atoi(optarg);
+                upstream_port =
+                    parse_port_arg("upstream port number", optarg, argv[0]);
                 break;
             case 't':
                 timestamped = true;
@@ -158,6 +211,22 @@ void parse_args(int argc, char *argv[])
             case 'l':
                 printpackets = true;
                 break;
+            case OPT_NO_MONITORING:
+                enable_monitoring = false;
+                break;
+            case OPT_STATS_DUMP:
+            {
+                char *endptr;
+                errno = 0;
+                long val = strtol(optarg, &endptr, 10);
+                if (errno != 0 || *endptr != '\0' || val < 0)
+                {
+                    fprintf(stderr, "Invalid stats dump interval: %s\n", optarg);
+                    usage(argv[0]);
+                }
+                stats_dump_interval = (int)val;
+                break;
+            }
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -173,15 +242,48 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    //GcPacketPrinter packet_printer(&can_hub0, timestamped);
+
+    // Metrics collection and the monitoring server are only needed when
+    // monitoring or periodic stats dumping was requested.
+    bool need_metrics = enable_monitoring || stats_dump_interval > 0;
+    std::unique_ptr<HubMetrics> metrics;
+    std::unique_ptr<MetricsPort> metrics_port;
+    if (need_metrics)
+    {
+        metrics.reset(new HubMetrics());
+        metrics_port.reset(new MetricsPort(can_hub0.service(), metrics.get()));
+        can_hub0.register_port(metrics_port->get_port());
+        can_hub0.set_port_promiscuous(metrics_port->get_port(), true);
+    }
+
     GcPacketPrinter *packet_printer = NULL;
     if (printpackets) {
         packet_printer = new GcPacketPrinter(&can_hub0, timestamped);
         can_hub0.set_port_promiscuous(packet_printer->get_port(), true);
     }
-    fprintf(stderr,"packet_printer points to %p\n",packet_printer);
-    GcTcpHub hub(&can_hub0, port);
+
+    GcTcpHub hub(&can_hub0, port,
+        need_metrics ? [&metrics]() { metrics->increment_connections(); }
+                     : std::function<void()>());
+    if (need_metrics)
+    {
+        metrics->set_num_clients_provider([&hub]() {
+            return hub.get_num_clients();
+        });
+    }
     vector<std::unique_ptr<ConnectionClient>> connections;
+    
+    // Start monitoring server if enabled
+    std::unique_ptr<MonitoringServer> monitoring_server;
+    if (enable_monitoring)
+    {
+        monitoring_server.reset(new MonitoringServer(metrics.get(), monitoring_port));
+        if (!monitoring_server->start())
+        {
+            fprintf(stderr, "Failed to start monitoring server\n");
+            monitoring_server.reset();
+        }
+    }
 
 #ifdef HAVE_AVAHI_CLIENT
     void mdns_client_start();
@@ -221,13 +323,36 @@ int appl_main(int argc, char *argv[])
             new DeviceConnectionClient("device", &can_hub0, device_path));
     }
 
+    fprintf(stderr, "Hub started. TCP port: %d", port);
+    if (enable_monitoring && monitoring_server && monitoring_server->is_ready())
+    {
+        fprintf(stderr, ", Monitoring: http://127.0.0.1:%d/status", monitoring_port);
+    }
+    fprintf(stderr, "\n");
+    
+    // Main loop with stats dumping
+    long long last_stats_dump = os_get_time_monotonic();
     while (1)
     {
+        // Ping connections to keep them alive
         for (const auto &p : connections)
         {
             p->ping();
         }
+        
+        // Dump stats if enabled
+        if (stats_dump_interval > 0)
+        {
+            long long now = os_get_time_monotonic();
+            if (now - last_stats_dump >= SEC_TO_NSEC(stats_dump_interval))
+            {
+                metrics->print_summary();
+                last_stats_dump = now;
+            }
+        }
+        
         sleep(1);
     }
+    
     return 0;
 }

@@ -26,7 +26,7 @@
  *
  * \file AvaHiMDNS.cxx
  *
- * A simple abstraction to publish mDNS sevices using Avahi.
+ * A simple abstraction to publish mDNS services using Avahi.
  *
  * @author Stuart Baker
  * @date 30 July 2016
@@ -96,23 +96,52 @@ static void *mdns_thread(void *unused)
 }
 
 /** Start the mDNS client.
+ * @brief Initializes and starts the Avahi mDNS client in a separate thread.
+ * 
+ * This function creates a new thread that runs the Avahi event loop. The calling
+ * thread will block until the Avahi client is successfully initialized and running.
+ * The created thread is detached and will run indefinitely to handle mDNS operations.
  */
 void mdns_client_start()
 {
-    sem_init(&wait, 0, 0);
+    int result = sem_init(&wait, 0, 0);
+    if (result != 0)
+    {
+        fprintf(stderr, "sem_init failed: %d\n", result);
+        return;
+    }
 
     pthread_t thread;
-    pthread_create(&thread, nullptr, mdns_thread, nullptr);
+    result = pthread_create(&thread, nullptr, mdns_thread, nullptr);
+    if (result != 0)
+    {
+        fprintf(stderr, "pthread_create failed: %d\n", result);
+        sem_destroy(&wait);
+        return;
+    }
+    pthread_detach(thread);
     printf("client start\n");
     
-    sem_wait(&wait);
+    result = sem_wait(&wait);
+    if (result != 0)
+    {
+        fprintf(stderr, "sem_wait failed: %d\n", result);
+    }
 }
 
 /** Publish an mDNS name.
+ * @brief Publishes a GridConnect CAN TCP service via mDNS using Avahi.
+ * @param name The human-readable service name to publish (e.g., "openmrn_hub").
+ *             This string will be duplicated internally.
+ * @param port The TCP port number on which the service is listening.
+ * 
+ * The service is published with the type defined in
+ * openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP.
+ * If an entry group does not yet exist, it will be created automatically.
  */
 void mdns_publish(const char *name, uint16_t port)
 {
-    name = avahi_strdup(name);
+    const char *service_name = avahi_strdup(name);
 
     if (!group)
     {
@@ -125,7 +154,7 @@ void mdns_publish(const char *name, uint16_t port)
     }
 
     int result = avahi_entry_group_add_service(group, AVAHI_IF_UNSPEC,
-        AVAHI_PROTO_UNSPEC, (AvahiPublishFlags)0, name,
+        AVAHI_PROTO_UNSPEC, (AvahiPublishFlags)0, service_name,
         openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP, NULL, NULL, port,
         "platform=linux-x86-openmrn", NULL);
 
