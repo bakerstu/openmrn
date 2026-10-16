@@ -34,7 +34,7 @@
 
 #include <stdint.h>
 
-#include "Lpc17xx40xxCan.hxx"
+#include "freertos_drivers/nxp/Lpc17xx40xxCan.hxx"
 
 #include "chip.h"
 #include "nmranet_config.h"

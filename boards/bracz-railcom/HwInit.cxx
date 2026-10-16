@@ -49,16 +49,16 @@
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
 #include "utils/Charlieplex.hxx"
-#include "TivaDev.hxx"
-#include "TivaEEPROMEmulation.hxx"
-#include "TivaEEPROMBitSet.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/ti/TivaEEPROMBitSet.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 #include "hardware.hxx"
-#include "TivaDCCDecoder.hxx"
-#include "TivaRailcom.hxx"
+#include "freertos_drivers/ti/TivaDCCDecoder.hxx"
+#include "freertos_drivers/ti/TivaRailcom.hxx"
 #include "custom/TivaGNDControl.hxx"
 #include "custom/TivaDAC.hxx"
-#include "bootloader_hal.h"
+#include "openlcb/bootloader_hal.h"
 //#include "TivaDCC.hxx"
 
 
@@ -77,7 +77,7 @@
   // application.
   typedef DummyPin RailcomPackets;
   };*/
-#include "TivaRailcom.hxx"
+#include "freertos_drivers/ti/TivaRailcom.hxx"
 
 // This symbol releases the charlieplex pins to do other stuff.
 //#define FAKE_CHARLIE

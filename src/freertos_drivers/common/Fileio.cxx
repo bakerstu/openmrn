@@ -31,7 +31,7 @@
  * @date 27 December 2012
  */
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 #include <cstdarg>
 #include <fcntl.h>

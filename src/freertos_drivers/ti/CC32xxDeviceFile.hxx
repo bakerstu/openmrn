@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_TI_CC32XXDEVICEFILE_HXX_
 #define _FREERTOS_DRIVERS_TI_CC32XXDEVICEFILE_HXX_
 
-#include "DeviceFile.hxx"
+#include "freertos_drivers/common/DeviceFile.hxx"
 
 /** Common base class for all CC32xxDeviceFile access.
  */

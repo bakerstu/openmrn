@@ -31,7 +31,7 @@
  * @date 24 June 2015
  */
 
-#include "Stm32EEPROMEmulation.hxx"
+#include "freertos_drivers/st/Stm32EEPROMEmulation.hxx"
 
 #include <cstring>
 

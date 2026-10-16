@@ -33,7 +33,7 @@
  * @date 29 April 2018
  */
 
-#include "Stm32SPI.hxx"
+#include "freertos_drivers/st/Stm32SPI.hxx"
 
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_ll_rcc.h"

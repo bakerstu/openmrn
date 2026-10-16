@@ -32,8 +32,8 @@
  * @date 29 Nov 2014
  */
 
-#include "TivaDCC.hxx"  // for FixedQueue
-#include "TivaGPIO.hxx" // for pin definitions
+#include "freertos_drivers/ti/TivaDCC.hxx"
+#include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/DccDecoder.hxx"
 
 typedef DummyPin PIN_RailcomCutout;

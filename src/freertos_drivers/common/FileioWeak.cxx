@@ -32,7 +32,7 @@
  * @date 18 September 2020
  */
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 // Override both of these symbols in a .cxx file in your application (without
 // the weak attribute) if you want to change the nuber of open files.

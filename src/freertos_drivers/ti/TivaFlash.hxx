@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_TI_TIVAFLASH_HXX_
 #define _FREERTOS_DRIVERS_TI_TIVAFLASH_HXX_
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 /** Flash-backed file.
  *

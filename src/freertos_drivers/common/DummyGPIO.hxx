@@ -35,7 +35,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_DUMMYGPIO_HXX_
 #define _FREERTOS_DRIVERS_COMMON_DUMMYGPIO_HXX_
 
-#include "GpioWrapper.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
 
 /// GPIO Pin definition structure with no actual pin behind it. All writes to
 /// this pin will be silently ignored. Reads from this pin will not compile.

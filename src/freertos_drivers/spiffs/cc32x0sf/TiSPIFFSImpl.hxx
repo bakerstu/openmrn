@@ -35,7 +35,7 @@
 
 #include "utils/logging.h"
 
-#include "TiSPIFFS.hxx"
+#include "freertos_drivers/spiffs/cc32x0sf/TiSPIFFS.hxx"
 #include "freertos_drivers/ti/TiFlash.hxx"
 #include "spiffs.h"
 

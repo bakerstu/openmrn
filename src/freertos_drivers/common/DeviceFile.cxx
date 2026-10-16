@@ -31,7 +31,7 @@
  * @date 16 July 2016
  */
 
-#include "DeviceFile.hxx"
+#include "freertos_drivers/common/DeviceFile.hxx"
 
 #include <fcntl.h>
 

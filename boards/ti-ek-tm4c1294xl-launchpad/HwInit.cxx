@@ -46,8 +46,8 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "TivaDev.hxx"
-#include "TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
 #include "hardware.hxx"
 
 /** override stdin */

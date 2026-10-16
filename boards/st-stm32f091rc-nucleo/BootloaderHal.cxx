@@ -4,11 +4,11 @@
 //#define BOOTLOADER_DATAGRAM
 
 #include "BootloaderHal.hxx"
-#include "bootloader_hal.h"
+#include "openlcb/bootloader_hal.h"
 
 #include "nmranet_config.h"
 #include "openlcb/Defs.hxx"
-#include "Stm32Gpio.hxx"
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "openlcb/Bootloader.hxx"
 #include "openlcb/If.hxx"
 #include "utils/GpioInitializer.hxx"
