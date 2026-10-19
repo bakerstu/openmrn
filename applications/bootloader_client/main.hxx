@@ -227,7 +227,8 @@ void maybe_checksum(string *firmware)
         if (memcmp(&hdr, &(*firmware)[offset], sizeof(hdr)))
         {
             fprintf(stderr,
-                "Failed to checksum: location of checksum is not empty.\n");
+                "Failed to checksum: location of checksum is not empty: %s.\n",
+                string_to_hex(firmware->substr(offset, sizeof(hdr))));
             exit(1);
         }
         hdr.app_size = firmware->size();
