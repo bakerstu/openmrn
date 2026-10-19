@@ -39,6 +39,7 @@
 #include "utils/GcTcpHub.hxx"
 #include "utils/Crc.hxx"
 #include "utils/FileUtils.hxx"
+#include "utils/format_utils.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -228,7 +229,7 @@ void maybe_checksum(string *firmware)
         {
             fprintf(stderr,
                 "Failed to checksum: location of checksum is not empty: %s.\n",
-                string_to_hex(firmware->substr(offset, sizeof(hdr))));
+                string_to_hex(firmware->substr(offset, sizeof(hdr))).c_str());
             exit(1);
         }
         hdr.app_size = firmware->size();
