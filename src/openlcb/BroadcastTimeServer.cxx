@@ -73,6 +73,13 @@ public:
     {
     }
 
+#if defined(GTEST)
+    void shutdown()
+    {
+        timer_.ensure_triggered();
+    }
+#endif
+
     /// Request a date rollover finish.
     void request_finish()
     {
@@ -196,6 +203,13 @@ public:
     ~BroadcastTimeServerTime()
     {
     }
+
+#if defined(GTEST)
+    void shutdown()
+    {
+        finish_.shutdown();
+    }
+#endif
 
     /// Request a time event.
     void request_time()
@@ -520,6 +534,13 @@ public:
     {
     }
 
+#if defined(GTEST)
+    void shutdown()
+    {
+        timer_.ensure_triggered();
+    }
+#endif
+
     /// Request a time parameter set.
     /// @param suffix the clock set event suffix
     void request_set(uint16_t suffix)
@@ -831,9 +852,16 @@ BroadcastTimeServer::~BroadcastTimeServer()
 #if defined(GTEST)
 void BroadcastTimeServer::shutdown()
 {
-    shutdown_ = true;
-    sync_->shutdown();
-    alarm_->shutdown();
+    // Timer::trigger() must be called on the timer's executor; the caller is
+    // typically the test thread, so marshal the shutdown onto the executor.
+    service()->executor()->sync_run([this]()
+    {
+        shutdown_ = true;
+        set_->shutdown();
+        time_->shutdown();
+        sync_->shutdown();
+        alarm_->shutdown();
+    });
 }
 
 bool BroadcastTimeServer::is_shutdown()
