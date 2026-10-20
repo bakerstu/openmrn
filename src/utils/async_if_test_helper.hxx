@@ -496,6 +496,7 @@ protected:
 
     void wait_for_event_thread()
     {
+        AsyncIfTest::wait();
         while (EventService::instance->event_processing_pending())
         {
 #ifdef __EMSCRIPTEN__
