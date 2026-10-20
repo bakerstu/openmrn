@@ -410,12 +410,12 @@ private:
 
     void end_cutout() override
     {
-        HW::disable_measurement();
         uint32_t dir = 0;
         if (HW::HAVE_DIRECTION)
         {
             dir = HW::get_direction();
         }
+        HW::disable_measurement();
         bool have_packets = false;
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
