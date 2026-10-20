@@ -356,6 +356,22 @@ public:
     }
 };
 
+/// Implementation class for event ID configuration entries.
+class EventConfigEntryNoInit : public Uint64ConfigEntry
+{
+public:
+    template <typename T>
+    constexpr EventConfigEntry(T t)
+        : Uint64ConfigEntry(t)
+    {
+    }
+
+    static constexpr AtomConfigRenderer config_renderer()
+    {
+        return AtomConfigRenderer("eventid", AtomConfigRenderer::SKIP_SIZE);
+    }
+};
+
 /// Implementation class for string configuration entries. The template
 /// argument is the string size (total space in bytes used in the configuration
 /// space including the NULL character).
