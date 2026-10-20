@@ -96,18 +96,11 @@ class TwoIfPIPClientTest : public AsyncNodeTest
 protected:
     TwoIfPIPClientTest()
     {
-        AddAliasAllocator(SECOND_NODE_ID, &secondIf_);
-        secondIf_.add_addressed_message_support();
-        // Adds one alias buffer to the alias allocation flow.
-        auto* b = secondIf_.alias_allocator()->alloc();
-        secondIf_.alias_allocator()->send(b);
+        wait();
     }
 
     ~TwoIfPIPClientTest()
     {
-        // This delay is needed for the second If to successfully finish the
-        // alias allocation flow.
-        usleep(300000);
         wait();
     }
 
@@ -116,6 +109,14 @@ protected:
 
     const uint64_t SECOND_NODE_ID = TEST_NODE_ID + 256;
     IfCan secondIf_{&g_executor, &can_hub0, 10, 10, 5};
+    AddAliasAllocator alloc_{SECOND_NODE_ID, &secondIf_};
+    // Runs on the main executor before secondNode_ is constructed (and thus
+    // before its initialization flow is queued), so the node finds a reserved
+    // alias right away.
+    RunInConstructOnMain initSecond_{[this]() {
+        secondIf_.add_addressed_message_support();
+        secondIf_.alias_allocator()->TEST_add_allocated_alias(0xFF2);
+    }};
     DefaultNode secondNode_{&secondIf_, SECOND_NODE_ID};
     PIPClient client_{&secondIf_};
 };

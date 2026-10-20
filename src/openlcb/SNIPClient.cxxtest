@@ -54,10 +54,6 @@ class SNIPClientTest : public AsyncNodeTest
 protected:
     SNIPClientTest()
     {
-        eb_.release_block();
-        run_x([this]() {
-            ifTwo_.alias_allocator()->TEST_add_allocated_alias(0xFF2);
-        });
         wait();
     }
 
@@ -77,12 +73,14 @@ protected:
 
     // These objects create a second node on the CAN bus (with its own
     // interface).
-    BlockExecutor eb_ {&g_executor};
     static constexpr NodeID TWO_NODE_ID = 0x02010d0000ddULL;
 
     IfCan ifTwo_ {&g_executor, &can_hub0, local_alias_cache_size,
         remote_alias_cache_size, local_node_count};
     AddAliasAllocator alloc_ {TWO_NODE_ID, &ifTwo_};
+    RunInConstructOnMain initTwo_{[this]() {
+        ifTwo_.alias_allocator()->TEST_add_allocated_alias(0xFF2);
+    }};
     DefaultNode nodeTwo_ {&ifTwo_, TWO_NODE_ID};
 };
 
