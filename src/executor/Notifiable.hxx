@@ -87,6 +87,16 @@ public:
         sem_.wait();
     }
 
+#if OPENMRN_FEATURE_SEM_TIMEDWAIT
+    /// Blocks the current thread until the notification is delivered or timeout occurs.
+    /// @param timeout timeout in nanoseconds.
+    /// @return 0 upon success, else -1 with errno set to indicate error
+    int timedwait_for_notification(long long timeout)
+    {
+        return sem_.timedwait(timeout);
+    }
+#endif
+
 private:
     /// Semaphore helping the implementation.
     OSSem sem_;
