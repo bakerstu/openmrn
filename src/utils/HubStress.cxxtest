@@ -96,9 +96,9 @@ public:
         hub()->send(b);
     }
 
-    void wait_for_notification()
+    bool wait_for_notification(long long timeout_nsec = SEC_TO_NSEC(60))
     {
-        return n_.wait_for_notification();
+        return n_.timedwait_for_notification(timeout_nsec) == 0;
     }
 
 private:
@@ -192,7 +192,8 @@ protected:
         }
         for (auto &a : injectEndpoints_)
         {
-            a->wait_for_notification();
+            ASSERT_TRUE(a->wait_for_notification(SEC_TO_NSEC(60)))
+                << "HubStressTest timed out waiting for round completion!";
         }
     }
 

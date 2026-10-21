@@ -36,6 +36,8 @@
 #ifndef _OS_FAKECLOCK_HXX_
 #define _OS_FAKECLOCK_HXX_
 
+#include <atomic>
+
 #include "executor/Executor.hxx"
 #include "os/os.h"
 #include "utils/Singleton.hxx"
@@ -50,7 +52,10 @@ protected:
     {
     }
 
-    long long lastTime_;
+    /// Current fake time. Atomic because advance() is called from the test
+    /// thread while get_time_nsec() is called concurrently from executor
+    /// threads; a lost update would roll fake time backwards.
+    std::atomic<long long> lastTime_;
 };
 
 /// Class that injects a fake progression of time for unit tests. When this

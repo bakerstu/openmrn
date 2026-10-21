@@ -78,10 +78,6 @@ public:
 
     MemoryConfigClientTest()
     {
-        EXPECT_CALL(canBus_, mwrite(":X10701FF2N02010D0000DD;")).Times(1);
-        EXPECT_CALL(canBus_, mwrite(":X19100FF2N02010D0000DD;")).Times(1);
-        eb_.release_block();
-        run_x([this](){ifTwo_.alias_allocator()->TEST_add_allocated_alias(0xFF2);});
         wait();
         memCfg_.registry()->insert(node_, 0x51, &srvSpace_);
         memCfg_.registry()->insert(node_, 0x52, &tSpace_);
@@ -136,11 +132,14 @@ public:
     }
 
 
-    BlockExecutor eb_{&g_executor};
-
     IfCan ifTwo_{&g_executor, &can_hub0, local_alias_cache_size,
         remote_alias_cache_size, local_node_count};
     AddAliasAllocator alloc_{TWO_NODE_ID, &ifTwo_};
+    RunInConstructOnMain initTwo_{[this]() {
+        EXPECT_CALL(canBus_, mwrite(":X10701FF2N02010D0000DD;")).Times(1);
+        EXPECT_CALL(canBus_, mwrite(":X19100FF2N02010D0000DD;")).Times(1);
+        ifTwo_.alias_allocator()->TEST_add_allocated_alias(0xFF2);
+    }};
     DefaultNode nodeTwo_{&ifTwo_, TWO_NODE_ID};
 
     CanDatagramService dgService_{ifCan_.get(), 10, 2};

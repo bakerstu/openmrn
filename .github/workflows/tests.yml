@@ -30,7 +30,16 @@ jobs:
           path: googletest
 
       - name: Install dependent packages
-        run: sudo apt install -y libavahi-client-dev libssl-dev
+        run: sudo apt install -y libavahi-client-dev libssl-dev ccache
+
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.ref }}-
+            ccache-${{ runner.os }}-
 
       - name: Look at proc
         run: cat /proc/cpuinfo
@@ -38,6 +47,7 @@ jobs:
       - name: Run tests
         run: |
           echo "concurrency: " ${{ github.workflow }}-${{ github.sha }}
+          export PATH="/usr/lib/ccache:$PATH"
           cd openmrn
           TESTBLACKLIST="utils/SocketClient.cxxtest openlcb/IfTcp.cxxtest"
           make -j5 -k tests TESTBLACKLIST="$TESTBLACKLIST" || \
