@@ -356,12 +356,15 @@ public:
     }
 };
 
-/// Implementation class for event ID configuration entries.
+/// Implementation class for event ID configuration entries. This class does
+/// not register itself for event IDs that get automatically filled during
+/// factory reset. There has to be explicit code written in a configured object
+/// that performs factory reset for this entry.
 class EventConfigEntryNoInit : public Uint64ConfigEntry
 {
 public:
     template <typename T>
-    constexpr EventConfigEntry(T t)
+    constexpr EventConfigEntryNoInit(T t)
         : Uint64ConfigEntry(t)
     {
     }
