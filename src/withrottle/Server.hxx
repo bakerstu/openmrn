@@ -34,6 +34,7 @@
 #include "executor/Dispatcher.hxx"
 #include "executor/Service.hxx"
 #include "openlcb/TractionThrottle.hxx"
+#include "utils/FdUtils.hxx"
 #include "utils/socket_listener.hxx"
 #include "withrottle/Defs.hxx"
 #include "withrottle/ServerCommand.hxx"
@@ -216,6 +217,10 @@ private:
  */
 inline void Server::on_new_connection(int fd)
 {
+    // The flow uses select-based I/O on the executor, which requires a
+    // non-blocking fd; accept() returns a blocking one. This must happen
+    // before the flow is started.
+    FdUtils::set_nonblocking(fd);
     ThrottleFlow *flow = new ThrottleFlow(this, fd, node);
     flow->start();
 }

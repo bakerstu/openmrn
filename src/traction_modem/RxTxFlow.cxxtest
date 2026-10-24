@@ -1,6 +1,7 @@
 #include "utils/test_main.hxx"
 #include "os/FakeClock.hxx"
 #include "os/os.h"
+#include "utils/FdUtils.hxx"
 
 #include "traction_modem/TxFlow.hxx"
 #include "traction_modem/RxFlow.hxx"
@@ -52,9 +53,7 @@ protected:
         pipe(fd_);
         for (unsigned i = 0; i < 2; ++i)
         {
-            int opt = fcntl(fd_[i], F_GETFL);
-            opt |= O_NONBLOCK;
-            fcntl(fd_[i], F_SETFL, opt);
+            FdUtils::set_nonblocking(fd_[i]);
         }
         flow_.start(fd_[1]);
     }
@@ -112,9 +111,7 @@ protected:
     {
         pipe(fd_);
         // Only make the read pipe non-blocking.
-        int opt = fcntl(fd_[0], F_GETFL);
-        opt |= O_NONBLOCK;
-        fcntl(fd_[0], F_SETFL, opt);
+        FdUtils::set_nonblocking(fd_[0]);
         flow_.start(fd_[0]);
         wait_for_main_executor();
     }

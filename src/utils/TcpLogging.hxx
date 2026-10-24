@@ -39,6 +39,7 @@
 #include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
+#include "utils/FdUtils.hxx"
 #include "utils/logging.h"
 #include "utils/Singleton.hxx"
 #include "utils/socket_listener.hxx"
@@ -150,15 +151,13 @@ private:
     /// newly opened connection.
     void on_new_connection(int fd)
     {
+        // Must be non-blocking before the writer flow can see it.
+        FdUtils::set_nonblocking(fd);
         if (fd_ >= 0)
         {
             ::close(fd_);
         }
         fd_ = fd;
-        if (fd_ >= 0)
-        {
-            ::fcntl(fd_, F_SETFL, ::fcntl(fd_, F_GETFL, 0) | O_NONBLOCK);
-        }
     }
 
     /// Helper class for listening on a TCP socket.
