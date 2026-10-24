@@ -373,12 +373,15 @@ int Esp32HardwareI2C::open(const char *path, int flags, int mode)
     {
         new_dev.port = I2C_NUM_0;
     }
-#if SOC_I2C_NUM > 1
+// NOTE: SOC_I2C_NUM includes LP I2C controllers on newer SoCs (ESP32-C6),
+// which do not provide I2C_NUM_1.
+#if (defined(SOC_HP_I2C_NUM) && SOC_HP_I2C_NUM > 1) ||                         \
+    (!defined(SOC_HP_I2C_NUM) && SOC_I2C_NUM > 1)
     else if (path_str.back() == '1')
     {
         new_dev.port = I2C_NUM_1;
     }
-#endif // SOC_I2C_NUM > 1
+#endif // SOC_HP_I2C_NUM > 1 || SOC_I2C_NUM > 1
     else
     {
         LOG_ERROR("[I2C] Unsupported I2C path: %s", path);
