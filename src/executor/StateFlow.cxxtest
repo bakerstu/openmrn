@@ -465,6 +465,13 @@ protected:
         {                                                                      \
             start_flow(STATE(test_state));                                     \
         }                                                                      \
+        ~TestFlow()                                                            \
+        {                                                                      \
+            /* finished() notifies the test thread before returning to the  */ \
+            /* executor, which then still writes state_. Wait for that to   */ \
+            /* complete before the object gets destroyed. */                   \
+            wait_for_main_executor();                                          \
+        }                                                                      \
         Action test_state()                                                    \
         {                                                                      \
             parent_->bnIn_.notify();                                           \
@@ -594,10 +601,11 @@ TEST_F(StateFlowPipeTest, TestReadWithTimeoutLongTimeout)
 TEST_F(StateFlowPipeTest, TestReadWithTimeoutShortTimeout)
 {
     // If the timeout is shorter we will return partial data.
+    // The flow (and thus the timeout) starts in the constructor of flow.
+    long long t_start = OSTime::get_monotonic();
     DECL_FLOW(
         return read_repeated_with_timeout(&timedSelectHelper_, MSEC_TO_NSEC(70),
             parent_->fdRecv_, parent_->recvBuf_, 5, STATE(finished)));
-    long long t_start = OSTime::get_monotonic();
     inTestState_.wait_for_notification();
     wait_for_main_executor();
     EXPECT_FALSE(bnOut_.is_done());
