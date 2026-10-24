@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_BITBANG_I2C_HXX_
 #define _FREERTOS_DRIVERS_COMMON_BITBANG_I2C_HXX_
 
-#include "I2C.hxx"
+#include "freertos_drivers/common/I2C.hxx"
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"
 

@@ -5,7 +5,7 @@ extern "C" {
 #include <osapi.h>
 #include <mem.h>
 #include <user_interface.h>
-#include "ets_rom.h"
+#include "esp8266/ets_rom.h"
 }
 
 #include <sys/stat.h>

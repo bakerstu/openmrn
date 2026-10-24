@@ -33,7 +33,7 @@
  * @date 8 April 2020
  */
 
-#include "RailcomDriver.hxx" // for debug pins
+#include "freertos_drivers/common/RailcomDriver.hxx"
 #include "dcc/Receiver.hxx"
 #include "dcc/PacketProcessor.hxx"
 #include "dcc/packet.h"

@@ -47,15 +47,15 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
 #include "hardware.hxx"
 #include "DccHardware.hxx"
-#include "DummyGPIO.hxx"
-#include "TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
 
 
-#include "TivaRailcom.hxx"
-#include "TivaDCC.hxx"
+#include "freertos_drivers/ti/TivaRailcom.hxx"
+#include "freertos_drivers/ti/TivaDCC.hxx"
 
 
 /** override stdin */

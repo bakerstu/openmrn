@@ -43,7 +43,7 @@
 #include "driverlib/rom.h"
 #include "driverlib/cpu.h"
 
-#include "CC32x0SFSPIFFS.hxx"
+#include "freertos_drivers/spiffs/cc32x0sf/CC32x0SFSPIFFS.hxx"
 #include "../cc32x0sf/TiSPIFFSImpl.hxx"
 
 /// Explicit instantion of the template so that the functions get compiled and

@@ -35,7 +35,7 @@
 #include <new>
 #include <cstdint>
 
-#include "stm32f0xx_hal_conf.h"
+#include "freertos_drivers/st/stm32f0xx_hal_conf.h"
 #include "stm32f0xx_hal_rcc.h"
 #include "stm32f0xx_hal_flash.h"
 #include "stm32f0xx_hal_gpio.h"
@@ -45,12 +45,12 @@
 #include "stm32f0xx_hal.h"
 
 #include "os/OS.hxx"
-#include "Stm32Uart.hxx"
-#include "Stm32Can.hxx"
-#include "Stm32EEPROMEmulation.hxx"
-#include "Stm32RailcomSender.hxx"
+#include "freertos_drivers/st/Stm32Uart.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32EEPROMEmulation.hxx"
+#include "freertos_drivers/st/Stm32RailcomSender.hxx"
 #include "hardware.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 struct Debug
 {
@@ -60,7 +60,7 @@ struct Debug
     typedef DummyPin CapTimerOverflow;
 };
 
-#include "Stm32DCCDecoder.hxx"
+#include "freertos_drivers/st/Stm32DCCDecoder.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

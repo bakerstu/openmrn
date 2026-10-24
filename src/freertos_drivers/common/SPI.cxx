@@ -37,8 +37,8 @@
 
 #include <cstdint>
 #include <fcntl.h>
-#include "Devtab.hxx"
-#include "SPI.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
+#include "freertos_drivers/common/SPI.hxx"
 
 /** Conduct multiple message transfers with one stop at the end.
  * @param msgs array of messages to transfer

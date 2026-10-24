@@ -1,7 +1,7 @@
 
-#include "Stm32Gpio.hxx"
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "utils/GpioInitializer.hxx"
-#include "BlinkerGPIO.hxx"
+#include "freertos_drivers/common/BlinkerGPIO.hxx"
 
 GPIO_PIN(LED_GREEN_RAW, LedPin, B, 3);
 

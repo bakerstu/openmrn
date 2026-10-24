@@ -37,7 +37,7 @@
 
 #include <cstdint>
 
-#include "Serial.hxx"
+#include "freertos_drivers/common/Serial.hxx"
 
 #include "cmsis.h"
 #if defined (CHIP_LPC175X_6X)
