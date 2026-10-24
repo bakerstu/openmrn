@@ -373,18 +373,18 @@ TEST(NMRAnetVelocityTest, set_get_dcc_128_equivalent)
 
 TEST(NMRAnetVelocityTest, get_dcc_28_forward)
 {
-    Velocity *velocity = new Velocity(100.5F);
+    Velocity *velocity = new Velocity(53.5F);
     
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);    
-    EXPECT_TRUE(velocity->get_dcc_28() == (0x40 | 0x16 | 0x20));
+    EXPECT_EQ((0x40 | 0x1E | 0x20), velocity->get_dcc_28());
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_28_reverse)
 {
-    Velocity *velocity = new Velocity(-100.5F);
+    Velocity *velocity = new Velocity(-53.5F);
     
     EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
-    EXPECT_TRUE(velocity->get_dcc_28() == (0x40 | 0x16));
+    EXPECT_EQ((0x40 | 0x1E), velocity->get_dcc_28());
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_28_zero)
@@ -405,22 +405,25 @@ TEST(NMRAnetVelocityTest, get_dcc_28_saturate)
 
 TEST(NMRAnetVelocityTest, set_dcc_28_forward)
 {
-    Velocity *velocity = new Velocity();
+    Velocity velocity;
+
+    // Forward step 10.
+    velocity.set_dcc_28(0x40 | 0x16 | 0x20);
     
-    velocity->set_dcc_28(0x40 | 0x16 | 0x20);
-    
-    EXPECT_EQ(velocity->direction(), Velocity::FORWARD);    
-    EXPECT_TRUE(*velocity == (10.0F / ((0.44704F * 28.0F)/128.0F)));
+    EXPECT_EQ(velocity.direction(), Velocity::FORWARD);
+    EXPECT_NEAR(20.4, velocity.speed(), 0.05);
 }
 
 TEST(NMRAnetVelocityTest, set_dcc_28_reverse)
 {
-    Velocity *velocity = new Velocity();
+    Velocity velocity;
+
+    // Reverse step 10.
+    velocity.set_dcc_28(0x40 | 0x16);
     
-    velocity->set_dcc_28(0x40 | 0x16);
-    
-    EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
-    EXPECT_TRUE(*velocity == -(10.0F / ((0.44704F * 28.0F)/128.0F)));
+    EXPECT_EQ(velocity.direction(), Velocity::REVERSE);
+    EXPECT_NEAR(20.4, velocity.speed(), 0.05);
+    EXPECT_EQ(0x40U | 0x16U, velocity.get_dcc_28());
 }
 
 TEST(NMRAnetVelocityTest, set_dcc_28_forward_estop_I)
@@ -445,18 +448,18 @@ TEST(NMRAnetVelocityTest, set_dcc_28_forward_stop)
 
 TEST(NMRAnetVelocityTest, get_dcc_14_forward)
 {
-    Velocity *velocity = new Velocity(100.5F);
+    Velocity *velocity = new Velocity(53.5F);
     
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);    
-    EXPECT_TRUE(velocity->get_dcc_14() == (0x40 | 0x06 | 0x20));
+    EXPECT_EQ((0x40 | 0x0E | 0x20), velocity->get_dcc_14());
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_14_reverse)
 {
-    Velocity *velocity = new Velocity(-100.5F);
+    Velocity *velocity = new Velocity(-53.5F);
     
     EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
-    EXPECT_TRUE(velocity->get_dcc_14() == (0x40 | 0x06));
+    EXPECT_EQ((0x40 | 0x0E), velocity->get_dcc_14());
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_14_zero)
@@ -477,22 +480,22 @@ TEST(NMRAnetVelocityTest, get_dcc_14_saturate)
 
 TEST(NMRAnetVelocityTest, set_dcc_14_forward)
 {
-    Velocity *velocity = new Velocity();
+    Velocity velocity;
     
-    velocity->set_dcc_14(0x40 | 0x06 | 0x20);
+    velocity.set_dcc_14(0x40 | 0x06 | 0x20);
     
-    EXPECT_EQ(velocity->direction(), Velocity::FORWARD);    
-    EXPECT_TRUE(*velocity == (5.0F / ((0.44704F * 14.0F)/128.0F)));
+    EXPECT_EQ(velocity.direction(), Velocity::FORWARD);
+    EXPECT_NEAR(20.4, velocity.speed(), 0.05);
 }
 
 TEST(NMRAnetVelocityTest, set_dcc_14_reverse)
 {
-    Velocity *velocity = new Velocity();
+    Velocity velocity;
     
-    velocity->set_dcc_14(0x40 | 0x06);
+    velocity.set_dcc_14(0x40 | 0x06);
     
-    EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
-    EXPECT_TRUE(*velocity == -(5.0F / ((0.44704F * 14.0F)/128.0F)));
+    EXPECT_EQ(velocity.direction(), Velocity::REVERSE);
+    EXPECT_NEAR(20.4, velocity.speed(), 0.05);
 }
 
 TEST(NMRAnetVelocityTest, set_dcc_14_forward_estop)
@@ -513,6 +516,78 @@ TEST(NMRAnetVelocityTest, set_dcc_14_forward_stop)
     
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);    
     EXPECT_TRUE(*velocity == 0);
+}
+
+TEST(NMRAnetVelecityTest, speed_step_conversions)
+{
+    Velocity velocity;
+
+    //
+    // Set 14, get 28/128
+    //
+
+    // Forward speed step 1, 28SS = 2, 128SS = 9.
+    velocity.set_dcc_14(0x40 | 0x02);
+    EXPECT_EQ(0x40U | 0x12U, velocity.get_dcc_28());
+    EXPECT_EQ(9 + 1, velocity.get_dcc_128());
+    // Forward speed step 2, 28SS = 4, 128SS = 18.
+    velocity.set_dcc_14(0x40 | 0x03);
+    EXPECT_EQ(0x40U | 0x13U, velocity.get_dcc_28());
+    EXPECT_EQ(18 + 1, velocity.get_dcc_128());
+    // Forward speed step 14, 28SS = 28, 128SS = 126
+    velocity.set_dcc_14(0x40 | 0x0F);
+    EXPECT_EQ(0x40U | 0x1FU, velocity.get_dcc_28());
+    EXPECT_EQ(126 + 1, velocity.get_dcc_128());
+    // Forward speed step 7, 28SS = 14, 128SS = 64.
+    velocity.set_dcc_14(0x40 | 0x08);
+    EXPECT_EQ(0x40U | 0x18U, velocity.get_dcc_28());
+    EXPECT_EQ(64 + 1, velocity.get_dcc_128());
+
+    //
+    // Set 28, get 14/128
+    //
+
+    // Forward speed step 1, 14SS = 1, 128SS = 5.
+    velocity.set_dcc_28(0x40 | 0x02);
+    EXPECT_EQ(0x40U | 0x02U, velocity.get_dcc_14());
+    EXPECT_EQ(5 + 1, velocity.get_dcc_128());
+    // Forward speed step 2, 14SS = 1, 128SS = 9.
+    velocity.set_dcc_28(0x40 | 0x12);
+    EXPECT_EQ(0x40U | 0x02U, velocity.get_dcc_14());
+    EXPECT_EQ(9 + 1, velocity.get_dcc_128());
+    // Forward speed step 28, 14SS = 15, 128SS = 126
+    velocity.set_dcc_28(0x40 | 0x1F);
+    EXPECT_EQ(0x40U | 0x0FU, velocity.get_dcc_14());
+    EXPECT_EQ(126 + 1, velocity.get_dcc_128());
+    // Forward speed step 14, 14SS = 7, 128SS = 64.
+    velocity.set_dcc_28(0x40 | 0x18);
+    EXPECT_EQ(0x40U | 0x08U, velocity.get_dcc_14());
+    EXPECT_EQ(64 + 1, velocity.get_dcc_128());
+
+    //
+    // Set 128, get 14/28
+    //
+
+    // Forward speed step 1.
+    velocity.set_dcc_128(2);
+    EXPECT_EQ(0x40U | 0x02U, velocity.get_dcc_14());
+    EXPECT_EQ(0x40U | 0x02U, velocity.get_dcc_28());
+    // Forward speed step 6, 14SS = 1, 28SS = 1.
+    velocity.set_dcc_128(7);
+    EXPECT_EQ(0x40U | 0x02U, velocity.get_dcc_14());
+    EXPECT_EQ(0x40U | 0x02U, velocity.get_dcc_28());
+    // Forward speed step 7, 14SS = 1, 28SS = 2.
+    velocity.set_dcc_128(8);
+    EXPECT_EQ(0x40U | 0x02U, velocity.get_dcc_14());
+    EXPECT_EQ(0x40U | 0x12U, velocity.get_dcc_28());
+    // Forward speed step 126.
+    velocity.set_dcc_128(127);
+    EXPECT_EQ(0x40U | 0x0FU, velocity.get_dcc_14());
+    EXPECT_EQ(0x40U | 0x1FU, velocity.get_dcc_28());
+    // Forward speed step 63.
+    velocity.set_dcc_128(63);
+    EXPECT_EQ(0x40U | 0x08U, velocity.get_dcc_14());
+    EXPECT_EQ(0x40U | 0x18U, velocity.get_dcc_28());
 }
 
 TEST(NMRAnetVelocityTest, operators_value)
