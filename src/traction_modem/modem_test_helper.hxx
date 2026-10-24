@@ -132,7 +132,7 @@ protected:
             EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
                 "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1)
                 .InSequence(s1, s2);
-            link_.start(50);
+            run_x([this]() { link_.start(50); });
             wait_for_main_executor();
         }
         {
