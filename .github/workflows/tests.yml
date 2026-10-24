@@ -7,6 +7,13 @@ on:
   pull_request:
     branches:
       - '*'
+  # Scheduled runs always use the default branch. This refreshes master's
+  # ccache, which every branch can restore, before GitHub evicts it after 7
+  # days without use.
+  schedule:
+    - cron: '17 3 * * 5'  # Fridays 03:17 UTC, so the cache is warm for weekend work
+  # Allows manually running on master (e.g. to seed the cache).
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.sha }}
@@ -32,11 +39,14 @@ jobs:
       - name: Install dependent packages
         run: sudo apt install -y libavahi-client-dev libssl-dev ccache
 
-      - name: Setup ccache
-        uses: actions/cache@v4
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ccache
           key: ccache-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+          # Note: GitHub only lets a run restore caches from its own ref or
+          # from the default branch, so a new branch is cold until master has
+          # a cache.
           restore-keys: |
             ccache-${{ runner.os }}-${{ github.ref }}-
             ccache-${{ runner.os }}-
@@ -48,8 +58,21 @@ jobs:
         run: |
           echo "concurrency: " ${{ github.workflow }}-${{ github.sha }}
           export PATH="/usr/lib/ccache:$PATH"
+          ccache --zero-stats
           cd openmrn
           TESTBLACKLIST="utils/SocketClient.cxxtest openlcb/IfTcp.cxxtest"
           make -j5 -k tests TESTBLACKLIST="$TESTBLACKLIST" || \
           { echo "Retrying failed tests in parallel (attempt 2)..."; make -j5  -k tests TESTBLACKLIST="$TESTBLACKLIST"; } || \
           { echo "Retrying failed tests sequentially with tests-single (attempt 3)..."; make -j5 tests-single TESTBLACKLIST="$TESTBLACKLIST"; }
+
+      - name: ccache statistics
+        if: always()
+        run: ccache --show-stats --verbose
+
+      # Save even when the tests failed, so that the next run is warm.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
