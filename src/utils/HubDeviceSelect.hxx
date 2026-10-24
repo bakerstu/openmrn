@@ -45,6 +45,7 @@
 #include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
+#include "utils/FdUtils.hxx"
 #include "utils/Hub.hxx"
 #include "utils/LimitedPool.hxx"
 
@@ -325,7 +326,11 @@ public:
     /// @param on_error notifiable that will be called when a write or read
     /// error is encountered.
     HubDeviceSelect(HFlow *hub, int fd, Notifiable *on_error = nullptr)
-        : FdHubPortService(hub->service()->executor(), fd)
+        // The fd must be non-blocking before readFlow_ is constructed:
+        // readFlow_ starts itself on the executor, which may call ::read() on
+        // the fd right away -- possibly before this constructor's body runs.
+        : FdHubPortService(
+              hub->service()->executor(), FdUtils::set_nonblocking(fd))
         , hub_(hub)
         , readFlow_(this, hub, &writeFlow_)
         , writeFlow_(this)
@@ -334,12 +339,6 @@ public:
         barrier_.reset(
             on_error ? on_error : EmptyNotifiable::DefaultInstance());
         barrier_.new_child();
-#ifdef __WINNT__
-        unsigned long par = 1;
-        ioctlsocket(fd_, FIONBIO, &par);
-#else
-        ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
-#endif
         hub_->register_port(write_port());
         isRegistered_ = true;
     }
