@@ -36,12 +36,45 @@
 #define _UTILS_FD_UTILS_HXX_
 
 #include <unistd.h>
+#ifdef __WINNT__
+#include <winsock2.h>
+#else
+#include <fcntl.h>
+#endif
 
 #include "utils/logging.h"
 #include "utils/macros.h"
 
 struct FdUtils
 {
+    /// Puts a file descriptor into non-blocking mode, preserving its other
+    /// status flags. Crashes if the fcntl call fails.
+    ///
+    /// Returns the fd so that it can be used inline, e.g. in a constructor
+    /// initializer list, to ensure the fd is non-blocking before any flow
+    /// that does select-based I/O on it is started.
+    ///
+    /// @param fd the file descriptor. If negative, nothing is done.
+    /// @return fd.
+    static int set_nonblocking(int fd)
+    {
+        if (fd < 0)
+        {
+            return fd;
+        }
+#ifdef __WINNT__
+        unsigned long par = 1;
+        int ret = ioctlsocket(fd, FIONBIO, &par);
+        HASSERT(ret == 0);
+#else
+        int flags = ::fcntl(fd, F_GETFL, 0);
+        HASSERT(flags >= 0);
+        int ret = ::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        HASSERT(ret >= 0);
+#endif
+        return fd;
+    }
+
     /// Performs a reliable read from the given FD. Crashes if the read fails.
     ///
     /// @param fd the file to read data from
