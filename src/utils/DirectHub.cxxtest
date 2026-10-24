@@ -40,7 +40,7 @@ public:
     void start(int fd, std::function<void(uint8_t *, size_t)> cb)
     {
         ERRNOCHECK("dup", fd_ = dup(fd));
-        ERRNOCHECK("fcntl", ::fcntl(fd_, F_SETFL, O_RDWR | O_NONBLOCK));
+        FdUtils::set_nonblocking(fd_);
 
         cb_ = std::move(cb);
         isRunning_ = true;
@@ -507,7 +507,7 @@ protected:
     /// @return number of total bytes written.
     size_t write_a_lot(int fd)
     {
-        ERRNOCHECK("fcntl", ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK));
+        FdUtils::set_nonblocking(fd);
         size_t total = 0;
         for (int i = 0; i < 200; ++i)
         {
@@ -528,7 +528,7 @@ protected:
 
     static unsigned flush_data(int fd)
     {
-        ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
+        FdUtils::set_nonblocking(fd);
         int ret;
         unsigned total = 0;
 
@@ -811,6 +811,7 @@ TEST_F(DirectHubTest, socket_blocked)
 
     // We should survive the case when a blocked socket dies.
     ::close(fdTwo_);
+    fdTwo_ = -1;
     wait_for_main_executor();
 
     total += write_a_lot(fdOne_);

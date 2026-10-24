@@ -55,6 +55,7 @@
 #include "executor/AsyncNotifiableBlock.hxx"
 #include "executor/StateFlow.hxx"
 #include "nmranet_config.h"
+#include "utils/FdUtils.hxx"
 #include "utils/logging.h"
 #include "utils/socket_listener.hxx"
 
@@ -546,12 +547,7 @@ public:
         , fd_(fd)
         , onError_(on_error)
     {
-#ifdef __WINNT__
-        unsigned long par = 1;
-        ioctlsocket(fd_, FIONBIO, &par);
-#else
-        ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
-#endif
+        FdUtils::set_nonblocking(fd_);
 
         // Sets the initial state of the write flow to the stage where we read
         // the next entry from the queue.

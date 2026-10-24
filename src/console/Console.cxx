@@ -36,6 +36,7 @@
 #endif
 
 #include "console/Console.hxx"
+#include "utils/FdUtils.hxx"
 
 #if defined (CONSOLE_NETWORKING)
 #include <netinet/tcp.h>
@@ -83,7 +84,7 @@ Console::Console(ExecutorBase *executor, int fd_in, int fd_out, int port)
 void Console::open_session(int fd_in, int fd_out)
 {
 #if OPENMRN_FEATURE_BSD_SOCKETS
-    fcntl(fd_in, F_SETFL, fcntl(fd_in, F_GETFL, 0) | O_NONBLOCK);
+    FdUtils::set_nonblocking(fd_in);
 #endif
     new Session(this, fd_in, fd_out);
 }
@@ -224,8 +225,7 @@ Console::Listen::Listen(Service *service, int port)
     HASSERT(result == 0);
 
     /* set socket non-blocking */
-    result = fcntl(fdListen, F_SETFL, fcntl(0, F_GETFL, 0) | O_NONBLOCK);
-    HASSERT(result == 0);
+    FdUtils::set_nonblocking(fdListen);
 
     /* mark socket as listen */
     result = ::listen(fdListen, 10);

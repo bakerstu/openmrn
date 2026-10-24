@@ -229,10 +229,8 @@ protected:
             , nodeId_(node_id)
         {
             ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fds_));
-            ERRNOCHECK("fcntl", fcntl(fds_[0], F_SETFL,
-                                    fcntl(fds_[0], F_GETFL, 0) | O_NONBLOCK));
-            ERRNOCHECK("fcntl", fcntl(fds_[1], F_SETFL,
-                                    fcntl(fds_[1], F_GETFL, 0) | O_NONBLOCK));
+            FdUtils::set_nonblocking(fds_[0]);
+            FdUtils::set_nonblocking(fds_[1]);
             ifTcp_.add_network_fd(fds_[1]);
             parent->ifTcp_.add_network_fd(fds_[0]);
         }

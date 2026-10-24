@@ -218,8 +218,7 @@ protected:
     {
         // ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
         ERRNOCHECK("pipe", ::pipe(fds));
-        ERRNOCHECK("fcntl",
-            fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK));
+        FdUtils::set_nonblocking(fds[0]);
         hubPortService_.reset(
             new ::testing::StrictMock<MockHubPortService>(fds[0]));
         recvFlow_.reset(new FdToTcpParser(
@@ -654,8 +653,7 @@ TEST_F(RemoteTcpIfTest, output_packet)
         eventid_to_buffer(UINT64_C(0x0102030405060708)));
     usleep(1000);
     wait();
-    ERRNOCHECK("fcntl",
-        fcntl(fds_[1], F_SETFL, fcntl(fds_[1], F_GETFL, 0) | O_NONBLOCK));
+    FdUtils::set_nonblocking(fds_[1]);
     char buf[100];
     ssize_t ret = ::read(fds_[1], buf, sizeof(buf));
     ASSERT_LT(0, ret);
@@ -691,8 +689,7 @@ TEST_F(RemoteTcpIfTest, input_packet)
     wait();
     expect_packet_is(lastPacket_, Defs::MTI_EVENT_REPORT, 0x050102030405ULL,
         eventid_to_buffer(0x0102030405060708ULL));
-    ERRNOCHECK("fcntl",
-        fcntl(fds_[1], F_SETFL, fcntl(fds_[1], F_GETFL, 0) | O_NONBLOCK));
+    FdUtils::set_nonblocking(fds_[1]);
     char buf[100];
     // We check that nothing came back.
     ssize_t ret = ::read(fds_[1], buf, sizeof(buf));
