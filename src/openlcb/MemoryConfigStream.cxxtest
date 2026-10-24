@@ -151,9 +151,6 @@ TEST_F(MemoryConfigTest, manual)
     wait();
     clear_expect(true);
 
-    // stream initiate reply, accept, window 240, SID 0x02 DID 0x37
-    send_packet(":X1986877CN022A00F080000237;");
-
     //::testing::InSequence seq;
 
     // datagram received ok, response pending. This is for the dg opening the
@@ -171,6 +168,9 @@ TEST_F(MemoryConfigTest, manual)
 
     // stream complete, SID 02 DID 37 sent bytes 13
     expect_packet(":X198A822AN077C02370000000D;");
+
+    // stream initiate reply, accept, window 240, SID 0x02 DID 0x37
+    send_packet(":X1986877CN022A00F080000237;");
 
     twait();
 
@@ -196,9 +196,6 @@ TEST_F(MemoryConfigTest, no_stream_did)
     wait();
     clear_expect(true);
 
-    // stream initiate reply, accept, window 240, SID 0x02 DID 0x39
-    send_packet(":X1986877CN022A00F080000239;");
-
     //::testing::InSequence seq;
 
     // datagram received ok, response pending. This is for the dg opening the
@@ -216,6 +213,9 @@ TEST_F(MemoryConfigTest, no_stream_did)
 
     // stream complete, SID 02 DID 39 sent bytes 13
     expect_packet(":X198A822AN077C02390000000D;");
+
+    // stream initiate reply, accept, window 240, SID 0x02 DID 0x39
+    send_packet(":X1986877CN022A00F080000239;");
 
     twait();
 
@@ -240,10 +240,6 @@ TEST_F(MemoryConfigTest, stream_reject)
     wait();
     clear_expect(true);
 
-    // stream initiate reply, reject, error 0x2123, window 240, SID 0x02 DID
-    // 0x37
-    send_packet(":X1986877CN022A00F021230237;");
-
     expect_packet(":X19A2822AN077C80;"); // received ok, response pending
 
     // datagram memory config read stream reply failure, offset 2, len inf,
@@ -251,6 +247,10 @@ TEST_F(MemoryConfigTest, stream_reject)
     expect_packet(":X1B77C22AN2078000000022821;");
     expect_packet(":X1D77C22AN23;")
         .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::ack_response));
+
+    // stream initiate reply, reject, error 0x2123, window 240, SID 0x02 DID
+    // 0x37
+    send_packet(":X1986877CN022A00F021230237;");
 
     twait();
     clear_expect(true);
@@ -306,11 +306,6 @@ TEST_F(MemoryConfigTest, two_node)
     // node.
     expect_packet(":X19A48225N022A1000;");
 
-    // Reply accept, buffer length 240, src ID 02 dst id 43.
-    send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
-        first_node(), hex2str("00F080000243"));
-    wait();
-
     // stream payloads
     expect_packet(":X1F22522AN4302030405060708;");
     expect_packet(":X1F22522AN43090A0B0C0D0E;");
@@ -328,6 +323,10 @@ TEST_F(MemoryConfigTest, two_node)
                 )),
             _));
     expect_packet(":X198A822AN022502430000000D;");
+
+    // Reply accept, buffer length 240, src ID 02 dst id 43.
+    send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
+        first_node(), hex2str("00F080000243"));
 
     twait();
     clear_expect(true);
@@ -385,11 +384,6 @@ TEST_F(MemoryConfigTest, length_limit)
     // node.
     expect_packet(":X19A48225N022A1000;");
 
-    // Reply accept, buffer length 240, src ID 02 dst id 43.
-    send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
-        first_node(), hex2str("00F080000243"));
-    wait();
-
     // stream payloads
     expect_packet(":X1F22522AN4302030405060708;");
     expect_packet(":X1F22522AN43090A;");
@@ -406,6 +400,10 @@ TEST_F(MemoryConfigTest, length_limit)
                 )),
             _));
     expect_packet(":X198A822AN0225024300000009;");
+
+    // Reply accept, buffer length 240, src ID 02 dst id 43.
+    send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
+        first_node(), hex2str("00F080000243"));
 
     twait();
     clear_expect(true);
@@ -445,11 +443,11 @@ TEST_F(MemoryConfigTest, error_no_space)
 
     expect_packet(":X1B22A225N20600000000218FF;");
     expect_packet(":X1D22A225N43FFFFFFFF;");
+    // datgram rejected, permanent error.
+    expect_packet(":X19A4822AN02251081;");
     // Read stream request, space 0x18, offset 2, length infinite, dst stream
     // iD 0x43.
     inject_datagram("20600000000218FF43FFFFFFFF");
-    // datgram rejected, permanent error.
-    expect_packet(":X19A4822AN02251081;");
 
     twait();
 

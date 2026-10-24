@@ -324,10 +324,16 @@ public:
         return ret;
     }
 
-    /// Unblocks all pending packets.
+    /// Stops blocking packets and unblocks all pending packets.
     void clear_blocked()
     {
-        blockedPackets_.clear();
+        std::vector<BufferPtr<CanHubData>> blocked;
+        {
+            AtomicHolder h(this);
+            blockPackets_ = false;
+            blocked.swap(blockedPackets_);
+        }
+        // Buffers get released here, outside of the lock.
     }
 
     /// Set to true to stop acknowledging the incoming packets (from the hub).
@@ -1068,9 +1074,14 @@ TEST_F(DirectHubTest, can_bridge_block)
 
     // Once unblocked, we get a lot of flow.
     legacyReceiver_.clear_blocked();
-    legacyReceiver_.blockPackets_ = false;
 
-    total += write_a_lot(fdOne_);
+    // How much we can write depends on how fast the hub's executor drains the
+    // socket, which is slow on a loaded machine. Keep writing for a bounded
+    // number of rounds; when the flow is stuck, total stays below 6000.
+    for (int i = 0; i < 10 && total <= 50000u; ++i)
+    {
+        total += write_a_lot(fdOne_);
+    }
     wait_for_main_executor();
 
     LOG(INFO, "total %u pool %u", (unsigned)total,
