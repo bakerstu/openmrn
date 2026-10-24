@@ -54,6 +54,8 @@
 
 #include "freertos/bootloader_hal.h"
 
+OVERRIDE_CONST(gc_generate_newlines, 1);
+
 NO_THREAD nt;
 Executor<1> g_executor(nt);
 Service g_service(&g_executor);
