@@ -293,6 +293,8 @@ private:
             // all 16 channels when the duty cycle is low
             ctl.on.counts = (channel * 256);
             ctl.off.counts = (counts + (channel * 256)) % 0x1000;
+            ctl.on.fullOn = 0;
+            ctl.off.fullOff = 0;
         }
 
         ctl.on.word = htole16(ctl.on.word);
