@@ -174,6 +174,74 @@ TEST(FullCdi, EventsList)
     EXPECT_THAT(event_offsets, ElementsAre(129, 143, 161, 179, 1));
 }
 
+CDI_GROUP(NoInitGroup);
+CDI_GROUP_ENTRY(ev_init, EventConfigEntry);
+CDI_GROUP_ENTRY(ev_noinit, EventConfigEntryNoInit);
+CDI_GROUP_ENTRY(ev_init2, EventConfigEntry);
+CDI_GROUP_END();
+
+using RepNoInit = RepeatedGroup<NoInitGroup, 2>;
+
+CDI_GROUP(NoInitSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(10));
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(only_noinit, EventConfigEntryNoInit);
+CDI_GROUP_ENTRY(grp, NoInitGroup);
+CDI_GROUP_ENTRY(rep, RepNoInit);
+CDI_GROUP_END();
+
+TEST(NoInitEvent, SizeAndOffsets)
+{
+    EXPECT_EQ(8u, EventConfigEntryNoInit::size());
+    EXPECT_EQ(24u, NoInitGroup::size());
+    NoInitSegment seg(10);
+    EXPECT_EQ(10u, seg.first().offset());
+    EXPECT_EQ(11u, seg.only_noinit().offset());
+    EXPECT_EQ(19u, seg.grp().ev_init().offset());
+    EXPECT_EQ(27u, seg.grp().ev_noinit().offset());
+    EXPECT_EQ(35u, seg.grp().ev_init2().offset());
+    EXPECT_EQ(43u, seg.rep().entry<0>().offset());
+    EXPECT_EQ(67u, seg.rep().entry<1>().offset());
+}
+
+TEST(NoInitEvent, SingleEntryNotInEventsList)
+{
+    EventConfigEntryNoInit e(42);
+    std::vector<unsigned> event_offsets;
+    e.handle_events([&event_offsets](unsigned o) {
+        event_offsets.push_back(o);
+    });
+    EXPECT_TRUE(event_offsets.empty());
+
+    // Reference: a regular event entry does get reported.
+    EventConfigEntry e2(42);
+    e2.handle_events([&event_offsets](unsigned o) {
+        event_offsets.push_back(o);
+    });
+    EXPECT_THAT(event_offsets, ElementsAre(42));
+}
+
+TEST(NoInitEvent, GroupEventsList)
+{
+    NoInitGroup grp(100);
+    std::vector<unsigned> event_offsets;
+    grp.handle_events([&event_offsets](unsigned o) {
+        event_offsets.push_back(o);
+    });
+    // Offset 108 (ev_noinit) must be skipped.
+    EXPECT_THAT(event_offsets, ElementsAre(100, 116));
+}
+
+TEST(NoInitEvent, SegmentEventsList)
+{
+    NoInitSegment seg(10);
+    std::vector<unsigned> event_offsets;
+    seg.handle_events([&event_offsets](unsigned o) {
+        event_offsets.push_back(o);
+    });
+    // Skipped NoInit offsets: 11 (only_noinit), 27 (grp), 51, 75 (rep).
+    EXPECT_THAT(event_offsets, ElementsAre(19, 35, 43, 59, 67, 83));
+}
+
 TempDir dir;
 
 TEST(ReadTest, Integers)
