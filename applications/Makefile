@@ -26,7 +26,8 @@ SUBDIRS = \
 	tcp_blink_client \
 	usb_can \
     time_client \
-    time_server
+    time_server \
+    olcbping
 
 
 include $(OPENMRNPATH)/etc/recurse.mk
